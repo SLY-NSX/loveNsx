@@ -4,6 +4,13 @@
     var MY_CUST_KEY  = 'pokeSym_my_custom';
     var PTR_CUST_KEY = 'pokeSym_partner_custom';
 
+    // ===== 新增：公告翻页状态 =====
+    var _greetingPage = 'partner'; // 'partner' | 'me'
+    // 我的每日数据存储键（天气 + 今日建议，带日期）
+    var MY_DAILY_DATA_KEY = 'myDailyData';
+    // 我的今日寄语存储键（永久存储）
+    var MY_MOTTO_KEY = 'myDailyMotto';
+
     var PRESETS = [
         { value: 'none',    label: '无装饰',   sym: '' },
         { value: 'star4',   label: '✦ 四角星', sym: '✦' },
@@ -1008,6 +1015,24 @@ function showPokeTab(area) {
 
 window._dailyGreetingReady = false;
 
+    // ===== 新增：我的每日数据读写 =====
+    function _getMyDailyData() {
+        try {
+            return JSON.parse(localStorage.getItem(MY_DAILY_DATA_KEY) || '{}');
+        } catch(e) {
+            return {};
+        }
+    }
+    function _setMyDailyData(data) {
+        localStorage.setItem(MY_DAILY_DATA_KEY, JSON.stringify(data));
+    }
+    function _getMyMotto() {
+        return localStorage.getItem(MY_MOTTO_KEY) || '';
+    }
+    function _setMyMotto(val) {
+        localStorage.setItem(MY_MOTTO_KEY, val);
+    }
+
 function _getDailyGreetingData() {
     var now = new Date();
     var month = now.getMonth() + 1;
@@ -1169,7 +1194,8 @@ var statusPool = [
     return { timeLabel: timeLabel, timeEmoji: timeEmoji, festival: festival, weather: weather, status: status };
 }
 
-function _buildDailyGreeting() {
+function _buildDailyGreeting(mode) {
+    mode = mode || 'partner';
     try {
         var data = _getDailyGreetingData();
         var festival = data.festival;
@@ -1378,8 +1404,332 @@ function _buildDailyGreeting() {
                 decoWrap2.style.display = 'none';
             }
         }
+        // ===== 如果模式为 'me'，覆盖主体内容 =====
+        if (mode === 'me') {
+            _renderMyGreetingContent();
+        }
+
+        // ===== 更新翻页指示器和底部按钮 =====
+        _updateGreetingPageIndicator(mode);
+        _updateGreetingCloseButton(mode);
+
     } catch(e) { console.warn('Daily greeting build error:', e); }
 }
+
+    // ===== 新增：渲染我的页主体内容 =====
+    function _renderMyGreetingContent() {
+        var now = new Date();
+        var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+
+        var mName = (typeof settings !== 'undefined' && settings.myName) ? settings.myName : '我';
+
+        // 1. 读取我的心情数据（来自 moodData）
+        var moodDataRaw = window.moodData || {};
+        var todayMood = moodDataRaw[todayStr] || {};
+        var allMoods = (typeof getAllMoodOptions === 'function') ? getAllMoodOptions() : [];
+
+        var myMoodText = mName + ' 今天还没有记录';
+        var myMoodIcon = null;
+        var myMoodNote = '';
+
+        if (todayMood.user) {
+            for (var pi = 0; pi < allMoods.length; pi++) {
+                if (allMoods[pi].key === todayMood.user) {
+                    myMoodText = allMoods[pi].kaomoji + '  ' + allMoods[pi].label;
+                    myMoodIcon = allMoods[pi].kaomoji;
+                    break;
+                }
+            }
+            myMoodNote = todayMood.note || '';
+        }
+
+        // 2. 读取我的每日数据（天气 + 今日建议）
+        var myDailyData = _getMyDailyData();
+        var todayData = myDailyData[todayStr] || {};
+        var myWeather = todayData.weather || null;
+        var mySuggestion = todayData.suggestion || null;
+
+        // 3. 读取我的今日寄语
+        var myMotto = _getMyMotto();
+
+        function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+        function setElHTML(id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; }
+
+        // 4. 设置今日状态
+        setEl('dg-section-label-partner', mName + ' 今日状态');
+
+        // 设置心情图标
+        var moodIconEl = document.getElementById('dg-partner-mood-icon');
+        if (moodIconEl) {
+            if (myMoodIcon) {
+                moodIconEl.textContent = myMoodIcon;
+                moodIconEl.style.fontSize = '32px';
+            } else {
+                // 恢复默认图标（如果是 SVG 的话）
+                moodIconEl.innerHTML = '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--accent-color)" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>';
+                moodIconEl.style.fontSize = '';
+            }
+        }
+
+        // 设置心情文字和备注
+        setEl('dg-partner-mood', myMoodText);
+        setEl('dg-partner-mood-note', myMoodNote || (todayMood.user ? mName + ' 记录了今天的心情 ☆' : ''));
+
+        // 5. 设置天气
+        setEl('dg-weather-label', mName + ' 的天气');
+        var weatherEl = document.getElementById('dg-weather');
+        if (weatherEl) {
+            if (myWeather) {
+                weatherEl.textContent = myWeather;
+                weatherEl.style.color = '';
+                weatherEl.style.opacity = '';
+                weatherEl.style.cursor = 'pointer';
+                weatherEl.style.textDecoration = 'underline dotted';
+                weatherEl.style.textUnderlineOffset = '3px';
+            } else {
+                weatherEl.textContent = '更新天气';
+                weatherEl.style.color = 'var(--text-secondary)';
+                weatherEl.style.opacity = '0.6';
+                weatherEl.style.cursor = 'pointer';
+                weatherEl.style.textDecoration = 'underline dotted';
+                weatherEl.style.textUnderlineOffset = '3px';
+            }
+            // 绑定点击修改天气
+            weatherEl.onclick = function(e) {
+                e.stopPropagation();
+                _editMyWeather();
+            };
+        }
+
+        // 6. 设置今日建议
+        setEl('dg-status-label', mName + ' 的今日建议');
+        var statusEl = document.getElementById('dg-status');
+        if (statusEl) {
+            if (mySuggestion) {
+                statusEl.textContent = mySuggestion;
+                statusEl.style.color = '';
+                statusEl.style.opacity = '';
+                statusEl.style.cursor = 'pointer';
+                statusEl.style.textDecoration = 'underline dotted';
+                statusEl.style.textUnderlineOffset = '3px';
+            } else {
+                statusEl.textContent = '从你所好';
+                statusEl.style.color = 'var(--text-secondary)';
+                statusEl.style.opacity = '0.6';
+                statusEl.style.cursor = 'pointer';
+                statusEl.style.textDecoration = 'underline dotted';
+                statusEl.style.textUnderlineOffset = '3px';
+            }
+            // 绑定点击修改今日建议
+            statusEl.onclick = function(e) {
+                e.stopPropagation();
+                _editMySuggestion();
+            };
+        }
+
+        // 7. 设置今日寄语
+        var noteTextEl = document.getElementById('dg-note-text');
+        if (noteTextEl) {
+            if (myMotto) {
+                noteTextEl.textContent = myMotto;
+                noteTextEl.style.color = '';
+                noteTextEl.style.opacity = '';
+                noteTextEl.style.cursor = 'pointer';
+                noteTextEl.style.textDecoration = 'underline dotted';
+                noteTextEl.style.textUnderlineOffset = '3px';
+            } else {
+                noteTextEl.textContent = '一整片的森林，你在树荫里';
+                noteTextEl.style.color = '';
+                noteTextEl.style.opacity = '';
+                noteTextEl.style.cursor = 'pointer';
+                noteTextEl.style.textDecoration = 'underline dotted';
+                noteTextEl.style.textUnderlineOffset = '3px';
+            }
+            // 绑定点击修改今日寄语
+            noteTextEl.onclick = function(e) {
+                e.stopPropagation();
+                _editMyMotto();
+            };
+        }
+
+        // 8. 今日状态区域点击 → 跳转心情手账
+        var moodPanel = document.getElementById('dg-mood-panel');
+        if (moodPanel) {
+            moodPanel.style.cursor = 'pointer';
+            moodPanel.onclick = function(e) {
+                // 防止点击内部元素触发多次
+                if (e.target.closest('.dg-mood-info') || e.target.closest('.dg-mood-icon-big')) {
+                    _openMoodForMyGreeting();
+                } else {
+                    _openMoodForMyGreeting();
+                }
+            };
+            // 添加悬停效果
+            moodPanel.onmouseenter = function() {
+                moodPanel.style.transform = 'translateY(-3px)';
+                moodPanel.style.boxShadow = '0 12px 32px rgba(var(--accent-color-rgb), 0.16)';
+            };
+            moodPanel.onmouseleave = function() {
+                moodPanel.style.transform = '';
+                moodPanel.style.boxShadow = '';
+            };
+        }
+
+        // 9. 更新 dg-emoji（如果是我的页，保持节日表情或默认表情）
+        // 顶部横幅不变，但如果有节日表情，保留它
+        // 如果没有节日，dg-emoji 保持原来设置的（已经在梦角页逻辑中设置过了）
+        // 但如果需要强制设置，可以在这里处理
+        // 暂时保留梦角页设置的 dg-emoji
+    }
+
+    // ===== 新增：更新翻页指示器 =====
+    function _updateGreetingPageIndicator(mode) {
+        mode = mode || _greetingPage || 'partner';
+        var indicator = document.getElementById('dg-page-indicator');
+        if (indicator) {
+            var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
+            var mName = (typeof settings !== 'undefined' && settings.myName) ? settings.myName : '我';
+            if (mode === 'partner') {
+                indicator.textContent = pName + ' · 今日';
+            } else {
+                indicator.textContent = mName + ' · 今日';
+            }
+        }
+    }
+
+    // ===== 新增：更新底部关闭按钮文字 =====
+    function _updateGreetingCloseButton(mode) {
+        mode = mode || _greetingPage || 'partner';
+        var btn = document.getElementById('dg-close-btn');
+        if (btn) {
+            if (mode === 'partner') {
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:6px"><polyline points="20 6 9 17 4 12"/></svg> 知道了，开始今天';
+            } else {
+                btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:6px"><polyline points="20 6 9 17 4 12"/></svg> 一起开启新的一天';
+            }
+        }
+    }
+
+    // ===== 新增：翻页切换 =====
+    window._switchGreetingPage = function(dir) {
+        var current = _greetingPage || 'partner';
+        var next = current;
+        if (dir === 'prev' && current === 'me') {
+            next = 'partner';
+        } else if (dir === 'next' && current === 'partner') {
+            next = 'me';
+        } else {
+            return; // 已在边界，不做切换
+        }
+        _greetingPage = next;
+        _buildDailyGreeting(next);
+    };
+
+    // ===== 新增：修改我的天气 =====
+    function _editMyWeather() {
+        var now = new Date();
+        var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        var myDailyData = _getMyDailyData();
+        var todayData = myDailyData[todayStr] || {};
+        var current = todayData.weather || '';
+        var input = prompt('请输入今天的天气：', current);
+        if (input === null) return; // 用户取消
+        var val = input.trim();
+        if (val === '') {
+            // 如果用户清空，删除该字段
+            delete myDailyData[todayStr];
+            if (Object.keys(myDailyData[todayStr] || {}).length === 0) {
+                delete myDailyData[todayStr];
+            }
+        } else {
+            if (!myDailyData[todayStr]) myDailyData[todayStr] = {};
+            myDailyData[todayStr].weather = val;
+        }
+        _setMyDailyData(myDailyData);
+        // 重新渲染当前页面
+        _buildDailyGreeting(_greetingPage || 'partner');
+        if (typeof showNotification === 'function') {
+            showNotification(val ? '天气已更新 ✓' : '天气已清除', 'success', 1500);
+        }
+    }
+
+    // ===== 新增：修改我的今日建议 =====
+    function _editMySuggestion() {
+        var now = new Date();
+        var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+        var myDailyData = _getMyDailyData();
+        var todayData = myDailyData[todayStr] || {};
+        var current = todayData.suggestion || '';
+        var input = prompt('修改今日建议：', current);
+        if (input === null) return;
+        var val = input.trim();
+        if (val === '') {
+            delete myDailyData[todayStr];
+            if (Object.keys(myDailyData[todayStr] || {}).length === 0) {
+                delete myDailyData[todayStr];
+            }
+        } else {
+            if (!myDailyData[todayStr]) myDailyData[todayStr] = {};
+            myDailyData[todayStr].suggestion = val;
+        }
+        _setMyDailyData(myDailyData);
+        _buildDailyGreeting(_greetingPage || 'partner');
+        if (typeof showNotification === 'function') {
+            showNotification(val ? '今日建议已更新 ✓' : '今日建议已清除', 'success', 1500);
+        }
+    }
+
+    // ===== 新增：修改我的今日寄语 =====
+    function _editMyMotto() {
+        var current = _getMyMotto();
+        var input = prompt('修改每日寄语：', current);
+        if (input === null) return;
+        var val = input.trim();
+        if (val === '') {
+            localStorage.removeItem(MY_MOTTO_KEY);
+        } else {
+            _setMyMotto(val);
+        }
+        _buildDailyGreeting(_greetingPage || 'partner');
+        if (typeof showNotification === 'function') {
+            showNotification(val ? '每日寄语已更新 ✓' : '每日寄语已清除', 'success', 1500);
+        }
+    }
+
+    // ===== 新增：点击今日状态跳转心情手账 =====
+    function _openMoodForMyGreeting() {
+        // 关闭公告
+        closeDailyGreeting();
+        // 延迟打开心情手账
+        setTimeout(function() {
+            // 找到心情手账入口按钮并点击
+            var moodBtn = document.getElementById('mood-function');
+            if (moodBtn) {
+                moodBtn.click();
+            } else {
+                // 如果按钮不存在，尝试通过高级功能面板打开
+                var advModal = document.getElementById('advanced-modal');
+                if (advModal && advModal.style.display !== 'none') {
+                    // 已经在高级功能面板中
+                    var moodItem = document.querySelector('#advanced-modal .settings-item#mood-function');
+                    if (moodItem) moodItem.click();
+                } else {
+                    // 打开高级功能面板
+                    var settingsBtn = document.getElementById('settings-btn');
+                    if (settingsBtn) settingsBtn.click();
+                    setTimeout(function() {
+                        var advSettings = document.getElementById('advanced-settings');
+                        if (advSettings) advSettings.click();
+                        setTimeout(function() {
+                            var moodItem = document.querySelector('#advanced-modal .settings-item#mood-function');
+                            if (moodItem) moodItem.click();
+                        }, 400);
+                    }, 300);
+                }
+            }
+        }, 400);
+    }
+
 
 window.toggleImmersiveMode = function(force) {
     var isOn = (force !== undefined) ? force : !document.body.classList.contains('immersive-mode');
@@ -1782,7 +2132,7 @@ window.updateDynamicNames = function() {
 
         setDgLabel('dg-section-label-partner', pName + ' 今日状态');
         setDgLabel('dg-weather-label', pName + ' 的天气');
-        setDgLabel('dg-status-label', pName + ' 的状态');
+        setDgLabel('dg-status-label', pName + ' 的今日建议');
 
         var envInfoSpan = document.getElementById('env-reply-time-info');
         if (envInfoSpan) envInfoSpan.textContent = pName + ' 将在 10-24 小时内回信（8-12 句话）';
@@ -1827,7 +2177,9 @@ window.closeDailyGreeting = function() {
 
 window.reopenDailyGreeting = function() {
     try {
-        if (typeof _buildDailyGreeting === 'function') _buildDailyGreeting();
+        // 每次打开公告时，默认显示梦角页
+        _greetingPage = 'partner';
+        if (typeof _buildDailyGreeting === 'function') _buildDailyGreeting('partner');
         var modal = document.getElementById('daily-greeting-modal');
         if (modal) {
             modal.style.opacity = '0';
@@ -1860,7 +2212,8 @@ window.tryShowDailyGreeting = function() {
             return;
         }
 
-        _buildDailyGreeting();
+        _greetingPage = 'partner';
+        _buildDailyGreeting('partner');
         var modal = document.getElementById('daily-greeting-modal');
         if (modal) modal.classList.remove('hidden');
     } catch(e) { console.warn('Daily greeting show error:', e); }
