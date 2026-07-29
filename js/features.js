@@ -1197,192 +1197,14 @@ var statusPool = [
 function _buildDailyGreeting(mode) {
     mode = mode || 'partner';
     try {
-        var data = _getDailyGreetingData();
-        var festival = data.festival;
-        var timeLabel = data.timeLabel;
-        var timeEmoji = data.timeEmoji;
-        var weather = data.weather;
-        var status = data.status;
-
         var now = new Date();
         var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
 
-        var moodDataRaw = window.moodData || {};
-        var todayMood = moodDataRaw[todayStr];
-        var allMoods = (typeof getAllMoodOptions === 'function') ? getAllMoodOptions() : [];
-
-        var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
-        var mName = (typeof settings !== 'undefined' && settings.myName) ? settings.myName : '我';
-
-        var partnerMoodText = pName + ' 今天还没有记录';
-        var partnerMoodIcon = null; 
-        var partnerMoodNote = '';
-
-        if (todayMood && todayMood.partner) {
-            for (var pi = 0; pi < allMoods.length; pi++) {
-                if (allMoods[pi].key === todayMood.partner) {
-                    partnerMoodText = allMoods[pi].kaomoji + '  ' + allMoods[pi].label;
-                    partnerMoodIcon = allMoods[pi].kaomoji;
-                    break;
-                }
-            }
-            partnerMoodNote = todayMood.partnerNote || '';
-        }
-
-        var h = now.getHours();
-        var mainTitle = festival ? (festival.name + '快乐') : timeLabel;
-        var festLabel = festival ? festival.label : ('GOOD ' + (h < 12 ? 'MORNING' : h < 18 ? 'AFTERNOON' : 'EVENING'));
-        var noteText = festival ? festival.note : '今天也要元气满满，我在这里陪着你 ✦';
-
-        var customData = {};
-        try { customData = JSON.parse(localStorage.getItem('dg_custom_data') || '{}'); } catch(e2) {}
-        
-        var now2 = new Date();
-        var dailySeed = now2.getFullYear() * 10000 + (now2.getMonth()+1) * 100 + now2.getDate();
-        function seededRandom(seed) { return (Math.abs(Math.sin(seed * 9301 + 49297) * 233280) % 233280) / 233280; }
-        var todaySeedForText = dailySeed;
-
-        var defaultTitles = festival ? [(festival.name + '快乐')] : [timeLabel, '今天也要开心哦', '你在我心里呀', '想你'];
-        var defaultNotes = festival ? [festival.note] : [
-    '今天也要元气满满，我在这里陪着你 ✦',
-    '每一天都因为有你而特别 ✦',
-    '想到你就觉得很安心 ✦',
-    '你是我最喜欢的人 ✦',
-    // 以下为原状态预设，已迁移至每日寄语
-    '正在想你 💭',
-    '忙碌中，但心里有你',
-    '好好的，别担心 ✨',
-    '期待见到你',
-    '有点想你了',
-    '在努力变更好',
-    '今天挺安静的',
-    '心情不错哦 🌱',
-    '一切都好，你呢？',
-    '看月亮，想到你 🌙',
-    '今天有点想你',
-    '刚刚看到一朵云像你 ☁️',
-    '工作再忙也会想你的',
-    '今天你开心吗？',
-    '梦里见 💤',
-    '好好吃饭了吗？',
-    '记得多喝水哦 💧',
-    '今天有没有照顾好自己',
-    '想你，但不说 🤫',
-    '全世界你最可爱',
-    '今天天气不错，适合想你',
-    '吃饱喝足，开始想你',
-    '今天也想牵你的手',
-    '你有没有想我',
-    '今天比昨天更想你',
-    '看到好吃的想分享给你 🍜',
-    '听到一首歌想到你 🎵',
-    '今天也要加油鸭',
-    '晚安，我的全世界 🌙',
-    '早安，又是想你的一天'
-];
-
-        var mixedTitles = (customData.titles && customData.titles.length > 0) ? [...customData.titles, ...defaultTitles] : 
-                          (customData.title ? [customData.title, ...defaultTitles] : defaultTitles);
-        var mixedNotes = (customData.notes && customData.notes.length > 0) ? [...customData.notes, ...defaultNotes] :
-                         (customData.note ? [customData.note, ...defaultNotes] : defaultNotes);
-
-        mainTitle = mixedTitles[Math.floor(seededRandom(todaySeedForText) * mixedTitles.length)];
-        noteText = mixedNotes[Math.floor(seededRandom(todaySeedForText + 1) * mixedNotes.length)];
-
-        function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
-        function setElHTML(id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; }
-
-        var emojiEl = document.getElementById('dg-emoji');
-        if (emojiEl) {
-            if (festival) {
-                emojiEl.textContent = festival.emoji;
-            }
-        }
-
-        var moodIconEl = document.getElementById('dg-partner-mood-icon');
-        if (moodIconEl) {
-            if (partnerMoodIcon) {
-                moodIconEl.textContent = partnerMoodIcon;
-                moodIconEl.style.fontSize = '32px';
-            }
-        }
-
-        setEl('dg-festival', festLabel);
-        setEl('dg-title', mainTitle);
-        setEl('dg-partner-mood', partnerMoodText);
-        setEl('dg-partner-mood-note', partnerMoodNote || (todayMood && todayMood.partner ? pName + ' 记录了今天的心情 ☆' : ''));
-
-        var statusPoolData = [];
-        try { statusPoolData = JSON.parse(localStorage.getItem('dg_status_pool') || '[]'); } catch(e2) {}
-        // 将系统预设 + 用户自定义混合后，按今日种子选取
-        var systemStatusItems = (function() {
-            var sysPool = [];
-            // 将系统状态文本包装成与 statusPoolData 兼容的格式
-            var baseStatus = (typeof status !== 'undefined') ? status : '';
-            if (baseStatus) sysPool.push({ status: baseStatus, icon: null, iconImg: null });
-            return sysPool;
-        })();
-        var fullPool = systemStatusItems.concat(statusPoolData);
-        if (fullPool.length > 0) {
-            var poolItem = fullPool[Math.floor(seededRandom(todaySeedForText + 2) * fullPool.length)];
-            if (poolItem) {
-                setEl('dg-festival', poolItem.label || festLabel);
-                setEl('dg-status', poolItem.status || status);
-                var emojiEl2 = document.getElementById('dg-emoji');
-                if (emojiEl2) {
-                    if (poolItem.iconImg) {
-                        emojiEl2.textContent = '';
-                        emojiEl2.style.backgroundImage = 'url(' + poolItem.iconImg + ')';
-                        emojiEl2.style.backgroundSize = 'cover';
-                        emojiEl2.style.backgroundPosition = 'center';
-                    } else if (poolItem.icon) {
-                        emojiEl2.style.backgroundImage = '';
-                        emojiEl2.textContent = poolItem.icon;
-                    }
-                }
-            }
-        } else {
-            setEl('dg-status', status);
-
-            // ---- 新增：今日建议字体自适应 ----
-            function adjustStatusFontSize() {
-                var el = document.getElementById('dg-status');
-                if (!el) return;
-                var text = el.textContent || '';
-                var len = text.length;
-                var maxCharsPerTwoLines = 22;
-                var baseSize = 15;
-                var minSize = 10;
-                var maxSize = 16;
-                var newSize = baseSize;
-                if (len > maxCharsPerTwoLines) {
-                    // 超过基准容量，按比例缩小，但保留底线
-                    newSize = Math.max(minSize, baseSize * (maxCharsPerTwoLines / len));
-                } else if (len <= 6) {
-                    // 极短内容可稍微放大，但不超过上限
-                    newSize = Math.min(maxSize, baseSize + 1);
-                }
-                // 限制上下界
-                newSize = Math.min(maxSize, Math.max(minSize, newSize));
-                el.style.fontSize = newSize + 'px';
-            }
-            adjustStatusFontSize();
-            // ---- 结束自适应 ----
-        }
-        setEl('dg-weather', weather);
-
-        var noteTextEl = document.getElementById('dg-note-text');
-        if (noteTextEl) noteTextEl.textContent = noteText;
-        var wBadge = document.getElementById('dg-note-weather-badge');
-        if (wBadge) wBadge.style.display = 'none';
-
-        setEl('dg-section-label-partner', pName + ' 今日状态');
-        setEl('dg-weather-label', pName + ' 的天气');
-        setEl('dg-status-label', pName + ' 的今日建议');
-
+        // 公共：日期戳
         var months = ['一','二','三','四','五','六','七','八','九','十','十一','十二'];
         setEl('dg-date-stamp', now.getFullYear() + ' · ' + months[now.getMonth()] + '月' + now.getDate() + '日');
 
+        // 公共：背景图
         var headerBg = localStorage.getItem('dg_header_bg');
         var bgEl = document.getElementById('dg-header-band-bg');
         if (bgEl && headerBg) {
@@ -1393,6 +1215,8 @@ function _buildDailyGreeting(mode) {
         var overlayBg = localStorage.getItem('dg_overlay_bg');
         if (overlayBg) { applyDgOverlayBg(overlayBg); }
 
+        var customData = {};
+        try { customData = JSON.parse(localStorage.getItem('dg_custom_data') || '{}'); } catch(e2) {}
         var decoImg = customData.decoImg;
         var decoWrap2 = document.getElementById('dg-deco-img-wrap');
         var decoImgEl2 = document.getElementById('dg-deco-img');
@@ -1404,9 +1228,12 @@ function _buildDailyGreeting(mode) {
                 decoWrap2.style.display = 'none';
             }
         }
-        // ===== 如果模式为 'me'，覆盖主体内容 =====
+
+        // ===== 根据 mode 独立渲染 =====
         if (mode === 'me') {
-            _renderMyGreetingContent();
+            _renderMyGreetingContent(now, todayStr);
+        } else {
+            _renderPartnerGreetingContent(now, todayStr);
         }
 
         // ===== 更新翻页指示器和底部按钮 =====
@@ -1416,11 +1243,200 @@ function _buildDailyGreeting(mode) {
     } catch(e) { console.warn('Daily greeting build error:', e); }
 }
 
-    // ===== 新增：渲染我的页主体内容 =====
-    function _renderMyGreetingContent() {
-        var now = new Date();
-        var todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+// ===== 新增：渲染梦角页内容 =====
+function _renderPartnerGreetingContent(now, todayStr) {
+    var data = _getDailyGreetingData();
+    var festival = data.festival;
+    var timeLabel = data.timeLabel;
+    var timeEmoji = data.timeEmoji;
+    var weather = data.weather;
+    var status = data.status;
 
+    var moodDataRaw = window.moodData || {};
+    var todayMood = moodDataRaw[todayStr];
+    var allMoods = (typeof getAllMoodOptions === 'function') ? getAllMoodOptions() : [];
+
+    var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角';
+    var mName = (typeof settings !== 'undefined' && settings.myName) ? settings.myName : '我';
+
+    var partnerMoodText = pName + ' 今天还没有记录';
+    var partnerMoodIcon = null; 
+    var partnerMoodNote = '';
+
+    if (todayMood && todayMood.partner) {
+        for (var pi = 0; pi < allMoods.length; pi++) {
+            if (allMoods[pi].key === todayMood.partner) {
+                partnerMoodText = allMoods[pi].kaomoji + '  ' + allMoods[pi].label;
+                partnerMoodIcon = allMoods[pi].kaomoji;
+                break;
+            }
+        }
+        partnerMoodNote = todayMood.partnerNote || '';
+    }
+
+    var h = now.getHours();
+    var mainTitle = festival ? (festival.name + '快乐') : timeLabel;
+    var festLabel = festival ? festival.label : ('GOOD ' + (h < 12 ? 'MORNING' : h < 18 ? 'AFTERNOON' : 'EVENING'));
+    var noteText = festival ? festival.note : '今天也要元气满满，我在这里陪着你 ✦';
+
+    var customData = {};
+    try { customData = JSON.parse(localStorage.getItem('dg_custom_data') || '{}'); } catch(e2) {}
+    
+    var now2 = new Date();
+    var dailySeed = now2.getFullYear() * 10000 + (now2.getMonth()+1) * 100 + now2.getDate();
+    function seededRandom(seed) { return (Math.abs(Math.sin(seed * 9301 + 49297) * 233280) % 233280) / 233280; }
+    var todaySeedForText = dailySeed;
+
+    var defaultTitles = festival ? [(festival.name + '快乐')] : [timeLabel, '今天也要开心哦', '你在我心里呀', '想你'];
+    var defaultNotes = festival ? [festival.note] : [
+        '今天也要元气满满，我在这里陪着你 ✦',
+        '每一天都因为有你而特别 ✦',
+        '想到你就觉得很安心 ✦',
+        '你是我最喜欢的人 ✦',
+        '正在想你 💭',
+        '忙碌中，但心里有你',
+        '好好的，别担心 ✨',
+        '期待见到你',
+        '有点想你了',
+        '在努力变更好',
+        '今天挺安静的',
+        '心情不错哦 🌱',
+        '一切都好，你呢？',
+        '看月亮，想到你 🌙',
+        '今天有点想你',
+        '刚刚看到一朵云像你 ☁️',
+        '工作再忙也会想你的',
+        '今天你开心吗？',
+        '梦里见 💤',
+        '好好吃饭了吗？',
+        '记得多喝水哦 💧',
+        '今天有没有照顾好自己',
+        '想你，但不说 🤫',
+        '全世界你最可爱',
+        '今天天气不错，适合想你',
+        '吃饱喝足，开始想你',
+        '今天也想牵你的手',
+        '你有没有想我',
+        '今天比昨天更想你',
+        '看到好吃的想分享给你 🍜',
+        '听到一首歌想到你 🎵',
+        '今天也要加油鸭',
+        '晚安，我的全世界 🌙',
+        '早安，又是想你的一天'
+    ];
+
+    var mixedTitles = (customData.titles && customData.titles.length > 0) ? [...customData.titles, ...defaultTitles] : 
+                      (customData.title ? [customData.title, ...defaultTitles] : defaultTitles);
+    var mixedNotes = (customData.notes && customData.notes.length > 0) ? [...customData.notes, ...defaultNotes] :
+                     (customData.note ? [customData.note, ...defaultNotes] : defaultNotes);
+
+    mainTitle = mixedTitles[Math.floor(seededRandom(todaySeedForText) * mixedTitles.length)];
+    noteText = mixedNotes[Math.floor(seededRandom(todaySeedForText + 1) * mixedNotes.length)];
+
+    function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
+    function setElHTML(id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; }
+
+    var emojiEl = document.getElementById('dg-emoji');
+    if (emojiEl) {
+        if (festival) {
+            emojiEl.textContent = festival.emoji;
+        }
+    }
+
+    var moodIconEl = document.getElementById('dg-partner-mood-icon');
+    if (moodIconEl) {
+        if (partnerMoodIcon) {
+            moodIconEl.textContent = partnerMoodIcon;
+            moodIconEl.style.fontSize = '32px';
+        }
+    }
+
+    setEl('dg-festival', festLabel);
+    setEl('dg-title', mainTitle);
+    setEl('dg-partner-mood', partnerMoodText);
+    setEl('dg-partner-mood-note', partnerMoodNote || (todayMood && todayMood.partner ? pName + ' 记录了今天的心情 ☆' : ''));
+
+    var statusPoolData = [];
+    try { statusPoolData = JSON.parse(localStorage.getItem('dg_status_pool') || '[]'); } catch(e2) {}
+    var systemStatusItems = (function() {
+        var sysPool = [];
+        var baseStatus = (typeof status !== 'undefined') ? status : '';
+        if (baseStatus) sysPool.push({ status: baseStatus, icon: null, iconImg: null });
+        return sysPool;
+    })();
+    var fullPool = systemStatusItems.concat(statusPoolData);
+    if (fullPool.length > 0) {
+        var poolItem = fullPool[Math.floor(seededRandom(todaySeedForText + 2) * fullPool.length)];
+        if (poolItem) {
+            setEl('dg-festival', poolItem.label || festLabel);
+            setEl('dg-status', poolItem.status || status);
+            var emojiEl2 = document.getElementById('dg-emoji');
+            if (emojiEl2) {
+                if (poolItem.iconImg) {
+                    emojiEl2.textContent = '';
+                    emojiEl2.style.backgroundImage = 'url(' + poolItem.iconImg + ')';
+                    emojiEl2.style.backgroundSize = 'cover';
+                    emojiEl2.style.backgroundPosition = 'center';
+                } else if (poolItem.icon) {
+                    emojiEl2.style.backgroundImage = '';
+                    emojiEl2.textContent = poolItem.icon;
+                }
+            }
+        }
+    } else {
+        setEl('dg-status', status);
+        // 字体自适应
+        function adjustStatusFontSize() {
+            var el = document.getElementById('dg-status');
+            if (!el) return;
+            var text = el.textContent || '';
+            var len = text.length;
+            var maxCharsPerTwoLines = 22;
+            var baseSize = 15;
+            var minSize = 10;
+            var maxSize = 16;
+            var newSize = baseSize;
+            if (len > maxCharsPerTwoLines) {
+                newSize = Math.max(minSize, baseSize * (maxCharsPerTwoLines / len));
+            } else if (len <= 6) {
+                newSize = Math.min(maxSize, baseSize + 1);
+            }
+            newSize = Math.min(maxSize, Math.max(minSize, newSize));
+            el.style.fontSize = newSize + 'px';
+        }
+        adjustStatusFontSize();
+    }
+
+    // 天气
+    setEl('dg-weather', weather);
+    var weatherEl = document.getElementById('dg-weather');
+    if (weatherEl) {
+        weatherEl.style.cursor = 'pointer';
+        weatherEl.style.textDecoration = 'underline dotted';
+        weatherEl.style.textUnderlineOffset = '3px';
+        weatherEl.onclick = function(e) {
+            e.stopPropagation();
+            if (typeof startEditDgWeather === 'function') {
+                startEditDgWeather(this);
+            }
+        };
+    }
+
+    var noteTextEl = document.getElementById('dg-note-text');
+    if (noteTextEl) noteTextEl.textContent = noteText;
+    var wBadge = document.getElementById('dg-note-weather-badge');
+    if (wBadge) wBadge.style.display = 'none';
+
+    // 标签
+    setEl('dg-section-label-partner', pName + ' 今日状态');
+    setEl('dg-weather-label', pName + ' 的天气');
+    setEl('dg-status-label', pName + ' 的今日建议');
+}
+
+    // ===== 新增：渲染我的页主体内容 =====
+    function _renderMyGreetingContent(now, todayStr) {
+        if (!now) { now = new Date(); }
+        if (!todayStr) { todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'); }
         var mName = (typeof settings !== 'undefined' && settings.myName) ? settings.myName : '我';
 
         // 1. 读取我的心情数据（来自 moodData）
