@@ -1967,7 +1967,7 @@
 .dg-info-cell {
     display: grid;
     grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto;
+    grid-template-rows: 28px auto;
     gap: 0px 10px;
     align-items: center;
     background: linear-gradient(150deg,
