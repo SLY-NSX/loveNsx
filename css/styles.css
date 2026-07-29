@@ -11143,3 +11143,53 @@ body.with-background .time-separator span {
         letter-spacing: 3px !important;
     }
 }
+
+/* ===== 每日公告卡片：状态模块（今日建议）布局微调 ===== */
+/* 目标：将“梦角的今日建议”标签从图标下方移到图标右侧，值保留在下一行 */
+
+.dg-info-cell:has(#dg-status-label) {
+    display: grid !important;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 0 10px;
+    align-items: center;
+    padding: 14px 14px;
+}
+
+.dg-info-cell:has(#dg-status-label) .dg-info-cell-icon {
+    grid-row: 1;
+    grid-column: 1;
+    margin-bottom: 0;
+    height: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dg-info-cell:has(#dg-status-label) .dg-info-cell-icon svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
+.dg-info-cell:has(#dg-status-label) .dg-info-cell-label {
+    grid-row: 1;
+    grid-column: 2;
+    margin-bottom: 0;
+    font-size: 10.5px;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+
+.dg-info-cell:has(#dg-status-label) .dg-info-cell-val {
+    grid-row: 2;
+    grid-column: 1 / -1;
+    margin-top: 2px;
+    padding-left: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.4px;
+}
