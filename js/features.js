@@ -1015,23 +1015,23 @@ function showPokeTab(area) {
 
 window._dailyGreetingReady = false;
 
-    // ===== 新增：我的每日数据读写 =====
-    function _getMyDailyData() {
-        try {
-            return JSON.parse(localStorage.getItem(MY_DAILY_DATA_KEY) || '{}');
-        } catch(e) {
-            return {};
-        }
+// ===== 我的每日数据读写 =====
+function _getMyDailyData() {
+    try {
+        return JSON.parse(localStorage.getItem('myDailyData') || '{}');
+    } catch(e) {
+        return {};
     }
-    function _setMyDailyData(data) {
-        localStorage.setItem(MY_DAILY_DATA_KEY, JSON.stringify(data));
-    }
-    function _getMyMotto() {
-        return localStorage.getItem(MY_MOTTO_KEY) || '';
-    }
-    function _setMyMotto(val) {
-        localStorage.setItem(MY_MOTTO_KEY, val);
-    }
+}
+function _setMyDailyData(data) {
+    localStorage.setItem('myDailyData', JSON.stringify(data));
+}
+function _getMyMotto() {
+    return localStorage.getItem('myDailyMotto') || '';
+}
+function _setMyMotto(val) {
+    localStorage.setItem('myDailyMotto', val);
+}
 
 function _getDailyGreetingData() {
     var now = new Date();
