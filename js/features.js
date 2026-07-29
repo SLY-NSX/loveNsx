@@ -1721,6 +1721,8 @@ function _renderPartnerGreetingContent(now, todayStr) {
 
     // ===== 新增：点击今日状态跳转心情手账 =====
     function _openMoodForMyGreeting() {
+        // 设置标记：从公告跳转过来的
+        window._fromGreeting = true;
         // 关闭公告
         closeDailyGreeting();
         // 延迟打开心情手账
