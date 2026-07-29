@@ -1317,6 +1317,31 @@ function _buildDailyGreeting() {
             }
         } else {
             setEl('dg-status', status);
+
+            // ---- 新增：今日建议字体自适应 ----
+            function adjustStatusFontSize() {
+                var el = document.getElementById('dg-status');
+                if (!el) return;
+                var text = el.textContent || '';
+                var len = text.length;
+                var maxCharsPerTwoLines = 22;
+                var baseSize = 15;
+                var minSize = 10;
+                var maxSize = 16;
+                var newSize = baseSize;
+                if (len > maxCharsPerTwoLines) {
+                    // 超过基准容量，按比例缩小，但保留底线
+                    newSize = Math.max(minSize, baseSize * (maxCharsPerTwoLines / len));
+                } else if (len <= 6) {
+                    // 极短内容可稍微放大，但不超过上限
+                    newSize = Math.min(maxSize, baseSize + 1);
+                }
+                // 限制上下界
+                newSize = Math.min(maxSize, Math.max(minSize, newSize));
+                el.style.fontSize = newSize + 'px';
+            }
+            adjustStatusFontSize();
+            // ---- 结束自适应 ----
         }
         setEl('dg-weather', weather);
 
