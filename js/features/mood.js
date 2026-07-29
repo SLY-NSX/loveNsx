@@ -1222,11 +1222,28 @@ function initMoodListeners() {
         });
     }
 
-    const closeMoodBtn = document.getElementById('close-mood');
-    if (closeMoodBtn && !closeMoodBtn.dataset.initialized) {
-        closeMoodBtn.dataset.initialized = 'true';
-        closeMoodBtn.addEventListener('click', () => hideModal(modal));
-    }
+const closeMoodBtn = document.getElementById('close-mood');
+if (closeMoodBtn && !closeMoodBtn.dataset.initialized) {
+    closeMoodBtn.dataset.initialized = 'true';
+    closeMoodBtn.addEventListener('click', function() {
+        // 判断是否从公告跳转过来的
+        if (window._fromGreeting) {
+            // 清除标记
+            window._fromGreeting = false;
+            // 关闭心情手账
+            hideModal(modal);
+            // 重新打开公告
+            setTimeout(function() {
+                if (typeof reopenDailyGreeting === 'function') {
+                    reopenDailyGreeting();
+                }
+            }, 300);
+        } else {
+            // 正常关闭
+            hideModal(modal);
+        }
+    });
+}
 
     const exportMoodBtn = document.getElementById('mood-export-btn');
     const importMoodBtn = document.getElementById('mood-import-btn');
