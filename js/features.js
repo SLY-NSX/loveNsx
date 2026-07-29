@@ -1612,6 +1612,7 @@ function _buildDailyGreeting(mode) {
 
     // ===== 新增：翻页切换 =====
     window._switchGreetingPage = function(dir) {
+        console.log('[翻页] 当前页面:', _greetingPage, '方向:', dir);
         var current = _greetingPage || 'partner';
         var next = current;
         if (dir === 'prev' && current === 'me') {
@@ -1619,9 +1620,11 @@ function _buildDailyGreeting(mode) {
         } else if (dir === 'next' && current === 'partner') {
             next = 'me';
         } else {
-            return; // 已在边界，不做切换
+            console.log('[翻页] 已在边界，不切换');
+            return;
         }
         _greetingPage = next;
+        console.log('[翻页] 新页面:', next);
         _buildDailyGreeting(next);
     };
 
@@ -2219,3 +2222,40 @@ window.tryShowDailyGreeting = function() {
     } catch(e) { console.warn('Daily greeting show error:', e); }
 };
 
+
+// ===== 绑定翻页按钮点击事件（确保在 DOM 加载后执行） =====
+(function() {
+    // 如果 DOM 还未加载，等待 DOMContentLoaded
+    function bindPageButtons() {
+        var prevBtn = document.getElementById('dg-page-prev');
+        var nextBtn = document.getElementById('dg-page-next');
+        if (prevBtn) {
+            // 移除可能存在的旧监听，避免重复绑定
+            prevBtn.removeEventListener('click', window._handlePrevPage);
+            window._handlePrevPage = function(e) {
+                e.preventDefault();
+                if (typeof window._switchGreetingPage === 'function') {
+                    window._switchGreetingPage('prev');
+                }
+            };
+            prevBtn.addEventListener('click', window._handlePrevPage);
+        }
+        if (nextBtn) {
+            nextBtn.removeEventListener('click', window._handleNextPage);
+            window._handleNextPage = function(e) {
+                e.preventDefault();
+                if (typeof window._switchGreetingPage === 'function') {
+                    window._switchGreetingPage('next');
+                }
+            };
+            nextBtn.addEventListener('click', window._handleNextPage);
+        }
+    }
+
+    // 如果 DOM 已加载，直接绑定；否则等待
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bindPageButtons);
+    } else {
+        bindPageButtons();
+    }
+})();
