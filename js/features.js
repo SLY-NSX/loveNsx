@@ -1194,6 +1194,16 @@ var statusPool = [
     return { timeLabel: timeLabel, timeEmoji: timeEmoji, festival: festival, weather: weather, status: status };
 }
 
+// ===== 全局 DOM 辅助函数 =====
+function setEl(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+}
+function setElHTML(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = val;
+}
+
 function _buildDailyGreeting(mode) {
     mode = mode || 'partner';
     try {
@@ -1333,9 +1343,6 @@ function _renderPartnerGreetingContent(now, todayStr) {
     mainTitle = mixedTitles[Math.floor(seededRandom(todaySeedForText) * mixedTitles.length)];
     noteText = mixedNotes[Math.floor(seededRandom(todaySeedForText + 1) * mixedNotes.length)];
 
-    function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
-    function setElHTML(id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; }
-
     var emojiEl = document.getElementById('dg-emoji');
     if (emojiEl) {
         if (festival) {
@@ -1467,9 +1474,6 @@ function _renderPartnerGreetingContent(now, todayStr) {
 
         // 3. 读取我的今日寄语
         var myMotto = _getMyMotto();
-
-        function setEl(id, val) { var el = document.getElementById(id); if (el) el.textContent = val; }
-        function setElHTML(id, val) { var el = document.getElementById(id); if (el) el.innerHTML = val; }
 
         // 4. 设置今日状态
         setEl('dg-section-label-partner', mName + ' 今日状态');
