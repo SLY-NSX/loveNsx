@@ -2259,6 +2259,16 @@
             <div class="dg-date-stamp" id="dg-date-stamp">— 今日公告已送达 —</div>
         </div>
         <div class="dg-body">
+            <!-- 翻页控件 -->
+            <div class="dg-page-nav" style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:0 4px;">
+                <button id="dg-page-prev" class="dg-page-btn" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:14px; padding:4px 8px; border-radius:8px; transition:all 0.2s; opacity:0.6;" onclick="window._switchGreetingPage('prev')">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span id="dg-page-indicator" style="font-size:11px; color:var(--text-secondary); letter-spacing:1.5px; font-weight:500;">梦角 · 今日</span>
+                <button id="dg-page-next" class="dg-page-btn" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:14px; padding:4px 8px; border-radius:8px; transition:all 0.2s; opacity:0.6;" onclick="window._switchGreetingPage('next')">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
             <div class="dg-section-label" id="dg-section-label-partner">梦角今日状态</div>
             <div class="dg-mood-panel" id="dg-mood-panel">
                 <div class="dg-mood-icon-big" id="dg-partner-mood-icon">
@@ -2298,8 +2308,8 @@
                 </div>
             </div>
             <div class="dg-footer">
-                <button class="daily-greeting-close-btn" onclick="closeDailyGreeting()">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:6px"><polyline points="20 6 9 17 4 12"/></svg>
+                <button class="daily-greeting-close-btn" id="dg-close-btn" onclick="closeDailyGreeting()">
+                    <svg ...>...</svg>
                     知道了，开始今天
                 </button>
             </div>
