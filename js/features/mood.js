@@ -208,7 +208,7 @@ const MOOD_OPTIONS = [
     { key: 'content', kaomoji: '😌', label: '满足', color: '#A8E6CF' },
     { key: 'loved', kaomoji: '🥰', label: '心动', color: '#FF6B6B' },
     { key: 'affectionate', kaomoji: '😘', label: '喜爱', color: '#FF9FF3' },
-    { key: 'cute', kaomoji: '🥺', label: '撒娇', color: '#FFB6C1' }
+    { key: 'cute', kaomoji: '🥺', label: '撒娇', color: '#FFB6C1' },
     { key: 'sad', kaomoji: '😕', label: '难过', color: '#4D96FF' },
     { key: 'tired', kaomoji: '😞', label: '疲惫', color: '#8D9EFF' },
     { key: 'crying', kaomoji: '😭', label: '伤心', color: '#5C6BC0' },
