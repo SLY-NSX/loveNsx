@@ -1975,7 +1975,7 @@
         rgba(var(--accent-color-rgb),0.06) 100%
     );
     border-radius: var(--radius);
-    padding: 14px 10px;
+    padding: 11px 9px;
     border: 1px solid rgba(var(--accent-color-rgb),0.1);
     transition: transform 0.26s cubic-bezier(0.4,0,0.2,1), box-shadow 0.26s ease;
     position: relative;
@@ -2007,7 +2007,7 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     margin: 0;
-    align-self: center;   /* 垂直居中 */
+    align-self: start;   /* 垂直居中 */
     line-height: 16px;    /* 等于行高，保证文字垂直居中 */
     height: 16px;         /* 明确高度，防止溢出 */
 }
