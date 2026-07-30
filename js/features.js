@@ -1235,7 +1235,7 @@ var statusPool = [
     if (oldWeather && !localStorage.getItem(weatherKey)) {
         // 第一次迁移：把旧值存入新键，并设置下次更新为 3~8 小时后
         localStorage.setItem(weatherKey, oldWeather);
-        var delay = 3*60*60*1000 + Math.random() * (5*60*60*1000);
+        var delay = 3*60*1000 + Math.random() * (5*60*1000);
         localStorage.setItem(nextUpdateKey, String(nowTs + delay));
         localStorage.removeItem(oldCustomKey); // 删除旧键，避免干扰
     }
