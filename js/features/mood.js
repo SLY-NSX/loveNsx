@@ -228,7 +228,7 @@ const moodList = [
   { key: 'lonely', kaomoji: '😔', label: '孤单', color: '#B8A9C9' },
   { key: 'sleepy', kaomoji: '😴', label: '困倦', color: '#37474F' },
 ];
-
+const MOOD_OPTIONS = moodList;
 let moodData = {}; 
 let moodTrash = [];
 let currentCalendarDate = new Date();
