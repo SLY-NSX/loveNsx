@@ -11190,3 +11190,8 @@ body.with-background .time-separator span {
     position: relative;
     top: -4px;
 }
+.dg-info-cell:nth-child(2) .dg-info-cell-icon {
+    position: relative;
+    top: -4px;   /* 可以改成 -6px 以单独调高图标 */
+
+}
