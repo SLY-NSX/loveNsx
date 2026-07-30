@@ -210,7 +210,7 @@ const moodList = [
   { key: 'content', kaomoji: '😌', label: '满足', color: '#A8E6CF' },
   { key: 'loved', kaomoji: '🥰', label: '心动', color: '#FF6B6B' },
   { key: 'affectionate', kaomoji: '😘', label: '喜爱', color: '#FF9FF3' },
-  { key: 'love', kaomoji: '🥲', label: '思念', color: '#FF9A8B' },
+  { key: 'love', kaomoji: '🤗', label: '思念', color: '#FF9A8B' },
   { key: 'cute', kaomoji: '🥺', label: '撒娇', color: '#FFB6C1' },
 { key: 'jealous', kaomoji: '😒', label: '吃醋', color: '#9E9E9E' },
   { key: 'peace', kaomoji: '🙂', label: '平淡', color: '#6BCB77' },
