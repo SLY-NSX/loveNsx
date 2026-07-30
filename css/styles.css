@@ -1967,9 +1967,9 @@
 .dg-info-cell {
     display: grid;
     grid-template-columns: auto 1fr;
-    grid-template-rows: auto auto auto;  /* 三行自适应 */
+    grid-template-rows: 20px 20px 1fr;   
     gap: 0px 10px;
-    align-items: start;                  /* 元素从顶部开始排列，图标单独居中 */
+    align-items: start;     
     background: linear-gradient(150deg,
         var(--primary-bg) 0%,
         rgba(var(--accent-color-rgb),0.06) 100%
@@ -1983,13 +1983,14 @@
 }
 
 .dg-info-cell-icon {
-    grid-row: 1 / span 2;  
+    grid-row: 1 / span 2;
     grid-column: 1;
-    align-self: center;   
+    align-self: center;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: auto;          
+    width: 20px;          /* 明确宽度 */
+    height: 20px;         /* 明确高度 */
     margin: 0;
 }
 .dg-info-cell-icon svg { display: block; }
@@ -2001,7 +2002,9 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     margin: 0;
-    align-self: end; 
+    align-self: center;   /* 垂直居中 */
+    line-height: 20px;    /* 等于行高，保证文字垂直居中 */
+    height: 20px;         /* 明确高度，防止溢出 */
 }
 .dg-info-cell-sub {
     grid-row: 2;
@@ -2011,7 +2014,9 @@
     letter-spacing: 1px;
     text-transform: uppercase;
     margin: 0;
-    align-self: start;   
+    align-self: center;   /* 垂直居中 */
+    line-height: 20px;    /* 等于行高 */
+    height: 20px;         /* 明确高度 */
 }
 
 .dg-info-cell-val {
