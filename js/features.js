@@ -1438,6 +1438,28 @@ function _renderPartnerGreetingContent(now, todayStr) {
     setEl('dg-section-label-partner', pName + ' 今日状态');
     setEl('dg-weather-label', pName + ' 的天气');
     setEl('dg-status-label', pName + ' 的今日建议');
+    // ===== 确保梦角页的今日建议、今日寄语、今日状态不可点击 =====
+    var statusEl = document.getElementById('dg-status');
+    if (statusEl) {
+        statusEl.onclick = null;
+        statusEl.style.cursor = 'default';
+        statusEl.style.textDecoration = 'none';
+    }
+
+    var noteTextEl = document.getElementById('dg-note-text');
+    if (noteTextEl) {
+        noteTextEl.onclick = null;
+        noteTextEl.style.cursor = 'default';
+        noteTextEl.style.textDecoration = 'none';
+    }
+
+    var moodPanel = document.getElementById('dg-mood-panel');
+    if (moodPanel) {
+        moodPanel.onclick = null;
+        moodPanel.style.cursor = 'default';
+        moodPanel.onmouseenter = null;
+        moodPanel.onmouseleave = null;
+    }
 }
 
     // ===== 新增：渲染我的页主体内容 =====
