@@ -1652,13 +1652,9 @@ function _renderPartnerGreetingContent(now, todayStr) {
         if (noteTextEl) {
             if (myMotto) {
                 noteTextEl.textContent = myMotto;
-                noteTextEl.style.color = '';
-                noteTextEl.style.opacity = '';
                 noteTextEl.style.cursor = 'pointer';
             } else {
                 noteTextEl.textContent = '一整片的森林，你在树荫里';
-                noteTextEl.style.color = '';
-                noteTextEl.style.opacity = '';
                 noteTextEl.style.cursor = 'pointer';
             }
             // 绑定点击修改今日寄语
