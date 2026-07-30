@@ -1512,8 +1512,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
     setEl('dg-section-label-partner', pName + ' 今日心情');
     setEl('dg-weather-label', pName + '所在地');
     setEl('dg-weather-sub', '城市天气');
-    setEl('dg-status-label', '给' + mName + '的');
-    setEl('dg-status-sub', '今日建议');
+    setEl('dg-status-label', '给' + mName + '的今日建议');
     // ===== 确保梦角页的今日建议、今日寄语、今日状态不可点击 =====
     var statusEl = document.getElementById('dg-status');
     if (statusEl) {
@@ -1624,8 +1623,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
         }
 
         // 6. 设置今日建议
-        setEl('dg-status-label', '给' + pName + '的');
-        setEl('dg-status-sub', '今日建议');
+        setEl('dg-status-label', '给' + pName + '的今日建议');
         var statusEl = document.getElementById('dg-status');
         if (statusEl) {
             if (mySuggestion) {
