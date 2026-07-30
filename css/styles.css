@@ -2009,9 +2009,7 @@
     margin: 0;
     align-self: start;   /* 垂直居中 */
     line-height: 16px;    /* 等于行高，保证文字垂直居中 */
-    height: 16px;  /* 明确高度，防止溢出 */
-    position: relative;
-    top: -3px;     
+    height: 16px;  /* 明确高度，防止溢出 */     
 }
 .dg-info-cell-sub {
     grid-row: 2;
@@ -11189,4 +11187,6 @@ body.with-background .time-separator span {
     align-self: center;            /* 垂直居中 */
     height: 32px;                  /* 等于行高 */
     line-height: 32px;
+    position: relative;
+    top: -4px;
 }
