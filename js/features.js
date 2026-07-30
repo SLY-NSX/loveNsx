@@ -1418,6 +1418,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
     setEl('dg-weather', weather);
     var weatherEl = document.getElementById('dg-weather');
     if (weatherEl) {
+        weatherEl.style.color = 'var(--text-primary)';
         weatherEl.style.cursor = 'pointer';
         weatherEl.style.textDecoration = 'underline dotted';
         weatherEl.style.textUnderlineOffset = '3px';
@@ -1444,6 +1445,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
         statusEl.onclick = null;
         statusEl.style.cursor = 'default';
         statusEl.style.textDecoration = 'none';
+        statusEl.style.color = 'var(--text-primary)'; 
     }
 
     var noteTextEl = document.getElementById('dg-note-text');
@@ -1451,6 +1453,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
         noteTextEl.onclick = null;
         noteTextEl.style.cursor = 'default';
         noteTextEl.style.textDecoration = 'none';
+        noteTextEl.style.color = 'var(--text-primary)';
     }
 
     var moodPanel = document.getElementById('dg-mood-panel');
@@ -1552,15 +1555,11 @@ function _renderPartnerGreetingContent(now, todayStr) {
                 statusEl.style.color = '';
                 statusEl.style.opacity = '';
                 statusEl.style.cursor = 'pointer';
-                statusEl.style.textDecoration = 'underline dotted';
-                statusEl.style.textUnderlineOffset = '3px';
             } else {
                 statusEl.textContent = '从你所好';
                 statusEl.style.color = 'var(--text-secondary)';
                 statusEl.style.opacity = '0.6';
                 statusEl.style.cursor = 'pointer';
-                statusEl.style.textDecoration = 'underline dotted';
-                statusEl.style.textUnderlineOffset = '3px';
             }
             // 绑定点击修改今日建议
             statusEl.onclick = function(e) {
@@ -1577,15 +1576,11 @@ function _renderPartnerGreetingContent(now, todayStr) {
                 noteTextEl.style.color = '';
                 noteTextEl.style.opacity = '';
                 noteTextEl.style.cursor = 'pointer';
-                noteTextEl.style.textDecoration = 'underline dotted';
-                noteTextEl.style.textUnderlineOffset = '3px';
             } else {
                 noteTextEl.textContent = '一整片的森林，你在树荫里';
                 noteTextEl.style.color = '';
                 noteTextEl.style.opacity = '';
                 noteTextEl.style.cursor = 'pointer';
-                noteTextEl.style.textDecoration = 'underline dotted';
-                noteTextEl.style.textUnderlineOffset = '3px';
             }
             // 绑定点击修改今日寄语
             noteTextEl.onclick = function(e) {
