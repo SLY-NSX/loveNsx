@@ -226,7 +226,7 @@ const moodList = [
   { key: 'confused', kaomoji: '😮', label: '困惑', color: '#B0BEC5' },
   { key: 'busy', kaomoji: '😫', label: '忙碌', color: '#FFA726' },
   { key: 'lonely', kaomoji: '😔', label: '孤单', color: '#B8A9C9' },
-  { key: 'sleepy', kaomoji: '😴', label: '困倦', color: '#37474F' }
+  { key: 'sleepy', kaomoji: '😴', label: '困倦', color: '#37474F' },
 ];
 
 let moodData = {}; 
