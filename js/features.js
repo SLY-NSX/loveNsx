@@ -1545,6 +1545,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
         if (!now) { now = new Date(); }
         if (!todayStr) { todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0'); }
         var mName = (typeof settings !== 'undefined' && settings.myName) ? settings.myName : '我';
+        var pName = (typeof settings !== 'undefined' && settings.partnerName) ? settings.partnerName : '梦角'; 
 
         // 1. 读取我的心情数据（来自 moodData）
         var moodDataRaw = window.moodData || {};
