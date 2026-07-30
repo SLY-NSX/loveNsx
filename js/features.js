@@ -1109,35 +1109,80 @@ var festival = null;
         if (festivals[fi].m === month && festivals[fi].d === day) { festival = festivals[fi]; break; }
     }
 
-  var weathers = [
+var weathers = [
     '晴空万里',
-    '多云转晴',
-    '阴天有云',
+    '碧空如洗',
+    '天高云淡',
+    '阳光明媚',
+    '烈日当空',
+    '骄阳似火',
+    '霞光漫天',
     '细雨蒙蒙',
-    '春风和煦',
-    '微微寒冷',
-    '清风徐徐',
-    '雨后初晴',
-    '夜色宁静',
-    '月光皎洁',
-    '晴间多云',
     '大雨滂沱',
+    '暴雨倾盆',
     '雷雨交加',
-    '小雪纷飞',
-    '微风拂面',
-    '多云天气',
-    '雾气朦胧',
-    '星光璀璨',
-    '朝霞满天',
-    '夕阳西下',
-    '海风轻拂',
-    '山间清爽',
-    '秋叶飘落',
-    '花香四溢',
-    '绿意盎然',
-    '雨后清新',
-    '雪花飞舞',
-    '阳光明媚'
+    '阵雨骤至',
+    '零星小雨',
+    '雨歇云散',
+    '雨过天晴',
+    '大雪纷飞',
+    '小雪飘飘',
+    '雨夹雪落',
+    '清风徐徐',
+    '和风习习',
+    '强风阵阵',
+    '疾风劲吹',
+    '暴风呼啸',
+    '浓雾笼罩',
+    '轻雾缭绕',
+    '霾气沉沉',
+    '雾散天清',
+    '转晴回暖',
+    '变阴欲雨',
+    '雨势渐弱',
+    '风停雨住',
+    '云层增厚',
+    '天光放亮',
+    '暮色阴沉',
+    '晨雾未散',
+    '阳光和煦',
+    '日暖风轻',
+    '多云转阴',
+    '阴天有云',
+    '密云不雨',
+    '乌云压顶',
+    '云层渐厚',
+    '云开见日',
+    '大雨倾盆',
+    '暴雨如注',
+    '疾风骤雨',
+    '和风轻送',
+    '大风呼啸',
+    '飓风肆虐',
+    '无风静稳',
+    '阵风频起',
+    '大雾弥漫',
+    '薄雾缭绕',
+    '浓雾锁城',
+    '烟霭朦胧',
+    '云消雾散',
+    '寒气袭人',
+    '冰冷刺骨',
+    '凉风习习',
+    '暖意融融',
+    '酷热难耐',
+    '闷热潮湿',
+    '乍暖还寒',
+    '潮湿闷黏',
+    '干燥清爽',
+    '露水沾衣',
+    '霜降草白',
+    '多云转晴',
+    '阴转小雨',
+    '晴转多云',
+    '雨停风住',
+    '风雨交加',
+    '雷电闪烁'
 ];
 
 var statusPool = [
@@ -1180,9 +1225,37 @@ var statusPool = [
         var x = Math.sin(s * 9301 + offset * 49297 + 233) * 1000003;
         return x - Math.floor(x);
     }
-    var defaultWeather = weathers[Math.floor(seededRandDg(seed, 0) * weathers.length)];
-    var customWeatherKey = 'customWeather_' + now.getFullYear() + '_' + month + '_' + day;
-    var weather = localStorage.getItem(customWeatherKey) || defaultWeather;
+    var weatherKey = 'dg_weather';
+    var nextUpdateKey = 'dg_weather_next_update';
+    var nowTs = now.getTime();
+
+    // 1. 尝试迁移旧数据（若之前用过 customWeather_）
+    var oldCustomKey = 'customWeather_' + now.getFullYear() + '_' + month + '_' + day;
+    var oldWeather = localStorage.getItem(oldCustomKey);
+    if (oldWeather && !localStorage.getItem(weatherKey)) {
+        // 第一次迁移：把旧值存入新键，并设置下次更新为 3~8 小时后
+        localStorage.setItem(weatherKey, oldWeather);
+        var delay = 3*60*60*1000 + Math.random() * (5*60*60*1000);
+        localStorage.setItem(nextUpdateKey, String(nowTs + delay));
+        localStorage.removeItem(oldCustomKey); // 删除旧键，避免干扰
+    }
+
+    // 2. 获取当前存储的天气及下次更新时间
+    var weather = localStorage.getItem(weatherKey);
+    var nextUpdate = localStorage.getItem(nextUpdateKey);
+
+    // 3. 若没有天气，或已过期，则重新随机生成
+    if (!weather || !nextUpdate || nowTs >= parseInt(nextUpdate)) {
+        var randomIndex = Math.floor(Math.random() * weathers.length);
+        weather = weathers[randomIndex];
+        localStorage.setItem(weatherKey, weather);
+        // 随机间隔 3~8 小时（毫秒）
+        var minDelay = 3 * 60 * 1000;   
+        var maxDelay = 8 * 60 * 1000; 
+        var delay = minDelay + Math.random() * (maxDelay - minDelay);
+        localStorage.setItem(nextUpdateKey, String(nowTs + delay));
+    }
+    // 此时 weather 就是最终要显示的天气
 
     // 混合系统预设 + 用户自定义状态池
     var userStatusPool = [];
@@ -2299,3 +2372,32 @@ window.tryShowDailyGreeting = function() {
         bindPageButtons();
     }
 })();
+
+// 梦角页天气手动修改（点击天气文字时触发）
+window.startEditDgWeather = function(el) {
+    var now = new Date();
+    var current = localStorage.getItem('dg_weather') || '';
+    var input = prompt('修改今天的天气（手动修改后，将在 3~8 小时后被随机覆盖）：', current);
+    if (input === null) return; // 取消
+    var val = input.trim();
+    if (val === '') {
+        // 如果清空，则删除存储，让系统立即重新随机
+        localStorage.removeItem('dg_weather');
+        localStorage.removeItem('dg_weather_next_update');
+    } else {
+        localStorage.setItem('dg_weather', val);
+        // 设置下次更新为 3~8 小时后（这样手动值会持续一段时间）
+        var nowTs = now.getTime();
+        var minDelay = 3 * 60 * 1000;  
+        var maxDelay = 8 * 60 * 1000; 
+        var delay = minDelay + Math.random() * (maxDelay - minDelay);
+        localStorage.setItem('dg_weather_next_update', String(nowTs + delay));
+    }
+    // 刷新界面
+    if (typeof _buildDailyGreeting === 'function') {
+        _buildDailyGreeting(_greetingPage || 'partner');
+    }
+    if (typeof showNotification === 'function') {
+        showNotification(val ? '天气已更新，将在 3~8 小时后自动轮换' : '天气已清空，将立即随机', 'success', 2000);
+    }
+};
