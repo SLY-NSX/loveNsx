@@ -2217,11 +2217,12 @@ window.closeDailyGreeting = function() {
     } catch(e) {}
 };
 
-window.reopenDailyGreeting = function() {
+window.reopenDailyGreeting = function(mode) {
     try {
-        // 每次打开公告时，默认显示梦角页
-        _greetingPage = 'partner';
-        if (typeof _buildDailyGreeting === 'function') _buildDailyGreeting('partner');
+        // 如果传入了 mode 则使用，否则默认 partner
+        var targetMode = mode || 'partner';
+        _greetingPage = targetMode;
+        if (typeof _buildDailyGreeting === 'function') _buildDailyGreeting(targetMode);
         var modal = document.getElementById('daily-greeting-modal');
         if (modal) {
             modal.style.opacity = '0';
