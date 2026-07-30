@@ -1982,6 +1982,11 @@
     overflow: hidden;
 }
 
+/* 只调整天气板块（第一个格子）的第三行上边距 */
+.dg-info-cell:first-child .dg-info-cell-val {
+    margin-top: 6px;   
+}
+
 .dg-info-cell-icon {
     grid-row: 1 / span 2;
     grid-column: 1;
