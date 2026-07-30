@@ -1235,7 +1235,7 @@ var statusPool = [
     if (oldWeather && !localStorage.getItem(weatherKey)) {
         // 第一次迁移：把旧值存入新键，并设置下次更新为 3~8 小时后
         localStorage.setItem(weatherKey, oldWeather);
-        var delay = 3*60*1000 + Math.random() * (5*60*1000);
+        var delay = 3*60*60*1000 + Math.random() * (5*60*60*1000);
         localStorage.setItem(nextUpdateKey, String(nowTs + delay));
         localStorage.removeItem(oldCustomKey); // 删除旧键，避免干扰
     }
@@ -1250,8 +1250,8 @@ var statusPool = [
         weather = weathers[randomIndex];
         localStorage.setItem(weatherKey, weather);
         // 随机间隔 3~8 小时（毫秒）
-        var minDelay = 3 * 60 * 1000;   
-        var maxDelay = 8 * 60 * 1000; 
+        var minDelay = 3 * 60 * 60 * 1000;   
+        var maxDelay = 8 * 60 * 60 * 1000;
         var delay = minDelay + Math.random() * (maxDelay - minDelay);
         localStorage.setItem(nextUpdateKey, String(nowTs + delay));
     }
@@ -1509,9 +1509,11 @@ function _renderPartnerGreetingContent(now, todayStr) {
     if (wBadge) wBadge.style.display = 'none';
 
     // 标签
-    setEl('dg-section-label-partner', pName + ' 今日状态');
-    setEl('dg-weather-label', pName + ' 的天气');
-    setEl('dg-status-label', pName + ' 的今日建议');
+    setEl('dg-section-label-partner', pName + ' 今日心情');
+    setEl('dg-weather-label', pName + '所在地');
+    setEl('dg-weather-sub', '城市天气');
+    setEl('dg-status-label', '给' + mName + '的');
+    setEl('dg-status-sub', '今日建议');
     // ===== 确保梦角页的今日建议、今日寄语、今日状态不可点击 =====
     var statusEl = document.getElementById('dg-status');
     if (statusEl) {
@@ -1574,7 +1576,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
         var myMotto = _getMyMotto();
 
         // 4. 设置今日状态
-        setEl('dg-section-label-partner', mName + ' 今日状态');
+        setEl('dg-section-label-partner', mName + ' 今日心情');
 
         // 设置心情图标
         var moodIconEl = document.getElementById('dg-partner-mood-icon');
@@ -1594,7 +1596,8 @@ function _renderPartnerGreetingContent(now, todayStr) {
         setEl('dg-partner-mood-note', myMoodNote || (todayMood.user ? mName + ' 记录了今天的心情 ☆' : ''));
 
         // 5. 设置天气
-        setEl('dg-weather-label', mName + ' 的天气');
+        setEl('dg-weather-label', mName + '所在地');
+        setEl('dg-weather-sub', '城市天气');
         var weatherEl = document.getElementById('dg-weather');
         if (weatherEl) {
             if (myWeather) {
@@ -1620,7 +1623,8 @@ function _renderPartnerGreetingContent(now, todayStr) {
         }
 
         // 6. 设置今日建议
-        setEl('dg-status-label', mName + ' 的今日建议');
+        setEl('dg-status-label', '给' + pName + '的');
+        setEl('dg-status-sub', '今日建议');
         var statusEl = document.getElementById('dg-status');
         if (statusEl) {
             if (mySuggestion) {
@@ -2388,8 +2392,8 @@ window.startEditDgWeather = function(el) {
         localStorage.setItem('dg_weather', val);
         // 设置下次更新为 3~8 小时后（这样手动值会持续一段时间）
         var nowTs = now.getTime();
-        var minDelay = 3 * 60 * 1000;  
-        var maxDelay = 8 * 60 * 1000; 
+        var minDelay = 3 * 60 * 60 * 1000;  
+        var maxDelay = 8 * 60 * 60 * 1000;
         var delay = minDelay + Math.random() * (maxDelay - minDelay);
         localStorage.setItem('dg_weather_next_update', String(nowTs + delay));
     }
