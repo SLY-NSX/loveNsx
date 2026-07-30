@@ -1226,16 +1226,12 @@ const closeMoodBtn = document.getElementById('close-mood');
 if (closeMoodBtn && !closeMoodBtn.dataset.initialized) {
     closeMoodBtn.dataset.initialized = 'true';
     closeMoodBtn.addEventListener('click', function() {
-        // 判断是否从公告跳转过来的
         if (window._fromGreeting) {
-            // 清除标记
             window._fromGreeting = false;
-            // 关闭心情手账
             hideModal(modal);
-            // 重新打开公告
             setTimeout(function() {
                 if (typeof reopenDailyGreeting === 'function') {
-                    reopenDailyGreeting();
+                    reopenDailyGreeting('me');
                 }
             }, 300);
         } else {
