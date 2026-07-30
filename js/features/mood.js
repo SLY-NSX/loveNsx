@@ -202,31 +202,31 @@ function toggleBatchFavoriteMode() {
         }
 
 
-
-const MOOD_OPTIONS = [
-    { key: 'happy', kaomoji: '😆', label: '开心', color: '#FFD93D' },
-    { key: 'content', kaomoji: '😌', label: '满足', color: '#A8E6CF' },
-    { key: 'loved', kaomoji: '🥰', label: '心动', color: '#FF6B6B' },
-    { key: 'affectionate', kaomoji: '😘', label: '喜爱', color: '#FF9FF3' },
-    { key: 'cute', kaomoji: '🥺', label: '撒娇', color: '#FFB6C1' },
-    { key: 'sad', kaomoji: '😕', label: '难过', color: '#4D96FF' },
-    { key: 'tired', kaomoji: '😞', label: '疲惫', color: '#8D9EFF' },
-    { key: 'crying', kaomoji: '😭', label: '伤心', color: '#5C6BC0' },
-    { key: 'angry', kaomoji: '😠', label: '生气', color: '#FF4757' },
-    { key: 'jealous', kaomoji: '😒', label: '吃醋', color: '#9E9E9E' },
-    { key: 'confused', kaomoji: '😮', label: '困惑', color: '#B0BEC5' },
-    { key: 'busy', kaomoji: '😫', label: '忙碌', color: '#FFA726' },
-    { key: 'focused', kaomoji: '🤓', label: '专注', color: '#66BB6A' },
-    { key: 'peaceful', kaomoji: '😇', label: '平静', color: '#B2EBF2' },
-    { key: 'lonely', kaomoji: '😔', label: '孤单', color: '#B8A9C9' },
-    { key: 'cool', kaomoji: '😎', label: '潇洒', color: '#2C3E50' },
-    { key: 'sleepy', kaomoji: '😴', label: '困倦', color: '#37474F' },   
-    { key: 'excited', kaomoji: '🤩', label: '兴奋', color: '#FF6B6B' },
-    { key: 'joyful', kaomoji: '😄', label: '快乐', color: '#FFEAA7' },
-    { key: 'delighted', kaomoji: '😃', label: '喜悦', color: '#FDEBD0' },
-    { key: 'love', kaomoji: '🤗', label: '思念', color: '#FF9A8B' },
-    { key: 'peace', kaomoji: '🙂', label: '平淡', color: '#6BCB77' },
-    { key: 'relaxed', kaomoji: '😊', label: '放松', color: '#81C784' },
+const moodList = [
+  { key: 'happy', kaomoji: '😆', label: '开心', color: '#FFD93D' },
+  { key: 'excited', kaomoji: '🤩', label: '兴奋', color: '#FF6B6B' },
+  { key: 'joyful', kaomoji: '😄', label: '快乐', color: '#FFEAA7' },
+  { key: 'delighted', kaomoji: '😃', label: '喜悦', color: '#FDEBD0' },
+  { key: 'content', kaomoji: '😌', label: '满足', color: '#A8E6CF' },
+  { key: 'loved', kaomoji: '🥰', label: '心动', color: '#FF6B6B' },
+  { key: 'affectionate', kaomoji: '😘', label: '喜爱', color: '#FF9FF3' },
+  { key: 'love', kaomoji: '🥲', label: '思念', color: '#FF9A8B' },
+  { key: 'cute', kaomoji: '🥺', label: '撒娇', color: '#FFB6C1' },
+{ key: 'jealous', kaomoji: '😒', label: '吃醋', color: '#9E9E9E' },
+  { key: 'peace', kaomoji: '🙂', label: '平淡', color: '#6BCB77' },
+ { key: 'peaceful', kaomoji: '😇', label: '平静', color: '#B2EBF2' },
+{ key: 'relaxed', kaomoji: '😊', label: '放松', color: '#81C784' },
+ { key: 'focused', kaomoji: '🤓', label: '专注', color: '#66BB6A' },
+ { key: 'cool', kaomoji: '😎', label: '潇洒', color: '#2C3E50' },
+  { key: 'sad', kaomoji: '😕', label: '难过', color: '#4D96FF' },
+  { key: 'tired', kaomoji: '😞', label: '疲惫', color: '#8D9EFF' },
+  { key: 'crying', kaomoji: '😭', label: '伤心', color: '#5C6BC0' },
+  { key: 'angry', kaomoji: '😠', label: '生气', color: '#FF4757' },
+  { key: 'discontent', kaomoji: '😤', label: '不满', color: '#FFB74D' },   
+  { key: 'confused', kaomoji: '😮', label: '困惑', color: '#B0BEC5' },
+  { key: 'busy', kaomoji: '😫', label: '忙碌', color: '#FFA726' },
+  { key: 'lonely', kaomoji: '😔', label: '孤单', color: '#B8A9C9' },
+  { key: 'sleepy', kaomoji: '😴', label: '困倦', color: '#37474F' }
 ];
 
 let moodData = {}; 
