@@ -1326,6 +1326,26 @@ function _buildDailyGreeting(mode) {
     } catch(e) { console.warn('Daily greeting build error:', e); }
 }
 
+// ===== 公共：今日建议大字自适应 =====
+function _applyStatusFontSize() {
+    var el = document.getElementById('dg-status');
+    if (!el) return;
+    var text = el.textContent || '';
+    var len = text.length;
+    var maxCharsPerTwoLines = 22;
+    var baseSize = 15;
+    var minSize = 10;
+    var maxSize = 16;
+    var newSize = baseSize;
+    if (len > maxCharsPerTwoLines) {
+        newSize = Math.max(minSize, baseSize * (maxCharsPerTwoLines / len));
+    } else if (len <= 6) {
+        newSize = Math.min(maxSize, baseSize + 1);
+    }
+    newSize = Math.min(maxSize, Math.max(minSize, newSize));
+    el.style.fontSize = newSize + 'px';
+}
+
 // ===== 新增：渲染梦角页内容 =====
 function _renderPartnerGreetingContent(now, todayStr) {
     var data = _getDailyGreetingData();
@@ -1462,29 +1482,11 @@ function _renderPartnerGreetingContent(now, todayStr) {
                     emojiEl2.textContent = poolItem.icon;
                 }
             }
+            _applyStatusFontSize();
         }
     } else {
         setEl('dg-status', status);
-        // 字体自适应
-        function adjustStatusFontSize() {
-            var el = document.getElementById('dg-status');
-            if (!el) return;
-            var text = el.textContent || '';
-            var len = text.length;
-            var maxCharsPerTwoLines = 22;
-            var baseSize = 15;
-            var minSize = 10;
-            var maxSize = 16;
-            var newSize = baseSize;
-            if (len > maxCharsPerTwoLines) {
-                newSize = Math.max(minSize, baseSize * (maxCharsPerTwoLines / len));
-            } else if (len <= 6) {
-                newSize = Math.min(maxSize, baseSize + 1);
-            }
-            newSize = Math.min(maxSize, Math.max(minSize, newSize));
-            el.style.fontSize = newSize + 'px';
-        }
-        adjustStatusFontSize();
+        _applyStatusFontSize();   // 直接调用公共函数
     }
 
     // 天气
@@ -1510,8 +1512,8 @@ function _renderPartnerGreetingContent(now, todayStr) {
 
     // 标签
     setEl('dg-section-label-partner', pName + ' 今日心情');
-    setEl('dg-weather-label', pName + '所在地');
-    setEl('dg-weather-sub', '城市天气');
+    setEl('dg-weather-label', pName);
+    setEl('dg-weather-sub', '所在地天气');
     setEl('dg-status-label', '给' + mName + '的今日建议');
     // ===== 确保梦角页的今日建议、今日寄语、今日状态不可点击 =====
     var statusEl = document.getElementById('dg-status');
@@ -1596,8 +1598,8 @@ function _renderPartnerGreetingContent(now, todayStr) {
         setEl('dg-partner-mood-note', myMoodNote || (todayMood.user ? mName + ' 记录了今天的心情 ☆' : ''));
 
         // 5. 设置天气
-        setEl('dg-weather-label', mName + '所在地');
-        setEl('dg-weather-sub', '城市天气');
+        setEl('dg-weather-label', mName);
+        setEl('dg-weather-sub', '所在地天气');
         var weatherEl = document.getElementById('dg-weather');
         if (weatherEl) {
             if (myWeather) {
@@ -1642,6 +1644,7 @@ function _renderPartnerGreetingContent(now, todayStr) {
                 e.stopPropagation();
                 _editMySuggestion();
             };
+            _applyStatusFontSize();
         }
 
         // 7. 设置今日寄语
