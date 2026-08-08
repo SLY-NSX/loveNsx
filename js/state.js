@@ -179,3 +179,30 @@
                 closeBtn: document.getElementById('close-data')
             }
         };
+
+// ============================================================
+// 陪伴功能状态变量 (Companion Feature)
+// ============================================================
+
+/**
+ * 当前陪伴会话状态
+ * @type {Object|null}
+ * @property {string} state - 'idle'|'selecting'|'countdown'|'ready_to_start'|'sleeping'|'ended'
+ * @property {string|null} soundType - 白噪音类型
+ * @property {number|null} startTime - 入睡开始时间戳
+ * @property {number|null} lastAliveTime - 最后一次心跳时间戳
+ * @property {number} elapsed - 已持续毫秒数
+ * @property {number} countdownRemain - 倒计时剩余秒数
+ */
+let companionSession = null;
+
+/**
+ * 所有陪伴历史记录（从 storage 加载）
+ * @type {Array}
+ */
+let companionRecords = [];
+
+/**
+ * 陪伴遗言存储键名（用于页面意外退出恢复）
+ */
+const COMPANION_ACCIDENT_KEY = 'companionAccident';

@@ -53,6 +53,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         await safeAwait(loadData());
 
         updateLoader('正在渲染我们的世界...', '70%');
+
+        try { initCompanionFeature?.(); } catch(e) { console.warn('[boot] 陪伴功能初始化失败:', e); }
         
         await Promise.allSettled([
             safeAwait(initializeRandomUI?.()),
@@ -87,6 +89,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (typeof saveTimeout !== 'undefined') clearTimeout(saveTimeout);
                 } catch (e) {}
                 try { _backupCriticalData(); } catch (e) { console.warn('[visibilitychange] 紧急备份失败:', e); }
+                try { _backupCompanionAccident?.(); } catch (e) { console.warn('[visibilitychange] 陪伴遗言备份失败:', e); }
+
                 try {
                     const p = saveData();
                     if (p && typeof p.catch === 'function') {
@@ -268,6 +272,24 @@ window.addEventListener('load', function() {
                 localStorage.setItem('dailyGreetingShown', new Date().toDateString());
             }
         } catch(e) { console.warn('Daily greeting timing error:', e); }
+        try {
+            if (typeof checkCompanionAccident === 'function') {
+                var accident = checkCompanionAccident();
+                if (accident) {
+                    // 延迟一会，等页面完全加载后再弹窗
+                    setTimeout(function() {
+                        if (confirm('检测到未完成的陪伴，是否补录系统中断记录？')) {
+                            if (typeof restoreCompanionAccident === 'function') {
+                                restoreCompanionAccident(accident);
+                            }
+                        } else {
+                            // 用户选择不补录，清除遗言
+                            try { localStorage.removeItem('companionAccident'); } catch(e) {}
+                        }
+                    }, 1000);
+                }
+            }
+        } catch(e) { console.warn('[boot] 陪伴遗言检测失败:', e); }
     }, 4500);
 }, { once: true });
 
