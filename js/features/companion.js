@@ -1138,33 +1138,18 @@
     // ============================================================
     // 10. 初始化入口
     // ============================================================
-    function initCompanionFeature() {
-        console.log('[companion] 陪伴功能已加载');
+function initCompanionFeature() {
+    console.log('[companion] 陪伴功能已加载');
 
-        // 在设置-高级功能中挂载入口（由外部HTML按钮调用）
-        // 将 showCompanionPicker 暴露到全局，供HTML onclick调用
-        window.showCompanionPicker = window.showCompanionPicker || function () {
-            // 如果已经有实例则复用
-            if (typeof window._showCompanionPicker === 'function') {
-                window._showCompanionPicker();
-            } else {
-                // 首次调用
-                window._showCompanionPicker = function () {
-                    // 重新绑定
-                    showCompanionPicker();
-                };
-                showCompanionPicker();
-            }
-        };
+    // 直接暴露内部函数到全局，供HTML onclick调用
+    window.showCompanionPicker = showCompanionPicker;
+    window.openCompanion = showCompanionPicker;
 
-        // 暴露给外部调用的别名
-        window.openCompanion = window.showCompanionPicker;
-
-        // 如果有正在播放的声音但状态丢失，清理
-        if (session.state === STATE.IDLE) {
-            stopSound();
-        }
+    // 如果有正在播放的声音但状态丢失，清理
+    if (session.state === STATE.IDLE) {
+        stopSound();
     }
+}
 
     // 页面卸载时清理
     window.addEventListener('beforeunload', function () {
