@@ -1491,6 +1491,19 @@
                     <div class="settings-item" id="envelope-function">
                         <i class="fas fa-envelope"></i><span>信封投递</span>
                     </div>
+                    <!-- ===== 新增：陪伴功能 ===== -->
+                    <div class="settings-item" id="companion-function" style="border-top:1px solid var(--border-color);margin-top:4px;padding-top:10px;">
+                        <i class="fas fa-moon" style="color:var(--accent-color);"></i>
+                        <span style="font-weight:600;">陪伴</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-left:34px;margin-top:-2px;margin-bottom:4px;">
+                        <div class="settings-item" id="companion-start-btn" style="font-size:12px;padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border:1px solid rgba(var(--accent-color-rgb),0.15);border-radius:8px;cursor:pointer;" onclick="if(typeof showCompanionPicker==='function')showCompanionPicker();">
+                            <i class="fas fa-play" style="font-size:10px;"></i><span>开启陪伴</span>
+                        </div>
+                        <div class="settings-item" id="companion-records-btn" style="font-size:12px;padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border:1px solid rgba(var(--accent-color-rgb),0.15);border-radius:8px;cursor:pointer;" onclick="if(typeof showCompanionRecords==='function')showCompanionRecords();">
+                            <i class="fas fa-list" style="font-size:10px;"></i><span>陪伴记录</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
