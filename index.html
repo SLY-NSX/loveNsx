@@ -1491,19 +1491,43 @@
                     <div class="settings-item" id="envelope-function">
                         <i class="fas fa-envelope"></i><span>信封投递</span>
                     </div>
-                    <!-- ===== 新增：陪伴功能 ===== -->
-                    <div class="settings-item" id="companion-function" style="border-top:1px solid var(--border-color);margin-top:4px;padding-top:10px;">
+                    <!-- ===== 新增：陪伴功能（二级菜单） ===== -->
+                    <div class="settings-item" id="companion-function" style="border-top:1px solid var(--border-color);margin-top:4px;padding-top:10px;cursor:pointer;" onclick="toggleCompanionSubmenu()">
                         <i class="fas fa-moon" style="color:var(--accent-color);"></i>
                         <span style="font-weight:600;">陪伴</span>
+                        <span id="companion-arrow" style="margin-left:auto;font-size:12px;color:var(--text-secondary);transition:transform 0.2s;">▶</span>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding-left:34px;margin-top:-2px;margin-bottom:4px;">
-                        <div class="settings-item" id="companion-start-btn" style="font-size:12px;padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border:1px solid rgba(var(--accent-color-rgb),0.15);border-radius:8px;cursor:pointer;" onclick="if(typeof showCompanionPicker==='function')showCompanionPicker();">
-                            <i class="fas fa-play" style="font-size:10px;"></i><span>开启陪伴</span>
-                        </div>
-                        <div class="settings-item" id="companion-records-btn" style="font-size:12px;padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border:1px solid rgba(var(--accent-color-rgb),0.15);border-radius:8px;cursor:pointer;" onclick="if(typeof showCompanionRecords==='function')showCompanionRecords();">
-                            <i class="fas fa-list" style="font-size:10px;"></i><span>陪伴记录</span>
+                    <div id="companion-submenu" style="display:none;padding-left:34px;margin-top:4px;margin-bottom:4px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                            <div class="settings-item" id="companion-start-btn" style="font-size:12px;padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border:1px solid rgba(var(--accent-color-rgb),0.15);border-radius:8px;cursor:pointer;" onclick="event.stopPropagation();if(typeof showCompanionPicker==='function')showCompanionPicker();">
+                                <i class="fas fa-play" style="font-size:10px;"></i><span>开启陪伴</span>
+                            </div>
+                            <div class="settings-item" id="companion-records-btn" style="font-size:12px;padding:6px 10px;background:rgba(var(--accent-color-rgb),0.06);border:1px solid rgba(var(--accent-color-rgb),0.15);border-radius:8px;cursor:pointer;" onclick="event.stopPropagation();if(typeof showCompanionRecords==='function')showCompanionRecords();">
+                                <i class="fas fa-list" style="font-size:10px;"></i><span>陪伴记录</span>
+                            </div>
                         </div>
                     </div>
+                    <script>
+                    // 在高级功能内部添加切换函数（可放在全局脚本区域，但为了就近管理，建议放在该处）
+                    (function() {
+                        // 确保函数只定义一次
+                        if (typeof window.toggleCompanionSubmenu === 'undefined') {
+                            window.toggleCompanionSubmenu = function() {
+                                var sub = document.getElementById('companion-submenu');
+                                var arrow = document.getElementById('companion-arrow');
+                                if (sub) {
+                                    if (sub.style.display === 'none' || sub.style.display === '') {
+                                        sub.style.display = 'block';
+                                        if (arrow) arrow.style.transform = 'rotate(90deg)';
+                                    } else {
+                                        sub.style.display = 'none';
+                                        if (arrow) arrow.style.transform = 'rotate(0deg)';
+                                    }
+                                }
+                            };
+                        }
+                    })();
+                    </script>
                 </div>
             </div>
 
@@ -2349,6 +2373,7 @@
     <script src="js/features/theme-editor.js"></script>
     <script src="js/features/group-chat.js"></script>
     <script src="js/features/call.js"></script>
+    <script src="js/features/companion.js"></script>
 
     <!-- == 合并模块 == -->
     <script src="js/games.js"></script> 
