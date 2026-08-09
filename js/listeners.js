@@ -1460,6 +1460,47 @@ if (_cancelEnvEl) _cancelEnvEl.addEventListener('click', () => {
                 });
             }
 
+// ===== 陪伴功能入口 =====
+const companionEntry = document.getElementById('companion-function');
+if (companionEntry) {
+    companionEntry.addEventListener('click', () => {
+        hideModal(DOMElements.advancedModal.modal);
+        showModal(document.getElementById('companion-menu-modal'));
+    });
+}
+
+// 陪伴菜单中的按钮
+const companionStartOption = document.getElementById('companion-start-option');
+if (companionStartOption) {
+    companionStartOption.addEventListener('click', () => {
+        hideModal(document.getElementById('companion-menu-modal'));
+        if (typeof showCompanionPicker === 'function') {
+            showCompanionPicker();
+        } else {
+            showNotification('陪伴功能尚未加载，请刷新页面重试', 'error');
+        }
+    });
+}
+
+const companionRecordsOption = document.getElementById('companion-records-option');
+if (companionRecordsOption) {
+    companionRecordsOption.addEventListener('click', () => {
+        hideModal(document.getElementById('companion-menu-modal'));
+        if (typeof showCompanionRecords === 'function') {
+            showCompanionRecords();
+        } else {
+            showNotification('陪伴记录功能开发中...', 'info');
+        }
+    });
+}
+
+const closeCompanionMenu = document.getElementById('close-companion-menu');
+if (closeCompanionMenu) {
+    closeCompanionMenu.addEventListener('click', () => {
+        hideModal(document.getElementById('companion-menu-modal'));
+    });
+}
+// ===== 结束 =====
 
             const _batchFavEl = document.getElementById('batch-favorite-function');
             if (_batchFavEl) _batchFavEl.addEventListener('click', () => {
