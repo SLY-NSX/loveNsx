@@ -1,5 +1,5 @@
 /**
- * companion.js - 陪伴睡眠功能核心模块（简化稳定版）
+ * companion.js - 陪伴睡眠功能（完整稳定版）
  */
 (function () {
     'use strict';
@@ -31,6 +31,7 @@
         rafId: null,
         countdownInterval: null,
         isEnding: false,
+        _autoStopped: false,
     };
 
     let audioElement = null;
@@ -97,7 +98,7 @@
     }
 
     // ============================================================
-    // 音乐列表存储
+    // 音乐列表存储（硬编码）
     // ============================================================
     const DEFAULT_MUSIC = [
         {
@@ -277,7 +278,7 @@
     }
 
     // ============================================================
-    // 闹钟（保留）
+    // 闹钟
     // ============================================================
     function playAlarm() {
         stopAlarm();
@@ -367,7 +368,7 @@
     }
 
     // ============================================================
-    // UI 渲染（完整样式恢复）
+    // UI 渲染（完整样式）
     // ============================================================
     function getOverlayContainer() {
         let el = document.getElementById('companion-overlay');
@@ -384,7 +385,6 @@
                 transition: opacity 0.6s ease;
             `;
 
-            // 注入完整样式
             const style = document.createElement('style');
             style.id = 'companion-style';
             style.textContent = `
@@ -667,7 +667,6 @@
             `;
             document.head.appendChild(style);
 
-            // 生成星星
             for (let i = 0; i < 60; i++) {
                 const star = document.createElement('div');
                 star.className = 'star';
@@ -792,14 +791,12 @@
         // ---- 事件绑定：使用事件委托 ----
         const musicListEl = document.getElementById('companion-music-list');
         if (musicListEl) {
-            // 移除旧监听避免重复绑定
             musicListEl._listener && musicListEl.removeEventListener('click', musicListEl._listener);
 
             const handler = function(e) {
                 const musicItem = e.target.closest('.music-item');
                 if (!musicItem) return;
 
-                // 删除按钮
                 if (e.target.classList.contains('music-delete')) {
                     const id = musicItem.dataset.id;
                     if (id && confirm('确定要删除这首音乐吗？')) {
@@ -808,7 +805,6 @@
                     return;
                 }
 
-                // 点击音乐项
                 const id = musicItem.dataset.id;
                 if (id) {
                     console.log('[companion] 点击音乐:', id);
@@ -820,16 +816,13 @@
             musicListEl._listener = handler;
         }
 
-        // 搜索
         document.getElementById('companion-search-input')?.addEventListener('input', (e) => {
             searchTerm = e.target.value;
             renderSetupUI();
         });
 
-        // 添加音乐
         document.getElementById('companion-add-music-btn')?.addEventListener('click', showAddMusicDialog);
 
-        // 倒计时
         const countdownInput = document.getElementById('companion-countdown-input');
         if (countdownInput) {
             countdownInput.addEventListener('change', () => {
@@ -840,7 +833,6 @@
             });
         }
 
-        // 取消
         document.getElementById('companion-setup-cancel')?.addEventListener('click', () => {
             stopMusic();
             hideOverlay();
@@ -848,7 +840,6 @@
             currentUI = 'idle';
         });
 
-        // 确定
         document.getElementById('companion-setup-confirm')?.addEventListener('click', () => {
             const input = document.getElementById('companion-countdown-input');
             if (input) {
@@ -890,7 +881,7 @@
     }
 
     // ============================================================
-    // 添加音乐对话框（完整版）
+    // 添加音乐对话框
     // ============================================================
     function showAddMusicDialog() {
         const overlay = document.createElement('div');
@@ -1024,36 +1015,567 @@
     }
 
     // ============================================================
-    // 其他函数（完整保留）
+    // "开始睡眠"弹窗
     // ============================================================
-    function showReadyToStart(withAlarm) { /* 与之前相同，省略，完整代码见下方 */ }
-    function startSleepTracking() { /* 与之前相同，省略，完整代码见下方 */ }
-    function addFloatingControl() { /* 与之前相同 */ }
-    function updateFloatingControlUI() { /* 与之前相同 */ }
-    function showMusicSelectPopup() { /* 与之前相同 */ }
-    function startTimer() { /* 与之前相同 */ }
-    function stopTimer() { /* 与之前相同 */ }
-    function updateSleepTimerUI() { /* 与之前相同 */ }
-    function hideStatusText() { /* 与之前相同 */ }
-    function endSession(mode) { /* 与之前相同 */ }
-    function saveRecordAndCleanup(record) { /* 与之前相同 */ }
-    function showInterruptReasonToast(record, onSave) { /* 与之前相同 */ }
-    function showCompletionToast(record, onSave) { /* 与之前相同 */ }
-    function backupAccident() { /* 与之前相同 */ }
-    function clearAccident() { /* 与之前相同 */ }
-    function resetSession() { /* 与之前相同 */ }
-    function showCompanionPicker() { /* 与之前相同 */ }
-    function initCompanionFeature() { /* 与之前相同 */ }
+    function showReadyToStart(withAlarm) {
+        if (session.state === STATE.ENDED) return;
+
+        const name = getPartnerName();
+        const avatarHTML = getPartnerAvatarHTML();
+
+        const html = `
+            <div class="companion-avatar">${avatarHTML}</div>
+            <div class="companion-name">${name}</div>
+            <div style="font-size:14px;color:rgba(255,255,255,0.5);margin-top:-4px;">${withAlarm ? '⏰ 该休息了' : '准备好了吗'}</div>
+            <div style="margin:18px 0 6px;font-size:15px;color:rgba(255,255,255,0.7);">${withAlarm ? '🌙 点击开始睡眠，闹钟将关闭' : '🌙 可以开始入睡了'}</div>
+            <button class="companion-btn" id="companion-start-sleep" style="margin-top:12px;">开始睡眠</button>
+            <button class="companion-btn secondary" id="companion-cancel-session" style="margin-top:8px;padding:8px 20px;font-size:13px;background:rgba(255,255,255,0.05);">取消</button>
+        `;
+
+        renderOverlay(html);
+
+        if (withAlarm) {
+            playAlarm();
+        }
+
+        document.getElementById('companion-start-sleep')?.addEventListener('click', () => {
+            stopAlarm();
+            startSleepTracking();
+        });
+
+        document.getElementById('companion-cancel-session')?.addEventListener('click', () => {
+            stopAlarm();
+            stopMusic();
+            releaseWakeLock();
+            hideOverlay();
+            resetSession();
+            currentUI = 'idle';
+        });
+    }
 
     // ============================================================
-    // 暴露与初始化
+    // 睡眠计时
     // ============================================================
+    function startSleepTracking() {
+        if (session.state === STATE.ENDED) return;
+        session.state = STATE.SLEEPING;
+        session.startTime = Date.now();
+        session.elapsed = 0;
+        session.lastAliveTime = Date.now();
+        session._autoStopped = false;
+
+        const name = getPartnerName();
+        const avatarHTML = getPartnerAvatarHTML();
+        const statuses = [
+            '你先休息，我处理一些事情',
+            '✨ 已进入梦境',
+            '稍等一下，我马上来',
+            '来吧，一起休息 🌙'
+        ];
+        const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+        const html = `
+            <div class="companion-avatar">${avatarHTML}</div>
+            <div class="companion-name">${name}</div>
+            <div class="companion-status" id="companion-status-text">${status}</div>
+            <div class="companion-timer" id="companion-timer-display">00:00</div>
+            <div class="companion-btn-group">
+                <button class="companion-btn" id="companion-end-sleep">结束睡眠</button>
+                <button class="companion-btn secondary" id="companion-interrupt-sleep">中断</button>
+            </div>
+        `;
+
+        renderOverlay(html);
+        addFloatingControl();
+        startTimer();
+        backupAccident();
+
+        document.getElementById('companion-end-sleep')?.addEventListener('click', () => {
+            endSession('completed');
+        });
+        document.getElementById('companion-interrupt-sleep')?.addEventListener('click', () => {
+            endSession('interrupted');
+        });
+
+        console.log('[companion] 睡眠计时开始');
+    }
+
+    // ============================================================
+    // 悬浮音乐控制
+    // ============================================================
+    function addFloatingControl() {
+        let fc = document.getElementById('companion-floating-control');
+        if (!fc) {
+            fc = document.createElement('div');
+            fc.id = 'companion-floating-control';
+            fc.innerHTML = `
+                <span class="fc-title" id="fc-title">无音乐</span>
+                <button class="fc-btn" id="fc-play-btn"><i class="fas fa-play"></i></button>
+                <button class="fc-btn" id="fc-select-btn"><i class="fas fa-list"></i></button>
+            `;
+            const overlay = document.getElementById('companion-overlay');
+            if (overlay) overlay.appendChild(fc);
+            else document.body.appendChild(fc);
+
+            document.getElementById('fc-play-btn')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleMusicPlay();
+            });
+
+            document.getElementById('fc-select-btn')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showMusicSelectPopup();
+            });
+        }
+
+        updateFloatingControlUI();
+        fc.style.display = 'flex';
+        const overlay = document.getElementById('companion-overlay');
+        if (overlay && fc.parentElement !== overlay) {
+            overlay.appendChild(fc);
+        }
+    }
+
+    function updateFloatingControlUI() {
+        const fc = document.getElementById('companion-floating-control');
+        if (!fc) return;
+        const titleEl = document.getElementById('fc-title');
+        const playBtn = document.getElementById('fc-play-btn');
+        if (titleEl) titleEl.textContent = session.musicTitle || '无音乐';
+        if (playBtn) playBtn.innerHTML = isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
+    }
+
+    function showMusicSelectPopup() {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 100002;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+            animation: companionToastIn 0.3s ease;
+        `;
+
+        let listHTML = session.musicList.map(item => {
+            const isActive = session.selectedMusicId === item.id;
+            return `
+                <div style="display:flex;align-items:center;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.05);cursor:pointer;transition:background 0.15s;${isActive ? 'background:rgba(var(--accent-color-rgb),0.12);' : ''}"
+                     class="music-select-item" data-id="${item.id}">
+                    <span style="flex:1;font-size:14px;color:var(--text-primary,#fff);">${item.title}</span>
+                    ${item.sub ? `<span style="font-size:12px;color:rgba(255,255,255,0.4);margin-right:8px;">${item.sub}</span>` : ''}
+                    ${isActive ? '<span style="color:var(--accent-color);font-size:12px;">● 当前</span>' : ''}
+                </div>
+            `;
+        }).join('');
+
+        if (!listHTML) {
+            listHTML = `<div style="padding:30px;text-align:center;color:rgba(255,255,255,0.3);font-size:14px;">暂无音乐，请在设置中添加</div>`;
+        }
+
+        overlay.innerHTML = `
+            <div style="background:var(--modal-bg,#1e1e2e);border-radius:20px;padding:20px;max-width:340px;width:90%;max-height:70vh;overflow-y:auto;border:1px solid rgba(255,255,255,0.06);">
+                <div style="font-size:16px;font-weight:600;margin-bottom:14px;color:var(--text-primary,#fff);">🎵 选择音乐</div>
+                <div id="music-select-list">
+                    ${listHTML}
+                </div>
+                <div style="margin-top:14px;display:flex;gap:8px;">
+                    <button class="companion-btn secondary" id="music-select-close" style="flex:1;padding:8px;font-size:13px;min-width:unset;">关闭</button>
+                    <button class="companion-btn secondary" id="music-select-stop" style="flex:1;padding:8px;font-size:13px;min-width:unset;background:rgba(255,70,70,0.15);border-color:rgba(255,70,70,0.2);color:#ff6b6b;">停止音乐</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelectorAll('.music-select-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = el.dataset.id;
+                selectMusic(id);
+                document.body.removeChild(overlay);
+                updateFloatingControlUI();
+            });
+        });
+
+        overlay.querySelector('#music-select-close')?.addEventListener('click', () => {
+            document.body.removeChild(overlay);
+        });
+
+        overlay.querySelector('#music-select-stop')?.addEventListener('click', () => {
+            stopMusic();
+            session.selectedMusicId = null;
+            session.musicTitle = '无音乐';
+            updateFloatingControlUI();
+            document.body.removeChild(overlay);
+            if (session.state === STATE.SLEEPING) {
+                const titleEl = document.getElementById('fc-title');
+                if (titleEl) titleEl.textContent = '无音乐';
+            }
+        });
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) document.body.removeChild(overlay);
+        });
+    }
+
+    // ============================================================
+    // 计时器
+    // ============================================================
+    function startTimer() {
+        if (session.rafId) cancelAnimationFrame(session.rafId);
+        const start = Date.now();
+        const baseElapsed = session.elapsed || 0;
+
+        function tick() {
+            if (session.state !== STATE.SLEEPING) return;
+            const now = Date.now();
+            session.elapsed = baseElapsed + (now - start);
+            session.lastAliveTime = now;
+            updateSleepTimerUI();
+
+            if (session.elapsed >= 30 * 60 * 1000) {
+                hideStatusText();
+            }
+
+            if (session.elapsed >= 60 * 60 * 1000 && isPlaying) {
+                if (!session._autoStopped) {
+                    session._autoStopped = true;
+                    fadeOutMusic(3000);
+                }
+            }
+
+            backupAccident();
+            session.rafId = requestAnimationFrame(tick);
+        }
+        session.rafId = requestAnimationFrame(tick);
+    }
+
+    function stopTimer() {
+        if (session.rafId) {
+            cancelAnimationFrame(session.rafId);
+            session.rafId = null;
+        }
+    }
+
+    function updateSleepTimerUI() {
+        const timerEl = document.getElementById('companion-timer-display');
+        if (timerEl) {
+            const totalSeconds = Math.floor(session.elapsed / 1000);
+            const mins = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+            const secs = String(totalSeconds % 60).padStart(2, '0');
+            timerEl.textContent = `${mins}:${secs}`;
+        }
+    }
+
+    function hideStatusText() {
+        const el = document.getElementById('companion-status-text');
+        if (el) el.classList.add('hidden');
+    }
+
+    // ============================================================
+    // 结束会话
+    // ============================================================
+    function endSession(mode) {
+        if (session.isEnding) return;
+        if (session.state !== STATE.SLEEPING) return;
+
+        session.isEnding = true;
+        stopTimer();
+        stopAlarm();
+
+        const elapsedMs = session.elapsed || 0;
+        const elapsedMinutes = elapsedMs / (60 * 1000);
+
+        if (elapsedMinutes < MIN_VALID_MINUTES) {
+            stopMusic();
+            releaseWakeLock();
+            hideOverlay();
+            showToast(`陪伴时长不足${MIN_VALID_MINUTES}分钟，不生成记录`, 'info');
+            resetSession();
+            session.isEnding = false;
+            currentUI = 'idle';
+            return;
+        }
+
+        const startDate = session.startTime ? new Date(session.startTime) : new Date();
+        const endDate = new Date();
+        const durationMs = elapsedMs;
+
+        const record = {
+            id: 'comp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            date: startDate.toISOString().split('T')[0],
+            startTime: startDate.toISOString(),
+            endTime: endDate.toISOString(),
+            duration: durationMs,
+            mode: mode,
+            soundType: session.musicTitle || '无音乐',
+            status: mode === 'completed' ? '完成陪伴' : '未能完成陪伴',
+            interruptReason: '',
+            isSystemInterrupt: false,
+        };
+
+        if (mode === 'interrupted') {
+            hideOverlay();
+            showInterruptReasonToast(record, () => saveRecordAndCleanup(record));
+            return;
+        }
+
+        if (mode === 'completed') {
+            hideOverlay();
+            showCompletionToast(record, () => saveRecordAndCleanup(record));
+            return;
+        }
+
+        stopMusic();
+        releaseWakeLock();
+        hideOverlay();
+        resetSession();
+        session.isEnding = false;
+        currentUI = 'idle';
+    }
+
+    // ============================================================
+    // 记录保存与清理
+    // ============================================================
+    function saveRecordAndCleanup(record) {
+        try {
+            if (typeof window.saveCompanionRecord === 'function') {
+                window.saveCompanionRecord(record);
+            } else {
+                const key = 'companion_records';
+                let records = JSON.parse(localStorage.getItem(key) || '[]');
+                records.push(record);
+                localStorage.setItem(key, JSON.stringify(records));
+            }
+            showToast('陪伴记录已保存 ✓', 'success');
+        } catch (e) {
+            console.error('[companion] 保存记录失败:', e);
+        }
+
+        stopMusic();
+        stopAlarm();
+        releaseWakeLock();
+        clearAccident();
+        resetSession();
+        session.isEnding = false;
+        currentUI = 'idle';
+    }
+
+    // ============================================================
+    // Toast弹窗
+    // ============================================================
+    function showInterruptReasonToast(record, onSave) {
+        const toast = document.createElement('div');
+        toast.className = 'companion-toast open';
+        toast.id = 'companion-toast-temp';
+        toast.innerHTML = `
+            <div class="toast-box">
+                <div class="toast-title">⏸️ 睡眠中断</div>
+                <div class="toast-body">
+                    <div>开始时间：${formatTime(record.startTime)}</div>
+                    <div>持续时间：${formatDuration(record.duration)}</div>
+                    <div style="margin-top:12px;">
+                        <label style="font-size:13px;color:rgba(255,255,255,0.5);">中断原因（选填）</label>
+                        <input type="text" id="interrupt-reason-input" placeholder="例如：被电话吵醒..." maxlength="100">
+                    </div>
+                </div>
+                <button class="toast-btn" id="toast-confirm-btn">确认保存</button>
+                <div style="margin-top:8px;">
+                    <button class="toast-btn" id="toast-skip-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.1);padding:6px 16px;font-size:13px;">不保存原因</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(toast);
+
+        const confirmBtn = toast.querySelector('#toast-confirm-btn');
+        const skipBtn = toast.querySelector('#toast-skip-btn');
+        const input = toast.querySelector('#interrupt-reason-input');
+
+        const doSave = (reason) => {
+            record.interruptReason = reason || '';
+            document.body.removeChild(toast);
+            if (onSave) onSave();
+        };
+
+        confirmBtn.addEventListener('click', () => doSave(input.value.trim()));
+        skipBtn.addEventListener('click', () => doSave(''));
+    }
+
+    function showCompletionToast(record, onSave) {
+        const toast = document.createElement('div');
+        toast.className = 'companion-toast open';
+        toast.id = 'companion-toast-temp';
+        toast.innerHTML = `
+            <div class="toast-box">
+                <div class="toast-title">🌙 好梦</div>
+                <div class="toast-body">
+                    <div>开始时间：${formatTime(record.startTime)}</div>
+                    <div>持续时间：${formatDuration(record.duration)}</div>
+                    <div>结束时间：${formatTime(record.endTime)}</div>
+                </div>
+                <button class="toast-btn" id="toast-confirm-btn">好的</button>
+            </div>
+        `;
+        document.body.appendChild(toast);
+
+        const confirmBtn = toast.querySelector('#toast-confirm-btn');
+        confirmBtn.addEventListener('click', () => {
+            document.body.removeChild(toast);
+            if (onSave) onSave();
+        });
+        toast.addEventListener('click', (e) => {
+            if (e.target === toast) {
+                document.body.removeChild(toast);
+                if (onSave) onSave();
+            }
+        });
+    }
+
+    // ============================================================
+    // 遗言机制
+    // ============================================================
+    function backupAccident() {
+        if (session.state === STATE.IDLE || session.state === STATE.ENDED) {
+            clearAccident();
+            return;
+        }
+        try {
+            const data = {
+                state: session.state,
+                musicTitle: session.musicTitle,
+                musicUrl: session.musicUrl,
+                selectedMusicId: session.selectedMusicId,
+                startTime: session.startTime,
+                lastAliveTime: session.lastAliveTime || Date.now(),
+                elapsed: session.elapsed || 0,
+                countdownRemain: session.countdownRemain || 0,
+                countdownMinutes: session.countdownMinutes || 5,
+                timestamp: Date.now(),
+            };
+            localStorage.setItem(ACCIDENT_KEY, JSON.stringify(data));
+        } catch (e) {}
+    }
+
+    function clearAccident() {
+        try { localStorage.removeItem(ACCIDENT_KEY); } catch (e) {}
+    }
+
+    // 暴露给 app.js
     window._backupCompanionAccident = backupAccident;
-    window.checkCompanionAccident = function() { /* 与之前相同 */ };
-    window.restoreCompanionAccident = function(accidentData) { /* 与之前相同 */ };
-    window.showCompanionPicker = showCompanionPicker;
-    window.openCompanion = showCompanionPicker;
-    window.initCompanionFeature = initCompanionFeature;
+
+    window.checkCompanionAccident = function () {
+        try {
+            const raw = localStorage.getItem(ACCIDENT_KEY);
+            if (!raw) return null;
+            const data = JSON.parse(raw);
+            if (data.state === STATE.SLEEPING || data.state === STATE.READY_TO_START || data.state === STATE.COUNTDOWN) {
+                return data;
+            }
+            return null;
+        } catch { return null; }
+    };
+
+    window.restoreCompanionAccident = function (accidentData) {
+        if (!accidentData) return;
+
+        let durationMs = 0;
+        let startTime = null;
+        let endTime = new Date();
+
+        if (accidentData.state === STATE.SLEEPING && accidentData.startTime) {
+            startTime = new Date(accidentData.startTime);
+            const lastAlive = accidentData.lastAliveTime || accidentData.startTime;
+            durationMs = Math.max(0, lastAlive - accidentData.startTime);
+        } else if (accidentData.state === STATE.COUNTDOWN || accidentData.state === STATE.READY_TO_START) {
+            clearAccident();
+            resetSession();
+            showToast('陪伴尚未正式开始，不生成记录', 'info');
+            return;
+        }
+
+        const elapsedMinutes = durationMs / (60 * 1000);
+        if (elapsedMinutes < MIN_VALID_MINUTES) {
+            clearAccident();
+            resetSession();
+            showToast(`陪伴时长不足${MIN_VALID_MINUTES}分钟，不生成记录`, 'info');
+            return;
+        }
+
+        const record = {
+            id: 'comp_sys_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            date: startTime ? startTime.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            startTime: startTime ? startTime.toISOString() : new Date().toISOString(),
+            endTime: endTime.toISOString(),
+            duration: durationMs,
+            mode: 'system_interrupt',
+            soundType: accidentData.musicTitle || '未知',
+            status: '系统中断',
+            interruptReason: '页面意外退出',
+            isSystemInterrupt: true,
+        };
+
+        try {
+            if (typeof window.saveCompanionRecord === 'function') {
+                window.saveCompanionRecord(record);
+            } else {
+                const key = 'companion_records';
+                let records = JSON.parse(localStorage.getItem(key) || '[]');
+                records.push(record);
+                localStorage.setItem(key, JSON.stringify(records));
+            }
+            showToast('检测到未完成的陪伴，已自动补录系统中断记录', 'warning');
+        } catch (e) {
+            console.error('[companion] 补录失败:', e);
+        }
+
+        clearAccident();
+        resetSession();
+        currentUI = 'idle';
+    };
+
+    // ============================================================
+    // 重置会话
+    // ============================================================
+    function resetSession() {
+        stopTimer();
+        clearInterval(session.countdownInterval);
+        session.countdownInterval = null;
+        session.state = STATE.IDLE;
+        session.startTime = null;
+        session.elapsed = 0;
+        session.lastAliveTime = null;
+        session.isEnding = false;
+        session.countdownRemain = 0;
+    }
+
+    // ============================================================
+    // 对外入口
+    // ============================================================
+    function showCompanionPicker() {
+        if (session.state === STATE.SLEEPING || session.state === STATE.COUNTDOWN || session.state === STATE.READY_TO_START) {
+            showToast('已有进行中的陪伴，请先结束当前会话', 'warning');
+            return;
+        }
+
+        resetSession();
+        session.state = STATE.SETUP;
+        currentUI = 'setup';
+
+        if (session.musicList.length === 0) {
+            loadMusicList();
+        }
+
+        renderSetupUI();
+    }
+
+    // ============================================================
+    // 初始化
+    // ============================================================
+    function initCompanionFeature() {
+        console.log('[companion] 陪伴功能已加载（完整版）');
+        window.showCompanionPicker = showCompanionPicker;
+        window.openCompanion = showCompanionPicker;
+
+        loadMusicList();
+        stopMusic();
+        stopAlarm();
+    }
 
     // 页面卸载时清理
     window.addEventListener('beforeunload', function () {
@@ -1065,5 +1587,7 @@
         releaseWakeLock();
     });
 
-    console.log('[companion] 模块加载完成（修复版）');
+    window.initCompanionFeature = initCompanionFeature;
+
+    console.log('[companion] 模块加载完成（完整版）');
 })();
