@@ -11195,3 +11195,41 @@ body.with-background .time-separator span {
     top: -4px;   /* 可以改成 -6px 以单独调高图标 */
 
 }
+
+.fc-volume-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.fc-volume-slider {
+    width: 60px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: rgba(255,255,255,0.2);
+    border-radius: 2px;
+    outline: none;
+}
+.fc-volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent-color, #7c5cbf);
+    cursor: pointer;
+}
+.fc-volume-label {
+    font-size: 10px;
+    color: rgba(255,255,255,0.7);
+    min-width: 30px;
+    text-align: center;
+}
+
+/* ===== 陪伴功能 - 悬浮控件自动变暗 ===== */
+#companion-floating-control.dim {
+    opacity: 0.3;
+    transition: opacity 0.5s ease;
+}
+#companion-floating-control:not(.dim) {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
