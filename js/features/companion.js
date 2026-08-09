@@ -1224,10 +1224,7 @@ function selectMusic(id) {
 
         // 初始启动计时器
         resetIdleTimer();
-        const overlay = document.getElementById('companion-overlay');
-        if (overlay && fc.parentElement !== overlay) {
-            overlay.appendChild(fc);
-        }
+
     }
 
     function updateFloatingControlUI() {
