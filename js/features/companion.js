@@ -919,7 +919,7 @@ function selectMusic(id) {
     // 只在设置界面时刷新列表
     if (currentUI === 'setup') {
         renderSetupUI();
-    } else if (currentUI === 'sleeping') {
+    } else if (currentUI === 'sleeping' || currentUI === 'ready_to_start') {
         // 睡眠界面只更新悬浮控件的标题
         updateFloatingControlUI();
     }
@@ -1063,6 +1063,7 @@ function selectMusic(id) {
     // ============================================================
     function showReadyToStart(withAlarm) {
         if (session.state === STATE.ENDED) return;
+        currentUI = 'ready_to_start';
 
         const name = getPartnerName();
         const avatarHTML = getPartnerAvatarHTML();
@@ -1103,6 +1104,7 @@ function selectMusic(id) {
     function startSleepTracking() {
         if (session.state === STATE.ENDED) return;
         session.state = STATE.SLEEPING;
+        currentUI = 'sleeping';
         session.startTime = Date.now();
         session.elapsed = 0;
         session.lastAliveTime = Date.now();
