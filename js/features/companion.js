@@ -109,7 +109,7 @@
         {
             title: '篝火',
             sub: '温暖的火苗噼啪声',
-            url: 'https://cdn.jsdelivr.net/gh/SLY-NSX/loveNsx/audio/bonfire.mp3'
+            url: 'https://img.tofaka.com/autoupload/f/ikeej/20260809/JWvl/bonfire.mp3'
         }
     ];
 
