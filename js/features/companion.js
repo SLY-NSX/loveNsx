@@ -1257,59 +1257,57 @@
     // ============================================================
     // 13. 睡眠计时
     // ============================================================
-    function startSleepTracking() {
-        if (session.state === STATE.ENDED) return;
-        session.state = STATE.SLEEPING;
-        session.startTime = Date.now();
-        session.elapsed = 0;
-        session.lastAliveTime = Date.now();
-        session._autoStopped = false;  // 新增：重置自动停止标志
-        // ... 后续代码
-    }
+function startSleepTracking() {
+    if (session.state === STATE.ENDED) return;
+    session.state = STATE.SLEEPING;
+    session.startTime = Date.now();
+    session.elapsed = 0;
+    session.lastAliveTime = Date.now();
+    session._autoStopped = false;
 
-        // 更新UI为大睡眠界面
-        const name = getPartnerName();
-        const avatarHTML = getPartnerAvatarHTML();
-        const statuses = [
-            '你先休息，我处理一些事情',
-            '✨ 已进入梦境',
-            '稍等一下，我马上来',
-            '来吧，一起休息 🌙'
-        ];
-        const status = statuses[Math.floor(Math.random() * statuses.length)];
+    // 更新UI为大睡眠界面
+    const name = getPartnerName();
+    const avatarHTML = getPartnerAvatarHTML();
+    const statuses = [
+        '你先休息，我处理一些事情',
+        '✨ 已进入梦境',
+        '稍等一下，我马上来',
+        '来吧，一起休息 🌙'
+    ];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
 
-        const html = `
-            <div class="companion-avatar">${avatarHTML}</div>
-            <div class="companion-name">${name}</div>
-            <div class="companion-status" id="companion-status-text">${status}</div>
-            <div class="companion-timer" id="companion-timer-display">00:00</div>
-            <div class="companion-btn-group">
-                <button class="companion-btn" id="companion-end-sleep">结束睡眠</button>
-                <button class="companion-btn secondary" id="companion-interrupt-sleep">中断</button>
-            </div>
-        `;
+    const html = `
+        <div class="companion-avatar">${avatarHTML}</div>
+        <div class="companion-name">${name}</div>
+        <div class="companion-status" id="companion-status-text">${status}</div>
+        <div class="companion-timer" id="companion-timer-display">00:00</div>
+        <div class="companion-btn-group">
+            <button class="companion-btn" id="companion-end-sleep">结束睡眠</button>
+            <button class="companion-btn secondary" id="companion-interrupt-sleep">中断</button>
+        </div>
+    `;
 
-        renderOverlay(html);
+    renderOverlay(html);
 
-        // 添加悬浮音乐控制
-        addFloatingControl();
+    // 添加悬浮音乐控制
+    addFloatingControl();
 
-        // 启动计时器
-        startTimer();
+    // 启动计时器
+    startTimer();
 
-        // 写入遗言
-        backupAccident();
+    // 写入遗言
+    backupAccident();
 
-        // 绑定事件
-        document.getElementById('companion-end-sleep')?.addEventListener('click', () => {
-            endSession('completed');
-        });
-        document.getElementById('companion-interrupt-sleep')?.addEventListener('click', () => {
-            endSession('interrupted');
-        });
+    // 绑定事件
+    document.getElementById('companion-end-sleep')?.addEventListener('click', () => {
+        endSession('completed');
+    });
+    document.getElementById('companion-interrupt-sleep')?.addEventListener('click', () => {
+        endSession('interrupted');
+    });
 
-        console.log('[companion] 睡眠计时开始');
-    }
+    console.log('[companion] 睡眠计时开始');
+}
 
     // ============================================================
     // 14. 悬浮音乐控制
@@ -1455,38 +1453,37 @@
     // ============================================================
     // 15. 计时器
     // ============================================================
-    function startTimer() {
-        if (session.rafId) cancelAnimationFrame(session.rafId);
-        const start = Date.now();
-        const baseElapsed = session.elapsed || 0;
+function startTimer() {
+    if (session.rafId) cancelAnimationFrame(session.rafId);
+    const start = Date.now();
+    const baseElapsed = session.elapsed || 0;
 
-function tick() {
-    if (session.state !== STATE.SLEEPING) {
-        return;
-    }
-    const now = Date.now();
-    session.elapsed = baseElapsed + (now - start);
-    session.lastAliveTime = now;
-
-    updateSleepTimerUI();
-
-    if (session.state === STATE.SLEEPING && session.elapsed >= 30 * 60 * 1000) {
-        hideStatusText();
-    }
-
-    // 1小时后自动淡出停止音乐（可手动重新播放）
-    if (session.state === STATE.SLEEPING && session.elapsed >= 60 * 60 * 1000 && isPlaying) {
-        if (!session._autoStopped) {
-            session._autoStopped = true;
-            fadeOutMusic(3000);
+    function tick() {
+        if (session.state !== STATE.SLEEPING) {
+            return;
         }
-    }
+        const now = Date.now();
+        session.elapsed = baseElapsed + (now - start);
+        session.lastAliveTime = now;
 
-    backupAccident();
-    session.rafId = requestAnimationFrame(tick);
-}
+        updateSleepTimerUI();
+
+        if (session.state === STATE.SLEEPING && session.elapsed >= 30 * 60 * 1000) {
+            hideStatusText();
+        }
+
+        if (session.state === STATE.SLEEPING && session.elapsed >= 60 * 60 * 1000 && isPlaying) {
+            if (!session._autoStopped) {
+                session._autoStopped = true;
+                fadeOutMusic(3000);
+            }
+        }
+
+        backupAccident();
         session.rafId = requestAnimationFrame(tick);
     }
+    session.rafId = requestAnimationFrame(tick);
+}
 
     function stopTimer() {
         if (session.rafId) {
