@@ -118,19 +118,42 @@
     // ============================================================
     // 3. 音乐列表存储
     // ============================================================
-    function loadMusicList() {
-        try {
-            const data = localStorage.getItem(MUSIC_STORAGE_KEY);
-            if (data) {
-                const parsed = JSON.parse(data);
-                if (Array.isArray(parsed)) {
-                    session.musicList = parsed;
-                    return;
+function loadMusicList() {
+    // 1. 先尝试从 localStorage 读取用户自定义列表
+    try {
+        const data = localStorage.getItem(MUSIC_STORAGE_KEY);
+        if (data) {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                session.musicList = parsed;
+                return;
+            }
+        }
+    } catch (e) {}
+
+    // 2. 如果没有本地数据，从 manifest.json 加载默认列表
+    fetch('audio/manifest.json')
+        .then(res => {
+            if (!res.ok) throw new Error('manifest.json 不存在');
+            return res.json();
+        })
+        .then(list => {
+            if (Array.isArray(list) && list.length > 0) {
+                session.musicList = list;
+                saveMusicList(); // 保存到 localStorage，后续用户可自由修改
+                if (currentUI === 'setup') {
+                    renderSetupUI();
                 }
             }
-        } catch (e) {}
-        session.musicList = [];
-    }
+        })
+        .catch(() => {
+            // manifest.json 不存在或加载失败，使用空列表
+            session.musicList = [];
+            if (currentUI === 'setup') {
+                renderSetupUI();
+            }
+        });
+}
 
     function saveMusicList() {
         try {
