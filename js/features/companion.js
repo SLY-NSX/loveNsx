@@ -1226,7 +1226,7 @@ function selectMusic(id) {
         resetIdleTimer();
 
     }
-
+}  
     function updateFloatingControlUI() {
         const fc = document.getElementById('companion-floating-control');
         if (!fc) return;
