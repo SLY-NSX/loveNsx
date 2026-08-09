@@ -1033,7 +1033,6 @@ function selectMusic(id) {
         if (minutes <= 0) {
             session.state = STATE.READY_TO_START;
             session.countdownRemain = 0;
-            hideOverlay();
             showReadyToStart(false);
             return;
         }
