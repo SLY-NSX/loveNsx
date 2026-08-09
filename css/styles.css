@@ -11226,10 +11226,14 @@ body.with-background .time-separator span {
 
 /* ===== 陪伴功能 - 悬浮控件自动变暗 ===== */
 #companion-floating-control.dim {
-    opacity: 0.3;
-    transition: opacity 0.5s ease;
+    opacity: 0.55;                 /* 从 0.3 提高到 0.55，保持隐约可见 */
+    border-color: rgba(255,255,255,0.08); /* 加一个极淡边框，使轮廓清晰 */
+    box-shadow: 0 0 20px rgba(0,0,0,0.2); /* 添加微弱阴影，增加立体感 */
+    transition: opacity 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease;
 }
 #companion-floating-control:not(.dim) {
     opacity: 1;
-    transition: opacity 0.3s ease;
+    border-color: rgba(255,255,255,0.18); /* 亮起时边框更明显 */
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    transition: opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
