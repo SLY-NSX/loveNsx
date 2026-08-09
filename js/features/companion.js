@@ -104,12 +104,12 @@
         {
             title: '雨声',
             sub: '舒缓的雨滴白噪音',
-            url: 'https://SLY-NSX.github.io/loveNsx/audio/rain.mp3'
+            url: 'https://cdn.jsdelivr.net/gh/SLY-NSX/loveNsx/audio/rain.mp3'
         },
         {
             title: '篝火',
             sub: '温暖的火苗噼啪声',
-            url: 'https://SLY-NSX.github.io/loveNsx/audio/bonfire.mp3'
+            url: 'https://cdn.jsdelivr.net/gh/SLY-NSX/loveNsx/audio/bonfire.mp3'
         }
     ];
 
