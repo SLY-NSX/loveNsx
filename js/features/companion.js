@@ -104,7 +104,7 @@
         {
             title: '雨声',
             sub: '舒缓的雨滴白噪音',
-            url: 'https://cdn.jsdelivr.net/gh/SLY-NSX/loveNsx/audio/rain.mp3'
+            url: 'https://3wt.music.zhangtiandi.cn/2026/08-09/55d8583929a644d08a205b1f75c9b20a3wcn835496.mp3'
         },
         {
             title: '篝火',
