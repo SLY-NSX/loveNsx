@@ -1,5 +1,5 @@
 /**
- * companion.js - 陪伴睡眠功能（完整稳定版）
+ * companion.js - 陪伴睡眠功能（完整修复版）
  */
 (function () {
     'use strict';
@@ -98,7 +98,7 @@
     }
 
     // ============================================================
-    // 音乐列表存储（硬编码）
+    // 音乐列表存储（自动修复 id）
     // ============================================================
     const DEFAULT_MUSIC = [
         {
@@ -119,8 +119,24 @@
             if (data) {
                 const parsed = JSON.parse(data);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    session.musicList = parsed;
-                    console.log('[companion] 加载本地音乐列表，共', parsed.length, '首');
+                    // ★ 修复：确保每个条目都有 id
+                    let needSave = false;
+                    const fixed = parsed.map(item => {
+                        if (!item.id) {
+                            needSave = true;
+                            return {
+                                ...item,
+                                id: 'comp_music_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)
+                            };
+                        }
+                        return item;
+                    });
+                    session.musicList = fixed;
+                    if (needSave) {
+                        saveMusicList(); // 保存修复后的数据
+                        console.log('[companion] 已自动修复缺失的 id');
+                    }
+                    console.log('[companion] 加载本地音乐列表，共', session.musicList.length, '首');
                     return;
                 }
             }
@@ -809,6 +825,8 @@
                 if (id) {
                     console.log('[companion] 点击音乐:', id);
                     selectMusic(id);
+                } else {
+                    console.warn('[companion] 点击的音乐缺少 id，请刷新页面重试');
                 }
             };
 
@@ -1568,7 +1586,7 @@
     // 初始化
     // ============================================================
     function initCompanionFeature() {
-        console.log('[companion] 陪伴功能已加载（完整版）');
+        console.log('[companion] 陪伴功能已加载（完整修复版）');
         window.showCompanionPicker = showCompanionPicker;
         window.openCompanion = showCompanionPicker;
 
@@ -1589,5 +1607,5 @@
 
     window.initCompanionFeature = initCompanionFeature;
 
-    console.log('[companion] 模块加载完成（完整版）');
+    console.log('[companion] 模块加载完成（完整修复版）');
 })();
