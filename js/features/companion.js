@@ -119,38 +119,66 @@
     // 3. 音乐列表存储
     // ============================================================
 function loadMusicList() {
-    // 1. 先尝试从 localStorage 读取用户自定义列表
+    // 1. 先加载本地存储的列表
+    let localList = [];
     try {
         const data = localStorage.getItem(MUSIC_STORAGE_KEY);
         if (data) {
             const parsed = JSON.parse(data);
-            if (Array.isArray(parsed) && parsed.length > 0) {
+            if (Array.isArray(parsed)) {
+                localList = parsed;
                 session.musicList = parsed;
-                return;
             }
         }
     } catch (e) {}
 
-    // 2. 如果没有本地数据，从 manifest.json 加载默认列表
-    fetch('audio/manifest.json')
+    // 如果本地没有数据，直接用空数组占位，稍后从 manifest 加载
+    if (!localList.length) {
+        session.musicList = [];
+    }
+
+    // 2. 从 manifest.json 获取默认列表，进行智能合并
+    fetch('/loveNsx/audio/manifest.json')
         .then(res => {
             if (!res.ok) throw new Error('manifest.json 不存在');
             return res.json();
         })
-        .then(list => {
-            if (Array.isArray(list) && list.length > 0) {
-                session.musicList = list;
-                saveMusicList(); // 保存到 localStorage，后续用户可自由修改
-                if (currentUI === 'setup') {
-                    renderSetupUI();
+        .then(manifestList => {
+            if (!Array.isArray(manifestList) || manifestList.length === 0) return;
+
+            let currentList = session.musicList || [];
+            let addedCount = 0;
+
+            manifestList.forEach(manifestItem => {
+                // 通过 URL 判断是否已存在（URL 是唯一的）
+                const exists = currentList.some(item => item.url === manifestItem.url);
+                if (!exists) {
+                    // 新音乐，追加到列表
+                    currentList.push({
+                        ...manifestItem,
+                        id: 'comp_music_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4)
+                    });
+                    addedCount++;
                 }
+            });
+
+            if (addedCount > 0) {
+                session.musicList = currentList;
+                saveMusicList(); // 保存到 localStorage
+                if (currentUI === 'setup') {
+                    renderSetupUI(); // 刷新界面
+                }
+                console.log(`[companion] 自动添加了 ${addedCount} 首新默认音乐`);
             }
         })
         .catch(() => {
-            // manifest.json 不存在或加载失败，使用空列表
-            session.musicList = [];
-            if (currentUI === 'setup') {
-                renderSetupUI();
+            // manifest 加载失败，静默处理
+            // 如果本地也没有数据，保持空列表
+            if (!session.musicList || session.musicList.length === 0) {
+                session.musicList = [];
+                if (currentUI === 'setup') {
+                    renderSetupUI();
+                }
             }
         });
 }
