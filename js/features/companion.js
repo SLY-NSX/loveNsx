@@ -36,6 +36,7 @@
 
     let audioElement = null;
     let isPlaying = false;
+    let gainNode = null;
     let alarmNodes = [];
     let alarmInterval = null;
     let wakeLock = null;
@@ -193,75 +194,97 @@
     // ============================================================
     // 音频播放
     // ============================================================
-    function initAudioElement(url) {
-        stopMusic();
-        if (!url) {
-            session.musicUrl = null;
-            session.musicTitle = '无音乐';
-            isPlaying = false;
-            return;
-        }
-
-        try {
-            console.log('[companion] 尝试播放:', url);
-            audioElement = new Audio(url);
-            audioElement.loop = true;
-            audioElement.crossOrigin = 'anonymous';
-
-            audioElement.addEventListener('canplaythrough', function onReady() {
-                audioElement.removeEventListener('canplaythrough', onReady);
-                console.log('[companion] 音频加载完成，开始播放');
-                playMusic();
-            });
-
-            audioElement.addEventListener('error', function (e) {
-                console.error('[companion] 音频加载错误:', e);
-                showToast('音频加载失败，请检查链接', 'error');
-            });
-
-            audioElement.load();
-            session.musicUrl = url;
-
-            if (audioElement.readyState >= 3) {
-                audioElement.removeEventListener('canplaythrough', onReady);
-                playMusic();
-            }
-        } catch (e) {
-            console.error('[companion] 初始化音频失败:', e);
-            showToast('音频初始化失败', 'error');
-        }
-    }
-
-    function playMusic() {
-        if (!audioElement) return;
-        audioElement.play()
-            .then(() => {
-                isPlaying = true;
-                console.log('[companion] 播放成功');
-                updateFloatingControlUI();
-                if (currentUI === 'setup') {
-                    renderSetupUI();
-                }
-            })
-            .catch(err => {
-                console.warn('[companion] 播放被阻止:', err);
-                showToast('播放失败，请点击列表重试', 'warning');
-            });
-    }
-
-    function stopMusic() {
-        if (audioElement) {
-            try {
-                audioElement.pause();
-                audioElement.src = '';
-                audioElement.load();
-            } catch (e) {}
-            audioElement = null;
-        }
-        isPlaying = false;
+function initAudioElement(url) {
+    stopMusic();
+    if (!url) {
         session.musicUrl = null;
-        updateFloatingControlUI();
+        session.musicTitle = '无音乐';
+        isPlaying = false;
+        return;
     }
+
+    try {
+        console.log('[companion] 尝试播放:', url);
+        audioElement = new Audio(url);
+        audioElement.loop = true;
+        audioElement.crossOrigin = 'anonymous';
+
+        // 创建音频上下文和 GainNode
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        const source = ctx.createMediaElementSource(audioElement);
+        gainNode = ctx.createGain();
+        gainNode.gain.value = 0.2; // 初始20%
+        source.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        // 保存上下文以便后续使用
+        session._audioCtx = ctx;
+
+        audioElement.addEventListener('canplaythrough', function onReady() {
+            audioElement.removeEventListener('canplaythrough', onReady);
+            console.log('[companion] 音频加载完成，开始播放');
+            playMusic();
+        });
+
+        audioElement.addEventListener('error', function (e) {
+            console.error('[companion] 音频加载错误:', e);
+            showToast('音频加载失败，请检查链接', 'error');
+        });
+
+        audioElement.load();
+        session.musicUrl = url;
+
+        if (audioElement.readyState >= 3) {
+            audioElement.removeEventListener('canplaythrough', onReady);
+            playMusic();
+        }
+    } catch (e) {
+        console.error('[companion] 初始化音频失败:', e);
+        showToast('音频初始化失败', 'error');
+    }
+}
+
+function playMusic() {
+    if (!audioElement) return;
+    audioElement.play()
+        .then(() => {
+            isPlaying = true;
+            console.log('[companion] 播放成功');
+            updateFloatingControlUI();
+            // 只在设置界面时才刷新列表，睡眠界面不刷新
+            if (currentUI === 'setup' && session.state !== STATE.SLEEPING) {
+                renderSetupUI();
+            }
+        })
+        .catch(err => {
+            console.warn('[companion] 播放被阻止:', err);
+            showToast('播放失败，请点击列表重试', 'warning');
+        });
+}
+
+function stopMusic() {
+    if (audioElement) {
+        try {
+            audioElement.pause();
+            audioElement.src = '';
+            audioElement.load();
+        } catch (e) {}
+        audioElement = null;
+    }
+    // 断开 GainNode 和上下文
+    if (gainNode) {
+        try { gainNode.disconnect(); } catch (e) {}
+        gainNode = null;
+    }
+    if (session._audioCtx) {
+        try { session._audioCtx.close(); } catch (e) {}
+        session._audioCtx = null;
+    }
+    isPlaying = false;
+    session.musicUrl = null;
+    updateFloatingControlUI();
+}
 
     function toggleMusicPlay() {
         if (!audioElement) {
@@ -790,7 +813,7 @@
 
             <div class="companion-countdown-row">
                 <label>⏱ 倒计时</label>
-                <input type="number" id="companion-countdown-input" min="0" max="10" value="${session.countdownMinutes}">
+                <input type="number" id="companion-countdown-input" min="0" max="10" value="${session.countdownMinutes}" style="color:#fff;">
                 <span>分钟</span>
             </div>
 
@@ -874,30 +897,33 @@
     // ============================================================
     // 选择音乐
     // ============================================================
-    function selectMusic(id) {
-        const item = getMusicItem(id);
-        if (!item) {
-            console.warn('[companion] 未找到音乐:', id);
-            return;
-        }
-
-        console.log('[companion] 选择音乐:', item.title, item.url);
-
-        if (session.selectedMusicId === id) {
-            toggleMusicPlay();
-            return;
-        }
-
-        stopMusic();
-        session.selectedMusicId = id;
-        session.musicTitle = item.title;
-        initAudioElement(item.url);
-
-        if (currentUI === 'setup') {
-            renderSetupUI();
-        }
+function selectMusic(id) {
+    const item = getMusicItem(id);
+    if (!item) {
+        console.warn('[companion] 未找到音乐:', id);
+        return;
     }
 
+    console.log('[companion] 选择音乐:', item.title, item.url);
+
+    if (session.selectedMusicId === id) {
+        toggleMusicPlay();
+        return;
+    }
+
+    stopMusic();
+    session.selectedMusicId = id;
+    session.musicTitle = item.title;
+    initAudioElement(item.url);
+
+    // 只在设置界面时刷新列表
+    if (currentUI === 'setup') {
+        renderSetupUI();
+    } else if (currentUI === 'sleeping') {
+        // 睡眠界面只更新悬浮控件的标题
+        updateFloatingControlUI();
+    }
+}
     // ============================================================
     // 添加音乐对话框
     // ============================================================
@@ -1082,6 +1108,13 @@
         session.lastAliveTime = Date.now();
         session._autoStopped = false;
 
+        // 重置音量为20%
+        if (gainNode) {
+            gainNode.gain.value = 0.2;
+        }
+        // 更新悬浮控件的音量显示
+        updateVolumeUI();
+
         const name = getPartnerName();
         const avatarHTML = getPartnerAvatarHTML();
         const statuses = [
@@ -1128,6 +1161,10 @@
             fc.id = 'companion-floating-control';
             fc.innerHTML = `
                 <span class="fc-title" id="fc-title">无音乐</span>
+                <div class="fc-volume-wrap">
+                    <input type="range" min="0" max="150" value="20" class="fc-volume-slider" id="fc-volume-slider">
+                    <span class="fc-volume-label" id="fc-volume-label">20%</span>
+                </div>
                 <button class="fc-btn" id="fc-play-btn"><i class="fas fa-play"></i></button>
                 <button class="fc-btn" id="fc-select-btn"><i class="fas fa-list"></i></button>
             `;
@@ -1144,10 +1181,49 @@
                 e.stopPropagation();
                 showMusicSelectPopup();
             });
+            const volSlider = document.getElementById('fc-volume-slider');
+            const volLabel = document.getElementById('fc-volume-label');
+            if (volSlider) {
+                volSlider.addEventListener('input', function() {
+                    const val = parseInt(this.value);
+                    const gainVal = val / 100; // 因为滑块最大值是150，除以100得到1.5
+                    if (gainNode) {
+                        gainNode.gain.value = gainVal;
+                    }
+                    if (volLabel) volLabel.textContent = Math.round(gainVal * 100) + '%';
+                });
         }
 
         updateFloatingControlUI();
         fc.style.display = 'flex';
+
+        let idleTimer = null;
+
+        function resetIdleTimer() {
+            if (idleTimer) clearTimeout(idleTimer);
+            fc.classList.remove('dim');
+            idleTimer = setTimeout(() => {
+                fc.classList.add('dim');
+            }, 10000);
+        }
+
+        // 监听交互事件
+        fc.addEventListener('mouseenter', resetIdleTimer);
+        fc.addEventListener('mouseleave', () => {
+            if (idleTimer) clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                fc.classList.add('dim');
+            }, 10000);
+        });
+        fc.addEventListener('touchstart', resetIdleTimer);
+
+        // 点击内部按钮或滑块时也重置
+        fc.querySelectorAll('.fc-btn, .fc-volume-slider').forEach(el => {
+            el.addEventListener('pointerdown', resetIdleTimer);
+        });
+
+        // 初始启动计时器
+        resetIdleTimer();
         const overlay = document.getElementById('companion-overlay');
         if (overlay && fc.parentElement !== overlay) {
             overlay.appendChild(fc);
@@ -1162,6 +1238,16 @@
         if (titleEl) titleEl.textContent = session.musicTitle || '无音乐';
         if (playBtn) playBtn.innerHTML = isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
     }
+
+function updateVolumeUI() {
+    const volSlider = document.getElementById('fc-volume-slider');
+    const volLabel = document.getElementById('fc-volume-label');
+    if (volSlider && gainNode) {
+        const val = Math.round(gainNode.gain.value * 100);
+        volSlider.value = Math.min(150, val);
+        if (volLabel) volLabel.textContent = Math.min(150, val) + '%';
+    }
+}
 
     function showMusicSelectPopup() {
         const overlay = document.createElement('div');
