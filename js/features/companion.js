@@ -1955,7 +1955,7 @@ function renderCompanionStats() {
     if (monthRecords.length === 0) {
         summaryEl.textContent = '陪伴 0 天 · 0 次';
         if (avgBedtimeEl) avgBedtimeEl.textContent = '平均: --:--';
-        if (avgDurationEl) avgDurationEl.textContent = '平均: -- 分钟';
+        if (avgDurationEl) avgDurationEl.textContent = '平均: --';
         barsBedtime.innerHTML = '';
         barsDuration.innerHTML = '';
         if (emptyEl) emptyEl.style.display = 'block';
@@ -1963,6 +1963,7 @@ function renderCompanionStats() {
     }
     if (emptyEl) emptyEl.style.display = 'none';
     
+    // 按日期分组
     const dayMap = {};
     monthRecords.forEach(r => {
         const day = new Date(r.date + 'T00:00:00').getDate();
@@ -1972,6 +1973,7 @@ function renderCompanionStats() {
     const days = Object.keys(dayMap).sort((a,b) => a-b);
     summaryEl.textContent = `陪伴 ${days.length} 天 · ${monthRecords.length} 次`;
     
+    // 提取入睡时间和睡眠时长
     const bedtimeValues = [];
     const durationValues = [];
     monthRecords.forEach(r => {
@@ -1981,10 +1983,12 @@ function renderCompanionStats() {
             bedtimeValues.push(totalMinutes);
         }
         if (r.duration) {
-            durationValues.push(r.duration / 60000);
+            durationValues.push(r.duration / 60000); // 分钟
         }
     });
     
+    // ---- 计算平均值 ----
+    // 平均入睡时间
     let avgBedtime = null;
     if (bedtimeValues.length > 0) {
         const sum = bedtimeValues.reduce((a,b) => a+b, 0);
@@ -2000,6 +2004,7 @@ function renderCompanionStats() {
         }
     }
     
+    // 平均睡眠时长（分钟）
     let avgDuration = null;
     if (durationValues.length > 0) {
         const sum = durationValues.reduce((a,b) => a+b, 0);
@@ -2007,16 +2012,17 @@ function renderCompanionStats() {
     }
     if (avgDurationEl) {
         if (avgDuration !== null) {
-            avgDurationEl.textContent = '平均: ' + avgDuration + ' 分钟';
+            avgDurationEl.textContent = '平均: ' + formatHoursMinutes(avgDuration);
         } else {
-            avgDurationEl.textContent = '平均: -- 分钟';
+            avgDurationEl.textContent = '平均: --';
         }
     }
     
-    const maxBedtime = 1439;
+    // ---- 渲染入睡时间长条 ----
     barsBedtime.innerHTML = '';
     if (bedtimeValues.length > 0) {
-        const sortedBedtimes = days.map(day => {
+        // 按日期顺序排列
+        const sorted = days.map(day => {
             const recs = dayMap[day];
             const first = recs[0];
             if (first && first.startTime) {
@@ -2025,52 +2031,80 @@ function renderCompanionStats() {
             }
             return null;
         }).filter(v => v !== null);
-        sortedBedtimes.forEach(val => {
-            const pct = Math.min(100, (val / maxBedtime) * 100);
-            const color = `hsl(${210 - (val / maxBedtime) * 60}, 70%, 55%)`;
+        
+        // 计算最小值/最大值用于映射颜色
+        const minVal = Math.min(...sorted);
+        const maxVal = Math.max(...sorted);
+        const range = maxVal - minVal || 1;
+        
+        sorted.forEach(val => {
+            // 颜色映射：从蓝色到紫色（入睡越早偏蓝，越晚偏紫）
+            const ratio = (val - minVal) / range; // 0~1
+            const hue = 240 - ratio * 60; // 240(蓝) -> 180(青) 再往紫方向
+            const color = `hsl(${Math.round(hue)}, 70%, 55%)`;
             const bar = document.createElement('div');
             bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
             bar.title = formatTimeFromMinutes(val);
             barsBedtime.appendChild(bar);
         });
     } else {
-        for (let i = 0; i < days.length; i++) {
-            const bar = document.createElement('div');
-            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:var(--border-color);opacity:0.3;`;
-            barsBedtime.appendChild(bar);
-        }
+        // 无数据：显示灰色条 + "无记录"
+        const emptyBar = document.createElement('div');
+        emptyBar.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar.textContent = '无记录';
+        barsBedtime.appendChild(emptyBar);
     }
     
-    const maxDuration = 480;
+    // ---- 渲染睡眠时长条 ----
     barsDuration.innerHTML = '';
     if (durationValues.length > 0) {
-        const sortedDurations = days.map(day => {
+        // 按日期顺序排列
+        const sorted = days.map(day => {
             const recs = dayMap[day];
             const total = recs.reduce((sum, r) => sum + (r.duration || 0), 0);
-            return total / 60000;
+            return total / 60000; // 分钟
         });
-        sortedDurations.forEach(val => {
-            const pct = Math.min(100, (val / maxDuration) * 100);
-            const color = `hsl(${120 - (val / maxDuration) * 120}, 70%, 55%)`;
+        
+        const minVal = Math.min(...sorted);
+        const maxVal = Math.max(...sorted);
+        const range = maxVal - minVal || 1;
+        
+        sorted.forEach(val => {
+            // 颜色映射：从绿色到黄色（时长越短偏绿，越长偏黄）
+            const ratio = (val - minVal) / range; // 0~1
+            const hue = 120 - ratio * 60; // 120(绿) -> 60(黄)
+            const color = `hsl(${Math.round(hue)}, 70%, 55%)`;
             const bar = document.createElement('div');
             bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
             bar.title = Math.round(val) + '分钟';
             barsDuration.appendChild(bar);
         });
     } else {
-        for (let i = 0; i < days.length; i++) {
-            const bar = document.createElement('div');
-            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:var(--border-color);opacity:0.3;`;
-            barsDuration.appendChild(bar);
-        }
+        // 无数据：显示灰色条 + "无记录"
+        const emptyBar = document.createElement('div');
+        emptyBar.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar.textContent = '无记录';
+        barsDuration.appendChild(emptyBar);
     }
 }
 
+// 辅助函数：格式化分钟数为 "X小时X分钟"
+function formatHoursMinutes(totalMinutes) {
+    if (!totalMinutes || totalMinutes < 0) return '0分钟';
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = Math.round(totalMinutes % 60);
+    if (hours === 0) return mins + '分钟';
+    if (mins === 0) return hours + '小时';
+    return hours + '小时' + mins + '分钟';
+}
+
+// 辅助函数：将分钟数转为 HH:MM（用于 tooltip）
 function formatTimeFromMinutes(totalMinutes) {
     const h = Math.floor(totalMinutes / 60);
     const m = Math.round(totalMinutes % 60);
     return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 }
+
 
 function showCompanionRecords() {
     const modal = document.getElementById('companion-records-modal');
