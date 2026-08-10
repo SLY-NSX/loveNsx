@@ -2088,6 +2088,8 @@ function formatTimeFromMinutes(totalMinutes) {
 
 let _compRecordsCurrentDate = new Date(); // 当前显示的月份
 
+
+
 function showCompanionRecords() {
     const modal = document.getElementById('companion-records-modal');
     if (!modal) {
@@ -2276,6 +2278,7 @@ function updateCompanionDateSelectors() {
     if (yearSelect) yearSelect.value = _compRecordsCurrentDate.getFullYear();
     if (monthSelect) monthSelect.value = _compRecordsCurrentDate.getMonth();
 }
+
 
 function bindCompanionCalendarEvents() {
     // ---- 标签页切换 ----
