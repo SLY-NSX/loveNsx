@@ -2,7 +2,7 @@
  * companion.js - 陪伴睡眠功能（完整修复版）
  */
 
-// 全局通话禁止标志（仅用于陪伴大弹窗期间）
+// 全局通话禁止标志（用于陪伴大弹窗期间）
 window.__companionActive = false;
 window.__setCompanionActive = function(active) {
     window.__companionActive = active;
