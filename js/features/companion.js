@@ -1918,19 +1918,24 @@ function updateVolumeUI() {
         releaseWakeLock();
     });
 
+    window.initCompanionFeature = initCompanionFeature;
+
+    console.log('[companion] 模块加载完成（完整修复版）');
+})();
+
+let _compRecordsCurrentDate = new Date(); // 当前显示的月份
+
 // ============================================================
-// 陪伴记录 - 统计视图
+// 陪伴记录 - 统计视图（全局）
 // ============================================================
 
 function renderCompanionStats() {
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
     
-    // 更新标题
     const label = document.getElementById('comp-stats-month-label');
     if (label) label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
     
-    // 获取该月记录
     const records = window._companionRecords || [];
     const monthRecords = records.filter(r => {
         if (!r.date) return false;
@@ -1958,7 +1963,6 @@ function renderCompanionStats() {
     }
     if (emptyEl) emptyEl.style.display = 'none';
     
-    // 按日期分组
     const dayMap = {};
     monthRecords.forEach(r => {
         const day = new Date(r.date + 'T00:00:00').getDate();
@@ -1968,23 +1972,19 @@ function renderCompanionStats() {
     const days = Object.keys(dayMap).sort((a,b) => a-b);
     summaryEl.textContent = `陪伴 ${days.length} 天 · ${monthRecords.length} 次`;
     
-    // 计算入睡时间（取每次记录的开始时间）
     const bedtimeValues = [];
     const durationValues = [];
     monthRecords.forEach(r => {
         if (r.startTime) {
             const d = new Date(r.startTime);
-            const hours = d.getHours();
-            const mins = d.getMinutes();
-            const totalMinutes = hours * 60 + mins;
+            const totalMinutes = d.getHours() * 60 + d.getMinutes();
             bedtimeValues.push(totalMinutes);
         }
         if (r.duration) {
-            durationValues.push(r.duration / 60000); // 转为分钟
+            durationValues.push(r.duration / 60000);
         }
     });
     
-    // 平均入睡时间（以分钟表示，0点=0，23:59=1439）
     let avgBedtime = null;
     if (bedtimeValues.length > 0) {
         const sum = bedtimeValues.reduce((a,b) => a+b, 0);
@@ -2000,7 +2000,6 @@ function renderCompanionStats() {
         }
     }
     
-    // 平均睡眠时长（分钟）
     let avgDuration = null;
     if (durationValues.length > 0) {
         const sum = durationValues.reduce((a,b) => a+b, 0);
@@ -2014,11 +2013,9 @@ function renderCompanionStats() {
         }
     }
     
-    // 渲染入睡时间条（每个记录一个色块）
-    const maxBedtime = 1439; // 23:59
+    const maxBedtime = 1439;
     barsBedtime.innerHTML = '';
     if (bedtimeValues.length > 0) {
-        // 按日期顺序显示
         const sortedBedtimes = days.map(day => {
             const recs = dayMap[day];
             const first = recs[0];
@@ -2037,7 +2034,6 @@ function renderCompanionStats() {
             barsBedtime.appendChild(bar);
         });
     } else {
-        // 全部灰色
         for (let i = 0; i < days.length; i++) {
             const bar = document.createElement('div');
             bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:var(--border-color);opacity:0.3;`;
@@ -2045,14 +2041,13 @@ function renderCompanionStats() {
         }
     }
     
-    // 渲染睡眠时长条
-    const maxDuration = 480; // 8小时作为最大值
+    const maxDuration = 480;
     barsDuration.innerHTML = '';
     if (durationValues.length > 0) {
         const sortedDurations = days.map(day => {
             const recs = dayMap[day];
             const total = recs.reduce((sum, r) => sum + (r.duration || 0), 0);
-            return total / 60000; // 分钟
+            return total / 60000;
         });
         sortedDurations.forEach(val => {
             const pct = Math.min(100, (val / maxDuration) * 100);
@@ -2076,19 +2071,6 @@ function formatTimeFromMinutes(totalMinutes) {
     const m = Math.round(totalMinutes % 60);
     return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 }
-
-    window.initCompanionFeature = initCompanionFeature;
-
-    console.log('[companion] 模块加载完成（完整修复版）');
-})();
-
-// ============================================================
-// 陪伴记录 - 月历展示
-// ============================================================
-
-let _compRecordsCurrentDate = new Date(); // 当前显示的月份
-
-
 
 function showCompanionRecords() {
     const modal = document.getElementById('companion-records-modal');
