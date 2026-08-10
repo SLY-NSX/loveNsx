@@ -119,46 +119,6 @@ window.__isCompanionActive = function() {
         }
     }
 
-// ============================================================
-// 陪伴记录工具函数
-// ============================================================
-
-/**
- * 格式化时间：8月10日 23:16（不含秒）
- */
-function formatDetailTime(isoStr) {
-    if (!isoStr) return '--';
-    try {
-        const d = new Date(isoStr);
-        const month = d.getMonth() + 1;
-        const day = d.getDate();
-        const hours = String(d.getHours()).padStart(2, '0');
-        const mins = String(d.getMinutes()).padStart(2, '0');
-        return `${month}月${day}日 ${hours}:${mins}`;
-    } catch {
-        return isoStr;
-    }
-}
-
-/**
- * 判断记录是否在3天内（可修改）
- * 3天前的记录不可修改，保留删除权利
- */
-function isRecordEditable(record) {
-    if (!record || !record.startTime) return false;
-    try {
-        const startDate = new Date(record.startTime);
-        const now = new Date();
-        // 计算天数差（只比较日期，不比较时间）
-        const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-        const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const diffDays = Math.floor((nowDay - startDay) / (1000 * 60 * 60 * 24));
-        return diffDays <= 3;
-    } catch {
-        return false;
-    }
-}
-
     // ============================================================
     // 音乐列表存储（自动修复 id）
     // ============================================================
@@ -174,7 +134,6 @@ function isRecordEditable(record) {
             url: 'https://img.tofaka.com/autoupload/f/ikeej/20260809/JWvl/bonfire.mp3'
         }
     ];
-
 
     function loadMusicList() {
         try {
@@ -1728,290 +1687,75 @@ function updateVolumeUI() {
         currentUI = 'idle';
     }
 
-function showInterruptReasonToast(record, onSave) {
-    const toast = document.createElement('div');
-    toast.className = 'companion-toast open';
-    toast.id = 'companion-toast-temp';
-    toast.innerHTML = `
-        <div class="toast-box">
-            <div class="toast-title">⏸️ 睡眠中断</div>
-            <div class="toast-body">
-                <div>开始时间：${formatDetailTime(record.startTime)}</div>
-                <div>睡眠时长：${formatDuration(record.duration)}</div>
-                <div>结束时间：${formatDetailTime(record.endTime)}</div>
-                ${record.interruptReason ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-style:italic;color:rgba(255,255,255,0.5);">📝 ${record.interruptReason}</div>` : ''}
-                ${record.note ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.04);font-style:italic;color:rgba(255,255,255,0.35);font-size:12px;">💭 ${record.note}</div>` : ''}
+    // ============================================================
+    // Toast弹窗
+    // ============================================================
+    function showInterruptReasonToast(record, onSave) {
+        const toast = document.createElement('div');
+        toast.className = 'companion-toast open';
+        toast.id = 'companion-toast-temp';
+        toast.innerHTML = `
+            <div class="toast-box">
+                <div class="toast-title">⏸️ 睡眠中断</div>
+                <div class="toast-body">
+                    <div>开始时间：${formatTime(record.startTime)}</div>
+                    <div>持续时间：${formatDuration(record.duration)}</div>
+                    <div style="margin-top:12px;">
+                        <label style="font-size:13px;color:rgba(255,255,255,0.5);">中断原因（选填）</label>
+                        <input type="text" id="interrupt-reason-input" placeholder="例如：被电话吵醒..." maxlength="100">
+                    </div>
+                </div>
+                <button class="toast-btn" id="toast-confirm-btn">确认保存</button>
+                <div style="margin-top:8px;">
+                    <button class="toast-btn" id="toast-skip-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.1);padding:6px 16px;font-size:13px;">不保存原因</button>
+                </div>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-                <button class="toast-btn" id="toast-reason-btn" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);font-size:13px;padding:8px 16px;">📝 填写原因</button>
-                <button class="toast-btn" id="toast-note-btn" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.06);font-size:13px;padding:8px 16px;">💭 感受</button>
-                <button class="toast-btn" id="toast-confirm-btn">确定</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(toast);
+        `;
+        document.body.appendChild(toast);
 
-    const confirmBtn = toast.querySelector('#toast-confirm-btn');
-    const reasonBtn = toast.querySelector('#toast-reason-btn');
-    const noteBtn = toast.querySelector('#toast-note-btn');
+        const confirmBtn = toast.querySelector('#toast-confirm-btn');
+        const skipBtn = toast.querySelector('#toast-skip-btn');
+        const input = toast.querySelector('#interrupt-reason-input');
 
-    // 确定按钮
-    confirmBtn.addEventListener('click', () => {
-        document.body.removeChild(toast);
-        if (onSave) onSave();
-    });
-
-    // 点击空白关闭
-    toast.addEventListener('click', (e) => {
-        if (e.target === toast) {
+        const doSave = (reason) => {
+            record.interruptReason = reason || '';
             document.body.removeChild(toast);
             if (onSave) onSave();
-        }
-    });
+        };
 
-    // 填写原因
-    reasonBtn.addEventListener('click', () => {
-        showReasonInputDialog(record, (reason) => {
-            record.interruptReason = reason;
-            if (typeof window.updateCompanionRecord === 'function') {
-                window.updateCompanionRecord(record.id, { interruptReason: reason }, function(success) {
-                    if (success) {
-                        showToast('中断原因已保存 ✓', 'success');
-                    }
-                });
-            }
-            // 刷新弹窗显示
-            const bodyEl = toast.querySelector('.toast-body');
-            if (bodyEl) {
-                const reasonDiv = bodyEl.querySelector('div[style*="border-top"]');
-                if (reason) {
-                    if (reasonDiv && reasonDiv.textContent.includes('📝')) {
-                        reasonDiv.innerHTML = `📝 ${reason}`;
-                    } else {
-                        const newReason = document.createElement('div');
-                        newReason.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-style:italic;color:rgba(255,255,255,0.5);';
-                        newReason.textContent = '📝 ' + reason;
-                        bodyEl.appendChild(newReason);
-                    }
-                } else if (reasonDiv && reasonDiv.textContent.includes('📝')) {
-                    reasonDiv.remove();
-                }
-            }
-        });
-    });
+        confirmBtn.addEventListener('click', () => doSave(input.value.trim()));
+        skipBtn.addEventListener('click', () => doSave(''));
+    }
 
-    // 填写感受
-    noteBtn.addEventListener('click', () => {
-        showNoteInputDialog(record, (note) => {
-            record.note = note;
-            if (typeof window.updateCompanionRecord === 'function') {
-                window.updateCompanionRecord(record.id, { note: note }, function(success) {
-                    if (success) {
-                        showToast('感受已保存 ✓', 'success');
-                    }
-                });
-            }
-            // 刷新弹窗显示
-            const bodyEl = toast.querySelector('.toast-body');
-            if (bodyEl) {
-                const noteDiv = bodyEl.querySelector('div[style*="border-top"]:last-child');
-                if (note) {
-                    if (noteDiv && noteDiv.textContent.includes('💭')) {
-                        noteDiv.innerHTML = `💭 ${note}`;
-                    } else {
-                        const newNote = document.createElement('div');
-                        newNote.style.cssText = 'margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.04);font-style:italic;color:rgba(255,255,255,0.35);font-size:12px;';
-                        newNote.textContent = '💭 ' + note;
-                        bodyEl.appendChild(newNote);
-                    }
-                } else if (noteDiv && noteDiv.textContent.includes('💭')) {
-                    noteDiv.remove();
-                }
-            }
-        });
-    });
-}
-
-function showCompletionToast(record, onSave) {
-    const toast = document.createElement('div');
-    toast.className = 'companion-toast open';
-    toast.id = 'companion-toast-temp';
-    toast.innerHTML = `
-        <div class="toast-box">
-            <div class="toast-title">🌙 好梦</div>
-            <div class="toast-body">
-                <div>开始时间：${formatDetailTime(record.startTime)}</div>
-                <div>睡眠时长：${formatDuration(record.duration)}</div>
-                <div>结束时间：${formatDetailTime(record.endTime)}</div>
-                ${record.note ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-style:italic;color:rgba(255,255,255,0.5);">💭 ${record.note}</div>` : ''}
+    function showCompletionToast(record, onSave) {
+        const toast = document.createElement('div');
+        toast.className = 'companion-toast open';
+        toast.id = 'companion-toast-temp';
+        toast.innerHTML = `
+            <div class="toast-box">
+                <div class="toast-title">🌙 好梦</div>
+                <div class="toast-body">
+                    <div>开始时间：${formatTime(record.startTime)}</div>
+                    <div>持续时间：${formatDuration(record.duration)}</div>
+                    <div>结束时间：${formatTime(record.endTime)}</div>
+                </div>
+                <button class="toast-btn" id="toast-confirm-btn">好的</button>
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
-                <button class="toast-btn" id="toast-note-btn" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);font-size:13px;padding:8px 16px;">💭 填写感受</button>
-                <button class="toast-btn" id="toast-confirm-btn">确定</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(toast);
+        `;
+        document.body.appendChild(toast);
 
-    const confirmBtn = toast.querySelector('#toast-confirm-btn');
-    const noteBtn = toast.querySelector('#toast-note-btn');
-
-    // 确定按钮
-    confirmBtn.addEventListener('click', () => {
-        document.body.removeChild(toast);
-        if (onSave) onSave();
-    });
-
-    // 点击空白关闭
-    toast.addEventListener('click', (e) => {
-        if (e.target === toast) {
+        const confirmBtn = toast.querySelector('#toast-confirm-btn');
+        confirmBtn.addEventListener('click', () => {
             document.body.removeChild(toast);
             if (onSave) onSave();
-        }
-    });
-
-    // 填写感受
-    noteBtn.addEventListener('click', () => {
-        showNoteInputDialog(record, (note) => {
-            record.note = note;
-            // 更新存储
-            if (typeof window.updateCompanionRecord === 'function') {
-                window.updateCompanionRecord(record.id, { note: note }, function(success) {
-                    if (success) {
-                        showToast('感受已保存 ✓', 'success');
-                    }
-                });
-            }
-            // 刷新弹窗显示
-            const bodyEl = toast.querySelector('.toast-body');
-            if (bodyEl) {
-                const noteDiv = bodyEl.querySelector('div[style*="border-top"]');
-                if (note) {
-                    if (noteDiv) {
-                        noteDiv.innerHTML = `💭 ${note}`;
-                    } else {
-                        const newNote = document.createElement('div');
-                        newNote.style.cssText = 'margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);font-style:italic;color:rgba(255,255,255,0.5);';
-                        newNote.textContent = '💭 ' + note;
-                        bodyEl.appendChild(newNote);
-                    }
-                } else if (noteDiv) {
-                    noteDiv.remove();
-                }
+        });
+        toast.addEventListener('click', (e) => {
+            if (e.target === toast) {
+                document.body.removeChild(toast);
+                if (onSave) onSave();
             }
         });
-    });
-}
-
-// ============================================================
-// 独立输入对话框（感受/原因）
-// ============================================================
-
-/**
- * 显示填写感受的独立输入框
- */
-function showNoteInputDialog(record, onSave) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed; inset: 0; z-index: 100001;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-        animation: companionToastIn 0.3s ease;
-    `;
-    overlay.innerHTML = `
-        <div style="background: var(--modal-bg, #1e1e2e); border-radius: 24px;
-            padding: 28px 24px; max-width: 360px; width: 90%;
-            border: 1px solid rgba(255,255,255,0.06);">
-            <div style="font-size:18px;font-weight:700;margin-bottom:16px;color:var(--text-primary,#fff);">
-                💭 填写感受
-            </div>
-            <div style="margin-bottom:16px;">
-                <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">记录下这次陪伴的感受</label>
-                <textarea id="note-input-dialog" rows="3" placeholder="例如：睡得很好..." style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:var(--text-primary,#fff);font-size:14px;outline:none;box-sizing:border-box;font-family:var(--font-family);resize:vertical;">${record.note || ''}</textarea>
-            </div>
-            <div style="display:flex;gap:10px;">
-                <button class="companion-btn secondary" id="note-dialog-cancel" style="flex:1;padding:10px;font-size:14px;min-width:unset;">取消</button>
-                <button class="companion-btn" id="note-dialog-confirm" style="flex:2;padding:10px;font-size:14px;min-width:unset;">保存</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const textarea = overlay.querySelector('#note-input-dialog');
-    const confirmBtn = overlay.querySelector('#note-dialog-confirm');
-    const cancelBtn = overlay.querySelector('#note-dialog-cancel');
-
-    confirmBtn.addEventListener('click', () => {
-        const note = textarea.value.trim();
-        document.body.removeChild(overlay);
-        if (onSave) onSave(note);
-    });
-
-    cancelBtn.addEventListener('click', () => {
-        document.body.removeChild(overlay);
-    });
-
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            document.body.removeChild(overlay);
-        }
-    });
-
-    setTimeout(() => textarea?.focus(), 100);
-}
-
-/**
- * 显示填写原因的独立输入框
- */
-function showReasonInputDialog(record, onSave) {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-        position: fixed; inset: 0; z-index: 100001;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-        animation: companionToastIn 0.3s ease;
-    `;
-    overlay.innerHTML = `
-        <div style="background: var(--modal-bg, #1e1e2e); border-radius: 24px;
-            padding: 28px 24px; max-width: 360px; width: 90%;
-            border: 1px solid rgba(255,255,255,0.06);">
-            <div style="font-size:18px;font-weight:700;margin-bottom:16px;color:var(--text-primary,#fff);">
-                📝 中断原因
-            </div>
-            <div style="margin-bottom:16px;">
-                <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">记录中断的原因</label>
-                <textarea id="reason-input-dialog" rows="3" placeholder="例如：被电话吵醒..." style="width:100%;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:var(--text-primary,#fff);font-size:14px;outline:none;box-sizing:border-box;font-family:var(--font-family);resize:vertical;">${record.interruptReason || ''}</textarea>
-            </div>
-            <div style="display:flex;gap:10px;">
-                <button class="companion-btn secondary" id="reason-dialog-cancel" style="flex:1;padding:10px;font-size:14px;min-width:unset;">取消</button>
-                <button class="companion-btn" id="reason-dialog-confirm" style="flex:2;padding:10px;font-size:14px;min-width:unset;">保存</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    const textarea = overlay.querySelector('#reason-input-dialog');
-    const confirmBtn = overlay.querySelector('#reason-dialog-confirm');
-    const cancelBtn = overlay.querySelector('#reason-dialog-cancel');
-
-    confirmBtn.addEventListener('click', () => {
-        const reason = textarea.value.trim();
-        document.body.removeChild(overlay);
-        if (onSave) onSave(reason);
-    });
-
-    cancelBtn.addEventListener('click', () => {
-        document.body.removeChild(overlay);
-    });
-
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) {
-            document.body.removeChild(overlay);
-        }
-    });
-
-    setTimeout(() => textarea?.focus(), 100);
-}
+    }
 
     // ============================================================
     // 遗言机制
@@ -2057,86 +1801,63 @@ function showReasonInputDialog(record, onSave) {
         } catch { return null; }
     };
 
-window.restoreCompanionAccident = function (accidentData) {
-    if (!accidentData) return;
+    window.restoreCompanionAccident = function (accidentData) {
+        if (!accidentData) return;
 
-    let durationMs = 0;
-    let startTime = null;
-    let endTime = new Date();
+        let durationMs = 0;
+        let startTime = null;
+        let endTime = new Date();
 
-    if (accidentData.state === STATE.SLEEPING && accidentData.startTime) {
-        startTime = new Date(accidentData.startTime);
-        const lastAlive = accidentData.lastAliveTime || accidentData.startTime;
-        durationMs = Math.max(0, lastAlive - accidentData.startTime);
-    } else if (accidentData.state === STATE.COUNTDOWN || accidentData.state === STATE.READY_TO_START) {
-        clearAccident();
-        resetSession();
-        showToast('陪伴尚未正式开始，不生成记录', 'info');
-        return;
-    }
-
-    const elapsedMinutes = durationMs / (60 * 1000);
-    if (elapsedMinutes < MIN_VALID_MINUTES) {
-        clearAccident();
-        resetSession();
-        showToast(`陪伴时长不足${MIN_VALID_MINUTES}分钟，不生成记录`, 'info');
-        return;
-    }
-
-    // 构建系统中断记录
-    const record = {
-        id: 'comp_sys_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-        date: startTime ? startTime.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        startTime: startTime ? startTime.toISOString() : new Date().toISOString(),
-        endTime: endTime.toISOString(),
-        duration: durationMs,
-        mode: 'system_interrupt',
-        soundType: accidentData.musicTitle || '未知',
-        status: '系统中断',
-        interruptReason: '',
-        note: '',
-        isSystemInterrupt: true,
-    };
-
-    // 保存记录
-    let saved = false;
-    if (typeof window.saveCompanionRecord === 'function') {
-        window.saveCompanionRecord(record, function(success) {
-            if (success) {
-                saved = true;
-                // 清除遗言
-                clearAccident();
-                resetSession();
-                // 弹窗提示
-                showToast('已生成系统中断记录，请完善结束时间', 'warning');
-                // 打开日历并定位到该记录
-                setTimeout(function() {
-                    showCompanionRecords(record.id);
-                }, 300);
-            } else {
-                showToast('补录失败，请重试', 'error');
-            }
-        });
-    } else {
-        // 降级方案
-        try {
-            const key = 'companion_records';
-            let records = JSON.parse(localStorage.getItem(key) || '[]');
-            records.push(record);
-            localStorage.setItem(key, JSON.stringify(records));
-            saved = true;
+        if (accidentData.state === STATE.SLEEPING && accidentData.startTime) {
+            startTime = new Date(accidentData.startTime);
+            const lastAlive = accidentData.lastAliveTime || accidentData.startTime;
+            durationMs = Math.max(0, lastAlive - accidentData.startTime);
+        } else if (accidentData.state === STATE.COUNTDOWN || accidentData.state === STATE.READY_TO_START) {
             clearAccident();
             resetSession();
-            showToast('已生成系统中断记录，请完善结束时间', 'warning');
-            setTimeout(function() {
-                showCompanionRecords(record.id);
-            }, 300);
+            showToast('陪伴尚未正式开始，不生成记录', 'info');
+            return;
+        }
+
+        const elapsedMinutes = durationMs / (60 * 1000);
+        if (elapsedMinutes < MIN_VALID_MINUTES) {
+            clearAccident();
+            resetSession();
+            showToast(`陪伴时长不足${MIN_VALID_MINUTES}分钟，不生成记录`, 'info');
+            return;
+        }
+
+        const record = {
+            id: 'comp_sys_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            date: startTime ? startTime.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            startTime: startTime ? startTime.toISOString() : new Date().toISOString(),
+            endTime: endTime.toISOString(),
+            duration: durationMs,
+            mode: 'system_interrupt',
+            soundType: accidentData.musicTitle || '未知',
+            status: '系统中断',
+            interruptReason: '页面意外退出',
+            isSystemInterrupt: true,
+        };
+
+        try {
+            if (typeof window.saveCompanionRecord === 'function') {
+                window.saveCompanionRecord(record);
+            } else {
+                const key = 'companion_records';
+                let records = JSON.parse(localStorage.getItem(key) || '[]');
+                records.push(record);
+                localStorage.setItem(key, JSON.stringify(records));
+            }
+            showToast('检测到未完成的陪伴，已自动补录系统中断记录', 'warning');
         } catch (e) {
             console.error('[companion] 补录失败:', e);
-            showToast('补录失败', 'error');
         }
-    }
-};
+
+        clearAccident();
+        resetSession();
+        currentUI = 'idle';
+    };
 
     // ============================================================
     // 重置会话
@@ -2173,803 +1894,6 @@ window.restoreCompanionAccident = function (accidentData) {
         renderSetupUI();
     }
 
-// ============================================================
-// 陪伴记录 - 日历视图
-// ============================================================
-
-/**
- * 打开陪伴记录日历模态框
- * @param {string} [targetRecordId] - 可选，指定要打开的记录ID（用于补录跳转）
- */
-function showCompanionRecords(targetRecordId) {
-    // 加载所有记录
-    if (typeof window.loadCompanionRecords === 'function') {
-        window.loadCompanionRecords(function(records) {
-            renderCalendarModal(records || [], targetRecordId);
-        });
-    } else {
-        // 降级方案：从 localStorage 读取
-        try {
-            const data = localStorage.getItem('companion_records');
-            const records = data ? JSON.parse(data) : [];
-            renderCalendarModal(records, targetRecordId);
-        } catch (e) {
-            renderCalendarModal([], targetRecordId);
-        }
-    }
-}
-
-function renderCalendarModal(records, targetRecordId) {
-    // 移除旧的模态框
-    let oldModal = document.getElementById('companion-calendar-modal');
-    if (oldModal) oldModal.remove();
-
-    // 按日期分组
-    const grouped = {};
-    records.forEach(record => {
-        if (!record.date) return;
-        if (!grouped[record.date]) grouped[record.date] = [];
-        grouped[record.date].push(record);
-    });
-
-    const now = new Date();
-    let currentYear = now.getFullYear();
-    let currentMonth = now.getMonth();
-
-    // 创建模态框容器
-    const modal = document.createElement('div');
-    modal.id = 'companion-calendar-modal';
-    modal.style.cssText = `
-        position: fixed; inset: 0; z-index: 99999;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
-        animation: companionFadeIn 0.25s ease;
-        padding: 16px;
-        box-sizing: border-box;
-    `;
-    document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
-
-    let _closing = false; // 防重复关闭
-
-    function closeCalendar() {
-        if (_closing) return;
-        _closing = true;
-        console.log('[companion] 日历模态框关闭');
-        if (modal && modal.parentNode) {
-            modal.parentNode.removeChild(modal);
-        }
-        document.body.style.overflow = '';
-        if (document.activeElement) document.activeElement.blur();
-    }
-
-    function renderCalendar(year, month) {
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-
-        let daysHTML = '';
-        for (let i = 0; i < firstDay; i++) {
-            daysHTML += `<div class="calendar-day empty"></div>`;
-        }
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateObj = new Date(year, month, d);
-            const dateStr = dateObj.toISOString().split('T')[0];
-            const isToday = dateStr === todayStr;
-            const hasRecords = grouped[dateStr] && grouped[dateStr].length > 0;
-            const dotCount = hasRecords ? (grouped[dateStr].length > 1 ? 2 : 1) : 0;
-            daysHTML += `
-                <div class="calendar-day${isToday ? ' today' : ''}${hasRecords ? ' has-record' : ''}" 
-                     data-date="${dateStr}"
-                     style="${hasRecords ? 'cursor:pointer;' : ''}${isToday ? 'border-color:var(--accent-color);' : ''}">
-                    <span style="font-size:13px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--accent-color)' : 'var(--text-primary)'};">${d}</span>
-                    ${dotCount > 0 ? `<div style="display:flex;gap:3px;justify-content:center;margin-top:2px;">${'<span style="width:5px;height:5px;border-radius:50%;background:var(--accent-color);display:inline-block;"></span>'.repeat(dotCount)}</div>` : ''}
-                </div>
-            `;
-        }
-
-        const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-
-        const htmlContent = `
-            <div class="modal-content" style="
-                max-width: 420px; width: 100%;
-                padding: 20px;
-                background: var(--secondary-bg, #1e1e2e);
-                border-radius: 20px;
-                max-height: 85vh;
-                display: flex;
-                flex-direction: column;
-                overflow: hidden;
-                border: 1px solid rgba(255,255,255,0.06);
-                box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-                position: relative;
-                z-index: 1;
-            ">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0;">
-                    <div style="font-size:18px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
-                        <i class="fas fa-moon" style="color:var(--accent-color);"></i>陪伴记录
-                    </div>
-                    <button id="close-calendar-btn" style="
-                        width:32px;height:32px;border-radius:50%;border:none;
-                        background:rgba(var(--accent-color-rgb),0.1);
-                        color:var(--text-secondary);cursor:pointer;font-size:16px;
-                        display:flex;align-items:center;justify-content:center;
-                    ">×</button>
-                </div>
-
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0;">
-                    <button id="calendar-prev-month" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:14px;padding:4px 10px;"><i class="fas fa-chevron-left"></i></button>
-                    <span style="font-size:15px;font-weight:600;color:var(--text-primary);">${year}年 ${monthNames[month]}</span>
-                    <button id="calendar-next-month" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:14px;padding:4px 10px;"><i class="fas fa-chevron-right"></i></button>
-                </div>
-
-                <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:var(--text-secondary);margin-bottom:6px;flex-shrink:0;">
-                    <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
-                </div>
-
-                <div id="calendar-grid-container" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;flex-shrink:0;">
-                    ${daysHTML}
-                </div>
-
-                <div id="calendar-day-detail" style="
-                    flex:1; overflow-y:auto; margin-top:12px; padding-top:12px;
-                    border-top:1px solid var(--border-color);
-                    min-height:80px; max-height:300px; display:none;
-                "></div>
-
-                <div style="display:flex;gap:8px;margin-top:12px;flex-shrink:0;">
-                    <button id="calendar-close-btn" class="modal-btn modal-btn-secondary" style="flex:1;">关闭</button>
-                </div>
-            </div>
-        `;
-
-        modal.innerHTML = htmlContent;
-
-        // --- 事件绑定 ---
-        // 内容区域阻止冒泡（避免点击内容时触发任何外部事件）
-        const contentEl = modal.querySelector('.modal-content');
-        if (contentEl) {
-            contentEl.addEventListener('click', e => e.stopPropagation());
-        }
-
-        // 关闭按钮
-        const closeBtn1 = modal.querySelector('#close-calendar-btn');
-        const closeBtn2 = modal.querySelector('#calendar-close-btn');
-        if (closeBtn1) closeBtn1.addEventListener('click', closeCalendar);
-        if (closeBtn2) closeBtn2.addEventListener('click', closeCalendar);
-
-        // ★★★ 移除背景点击关闭（只通过按钮关闭）★★★
-        // 不添加 modal 的 click 监听
-
-        // 月份切换
-        const prevBtn = modal.querySelector('#calendar-prev-month');
-        const nextBtn = modal.querySelector('#calendar-next-month');
-        if (prevBtn) {
-            prevBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                currentMonth--;
-                if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-                renderCalendar(currentYear, currentMonth);
-            });
-        }
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                currentMonth++;
-                if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-                renderCalendar(currentYear, currentMonth);
-            });
-        }
-
-        // 日期点击
-        modal.querySelectorAll('.calendar-day.has-record').forEach(el => {
-            el.addEventListener('click', function() {
-                const dateStr = this.dataset.date;
-                const dayRecords = grouped[dateStr] || [];
-                if (typeof renderDayRecords === 'function') {
-                    renderDayRecords(dateStr, dayRecords, grouped);
-                } else {
-                    console.warn('[companion] renderDayRecords 未定义');
-                }
-            });
-        });
-
-        // 自动定位目标记录
-        if (targetRecordId) {
-            const targetRecord = records.find(r => r.id === targetRecordId);
-            if (targetRecord && targetRecord.date) {
-                const targetDate = new Date(targetRecord.startTime);
-                currentYear = targetDate.getFullYear();
-                currentMonth = targetDate.getMonth();
-                setTimeout(() => {
-                    renderCalendar(currentYear, currentMonth);
-                    setTimeout(() => {
-                        const dateStr = targetRecord.date;
-                        const dayRecords = grouped[dateStr] || [];
-                        if (dayRecords.length > 0) {
-                            if (typeof renderDayRecords === 'function') {
-                                renderDayRecords(dateStr, dayRecords, grouped);
-                                if (dayRecords.length === 1) {
-                                    setTimeout(() => {
-                                        if (typeof renderRecordDetail === 'function') {
-                                            renderRecordDetail(dayRecords[0], grouped);
-                                        }
-                                    }, 200);
-                                }
-                            }
-                        }
-                    }, 100);
-                }, 50);
-            }
-        }
-    }
-
-    renderCalendar(currentYear, currentMonth);
-
-    // 注入 fadeIn 动画（如果不存在）
-    if (!document.getElementById('companion-fadein-style')) {
-        const style = document.createElement('style');
-        style.id = 'companion-fadein-style';
-        style.textContent = `
-            @keyframes companionFadeIn {
-                from { opacity: 0; transform: scale(0.95); }
-                to { opacity: 1; transform: scale(1); }
-            }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-// ============================================================
-// 陪伴记录 - 日历模态框（修复版）
-// ============================================================
-function renderCalendarModal(records, targetRecordId) {
-    // 按日期分组
-    const grouped = {};
-    records.forEach(record => {
-        if (!record.date) return;
-        if (!grouped[record.date]) grouped[record.date] = [];
-        grouped[record.date].push(record);
-    });
-
-    // 获取当前日期
-    const now = new Date();
-    let currentYear = now.getFullYear();
-    let currentMonth = now.getMonth();
-
-    // 移除旧的模态框（避免事件监听器残留）
-    let modal = document.getElementById('companion-calendar-modal');
-    if (modal) modal.remove();
-
-    // 创建新的模态框
-    modal = document.createElement('div');
-    modal.id = 'companion-calendar-modal';
-    modal.className = 'modal';
-    modal.style.cssText = 'z-index: 99998 !important; display: none;';  // ★ 初始隐藏，稍后显示
-    document.body.appendChild(modal);
-
-    // 关闭函数（添加清理状态）
-    function closeCalendar() {
-        console.log('[companion] 关闭日历模态框');
-        if (modal) {
-            modal.style.display = 'none';
-            // 移除可能残留的 backdrop 样式
-            document.body.style.overflow = ''; 
-        }
-    }
-
-    // 渲染逻辑
-    function renderCalendar(year, month) {
-        const firstDay = new Date(year, month, 1).getDay();
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-
-        let daysHTML = '';
-        // 填充空白
-        for (let i = 0; i < firstDay; i++) {
-            daysHTML += `<div class="calendar-day empty"></div>`;
-        }
-        // 填充日期
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateObj = new Date(year, month, d);
-            const dateStr = dateObj.toISOString().split('T')[0];
-            const isToday = dateStr === todayStr;
-            const hasRecords = grouped[dateStr] && grouped[dateStr].length > 0;
-            const dotCount = hasRecords ? (grouped[dateStr].length > 1 ? 2 : 1) : 0;
-            const isClickable = hasRecords;
-
-            daysHTML += `
-                <div class="calendar-day${isToday ? ' today' : ''}${isClickable ? ' has-record' : ''}" 
-                     data-date="${dateStr}"
-                     style="${isClickable ? 'cursor:pointer;' : ''}${isToday ? 'border-color:var(--accent-color);' : ''}">
-                    <span style="font-size:13px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--accent-color)' : 'var(--text-primary)'};">${d}</span>
-                    ${dotCount > 0 ? `<div style="display:flex;gap:3px;justify-content:center;margin-top:2px;">${'<span style="width:5px;height:5px;border-radius:50%;background:var(--accent-color);display:inline-block;"></span>'.repeat(dotCount)}</div>` : ''}
-                </div>
-            `;
-        }
-
-        const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-
-        const html = `
-            <div class="modal-content" style="max-width:420px;padding:20px;background:var(--secondary-bg);border-radius:20px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0;">
-                    <div style="font-size:18px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
-                        <i class="fas fa-moon" style="color:var(--accent-color);"></i>陪伴记录
-                    </div>
-                    <button id="close-calendar-btn" style="width:32px;height:32px;border-radius:50%;border:none;background:rgba(var(--accent-color-rgb),0.1);color:var(--text-secondary);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">×</button>
-                </div>
-
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0;">
-                    <button id="calendar-prev-month" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:14px;padding:4px 10px;"><i class="fas fa-chevron-left"></i></button>
-                    <span style="font-size:15px;font-weight:600;color:var(--text-primary);">${year}年 ${monthNames[month]}</span>
-                    <button id="calendar-next-month" style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:14px;padding:4px 10px;"><i class="fas fa-chevron-right"></i></button>
-                </div>
-
-                <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-size:11px;color:var(--text-secondary);margin-bottom:6px;flex-shrink:0;">
-                    <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
-                </div>
-
-                <div id="calendar-grid-container" style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;flex-shrink:0;">
-                    ${daysHTML}
-                </div>
-
-                <div id="calendar-day-detail" style="flex:1;overflow-y:auto;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);min-height:80px;max-height:300px;display:none;">
-                    <!-- 动态加载当日记录列表 -->
-                </div>
-
-                <div style="display:flex;gap:8px;margin-top:12px;flex-shrink:0;">
-                    <button id="calendar-close-btn" class="modal-btn modal-btn-secondary" style="flex:1;">关闭</button>
-                </div>
-            </div>
-        `;
-
-        modal.innerHTML = html;
-        modal.style.display = 'flex';  // ★ 显示模态框
-
-        // ---- 事件绑定 ----
-        // 关闭按钮
-        const closeBtn1 = modal.querySelector('#close-calendar-btn');
-        const closeBtn2 = modal.querySelector('#calendar-close-btn');
-        if (closeBtn1) closeBtn1.addEventListener('click', closeCalendar);
-        if (closeBtn2) closeBtn2.addEventListener('click', closeCalendar);
-
-        // ★★★ 关键修复：阻止内容区域的事件冒泡到 modal
-        const content = modal.querySelector('.modal-content');
-        if (content) {
-            content.addEventListener('click', function(e) {
-                e.stopPropagation();  // 阻止点击内容区域时触发 modal 的点击事件
-            });
-        }
-
-        // ★★★ 安全背景点击关闭：只有点击到 modal 本身（即灰色遮罩）时才关闭
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {  // 直接点击背景
-                closeCalendar();
-            }
-        });
-
-        // 月份切换
-        const prevBtn = modal.querySelector('#calendar-prev-month');
-        const nextBtn = modal.querySelector('#calendar-next-month');
-        if (prevBtn) {
-            prevBtn.addEventListener('click', function() {
-                currentMonth--;
-                if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-                renderCalendar(currentYear, currentMonth);
-            });
-        }
-        if (nextBtn) {
-            nextBtn.addEventListener('click', function() {
-                currentMonth++;
-                if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-                renderCalendar(currentYear, currentMonth);
-            });
-        }
-
-        // 点击日期
-        modal.querySelectorAll('.calendar-day.has-record').forEach(el => {
-            el.addEventListener('click', function() {
-                const dateStr = this.dataset.date;
-                const dayRecords = grouped[dateStr] || [];
-                renderDayRecords(dateStr, dayRecords, grouped);
-            });
-        });
-
-        // 如果有目标记录ID，自动定位并打开
-        if (targetRecordId) {
-            const targetRecord = records.find(r => r.id === targetRecordId);
-            if (targetRecord && targetRecord.date) {
-                const targetDate = new Date(targetRecord.startTime);
-                currentYear = targetDate.getFullYear();
-                currentMonth = targetDate.getMonth();
-                setTimeout(() => {
-                    renderCalendar(currentYear, currentMonth);
-                    setTimeout(() => {
-                        const dateStr = targetRecord.date;
-                        const dayRecords = grouped[dateStr] || [];
-                        if (dayRecords.length > 0) {
-                            renderDayRecords(dateStr, dayRecords, grouped);
-                            if (dayRecords.length === 1) {
-                                setTimeout(() => {
-                                    renderRecordDetail(dayRecords[0], grouped);
-                                }, 200);
-                            }
-                        }
-                    }, 100);
-                }, 50);
-            }
-        }
-    }
-
-    // 初始渲染
-    renderCalendar(currentYear, currentMonth);
-}
-
-/**
- * 渲染记录详情页
- */
-function renderRecordDetail(record, grouped) {
-    const detailContainer = document.getElementById('calendar-day-detail');
-    if (!detailContainer) return;
-
-    detailContainer.style.display = 'block';
-
-    const isEditable = isRecordEditable(record);
-    const isSystemInterrupt = record.mode === 'system_interrupt';
-
-    // 模式标签
-    const modeLabels = {
-        'completed': { icon: '✅', label: '完成陪伴', color: 'var(--accent-color)' },
-        'interrupted': { icon: '⏸️', label: '中断', color: '#ff9f43' },
-        'system_interrupt': { icon: '🔄', label: '系统中断', color: '#4a90e2' }
-    };
-    const modeInfo = modeLabels[record.mode] || { icon: '📝', label: record.mode || '记录', color: 'var(--text-secondary)' };
-
-    // 格式化开始/结束时间用于显示
-    const startDisplay = formatDetailTime(record.startTime);
-    const endDisplay = formatDetailTime(record.endTime);
-    const durationDisplay = formatDuration(record.duration);
-
-    // 可编辑的字段
-    let endTimeInput = '';
-    if (isEditable && isSystemInterrupt) {
-        // 系统中断：结束时间可编辑
-        const endDate = record.endTime ? new Date(record.endTime) : new Date();
-        const localStr = endDate.toISOString().slice(0, 16);
-        endTimeInput = `
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-                <label style="font-size:12px;color:var(--text-secondary);">修改结束时间：</label>
-                <input type="datetime-local" id="record-endtime-input" value="${localStr}" style="padding:4px 8px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-size:12px;">
-                <button id="record-endtime-save" style="padding:4px 12px;border-radius:8px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;font-size:12px;">更新</button>
-            </div>
-        `;
-    }
-
-    // 中断原因（仅中断类型可编辑）
-    let reasonHTML = '';
-    if (record.mode === 'interrupted') {
-        reasonHTML = `
-            <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-color);">
-                <div style="display:flex;align-items:center;justify-content:space-between;">
-                    <span style="font-size:12px;color:var(--text-secondary);">📝 中断原因</span>
-                    ${isEditable ? `<button id="record-edit-reason-btn" style="background:none;border:none;color:var(--accent-color);cursor:pointer;font-size:12px;">编辑</button>` : ''}
-                </div>
-                <div id="record-reason-display" style="font-size:13px;color:var(--text-primary);margin-top:4px;padding:6px 10px;background:var(--primary-bg);border-radius:8px;min-height:30px;word-break:break-word;">${record.interruptReason || '（未填写）'}</div>
-                ${isEditable ? `
-                    <div id="record-reason-edit" style="display:none;margin-top:6px;">
-                        <textarea id="record-reason-textarea" rows="2" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-size:13px;resize:vertical;font-family:var(--font-family);">${record.interruptReason || ''}</textarea>
-                        <div style="display:flex;gap:6px;margin-top:4px;">
-                            <button id="record-reason-save" style="padding:4px 12px;border-radius:8px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;font-size:12px;">保存</button>
-                            <button id="record-reason-cancel" style="padding:4px 12px;border-radius:8px;border:none;background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;font-size:12px;border:1px solid var(--border-color);">取消</button>
-                        </div>
-                    </div>
-                ` : ''}
-            </div>
-        `;
-    }
-
-    // 感受（所有类型通用）
-    let noteHTML = `
-        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-color);">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-                <span style="font-size:12px;color:var(--text-secondary);">💭 感受</span>
-                ${isEditable ? `<button id="record-edit-note-btn" style="background:none;border:none;color:var(--accent-color);cursor:pointer;font-size:12px;">编辑</button>` : ''}
-            </div>
-            <div id="record-note-display" style="font-size:13px;color:var(--text-primary);margin-top:4px;padding:6px 10px;background:var(--primary-bg);border-radius:8px;min-height:30px;word-break:break-word;">${record.note || '（未填写）'}</div>
-            ${isEditable ? `
-                <div id="record-note-edit" style="display:none;margin-top:6px;">
-                    <textarea id="record-note-textarea" rows="2" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-size:13px;resize:vertical;font-family:var(--font-family);">${record.note || ''}</textarea>
-                    <div style="display:flex;gap:6px;margin-top:4px;">
-                        <button id="record-note-save" style="padding:4px 12px;border-radius:8px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;font-size:12px;">保存</button>
-                        <button id="record-note-cancel" style="padding:4px 12px;border-radius:8px;border:none;background:var(--primary-bg);color:var(--text-secondary);cursor:pointer;font-size:12px;border:1px solid var(--border-color);">取消</button>
-                    </div>
-                </div>
-            ` : ''}
-        </div>
-    `;
-
-    const html = `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-            <button id="back-to-day-list-btn" style="background:none;border:none;color:var(--accent-color);cursor:pointer;font-size:14px;padding:4px;"><i class="fas fa-arrow-left"></i></button>
-            <span style="font-size:15px;font-weight:600;color:var(--text-primary);">📋 记录详情</span>
-            <span style="font-size:11px;padding:2px 10px;border-radius:12px;background:rgba(var(--accent-color-rgb),0.1);color:${modeInfo.color};border:1px solid ${modeInfo.color}22;">${modeInfo.icon} ${modeInfo.label}</span>
-            ${!isEditable ? `<span style="font-size:10px;color:var(--text-secondary);margin-left:auto;">🔒 超过3天不可修改</span>` : ''}
-        </div>
-
-        <div style="background:var(--primary-bg);border-radius:12px;padding:14px;margin-top:8px;border:1px solid var(--border-color);">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-                <div>
-                    <div style="font-size:10px;color:var(--text-secondary);">开始时间</div>
-                    <div style="font-size:14px;font-weight:600;color:var(--text-primary);">${startDisplay}</div>
-                </div>
-                <div>
-                    <div style="font-size:10px;color:var(--text-secondary);">睡眠时长</div>
-                    <div style="font-size:14px;font-weight:600;color:var(--accent-color);">${durationDisplay}</div>
-                </div>
-            </div>
-            <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border-color);">
-                <div style="font-size:10px;color:var(--text-secondary);">结束时间</div>
-                <div style="font-size:14px;font-weight:600;color:var(--text-primary);">${endDisplay}</div>
-                ${endTimeInput}
-            </div>
-            ${isSystemInterrupt && isEditable ? `<div id="system-interrupt-hint" style="font-size:11px;color:var(--text-secondary);margin-top:4px;">💡 修改结束时间后，睡眠时长将自动更新</div>` : ''}
-        </div>
-
-        ${reasonHTML}
-        ${noteHTML}
-
-        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;">
-            <button id="record-delete-btn" style="padding:6px 16px;border-radius:8px;border:1px solid rgba(255,70,70,0.3);background:rgba(255,70,70,0.08);color:#ff6b6b;cursor:pointer;font-size:12px;transition:all 0.2s;">🗑️ 删除记录</button>
-        </div>
-    `;
-
-    detailContainer.innerHTML = html;
-
-    // ---- 绑定事件 ----
-
-    // 返回按钮
-    detailContainer.querySelector('#back-to-day-list-btn')?.addEventListener('click', function() {
-        const dateStr = record.date;
-        if (grouped && grouped[dateStr]) {
-            renderDayRecords(dateStr, grouped[dateStr], grouped);
-        } else {
-            // 如果 grouped 不可用，重新加载记录
-            if (typeof window.loadCompanionRecords === 'function') {
-                window.loadCompanionRecords(function(records) {
-                    const newGrouped = {};
-                    records.forEach(r => {
-                        if (!r.date) return;
-                        if (!newGrouped[r.date]) newGrouped[r.date] = [];
-                        newGrouped[r.date].push(r);
-                    });
-                    const dayRecords = newGrouped[dateStr] || [];
-                    renderDayRecords(dateStr, dayRecords, newGrouped);
-                });
-            }
-        }
-    });
-
-    // 删除记录
-    detailContainer.querySelector('#record-delete-btn')?.addEventListener('click', function() {
-        deleteRecord(record.id);
-    });
-
-    // 系统中断：更新结束时间
-    if (isSystemInterrupt && isEditable) {
-        const saveBtn = document.getElementById('record-endtime-save');
-        const timeInput = document.getElementById('record-endtime-input');
-        if (saveBtn && timeInput) {
-            saveBtn.addEventListener('click', function() {
-                const newEndTime = timeInput.value;
-                if (!newEndTime) return;
-                const newEndDate = new Date(newEndTime);
-                if (isNaN(newEndDate.getTime())) return;
-
-                const startDate = new Date(record.startTime);
-                const newDuration = Math.max(0, newEndDate.getTime() - startDate.getTime());
-
-                if (newDuration < 20 * 60 * 1000) {
-                    showToast('时长不足20分钟，不能更新', 'warning');
-                    return;
-                }
-
-                // 更新记录
-                const updates = {
-                    endTime: newEndDate.toISOString(),
-                    duration: newDuration,
-                    date: startDate.toISOString().split('T')[0]
-                };
-
-                if (typeof window.updateCompanionRecord === 'function') {
-                    window.updateCompanionRecord(record.id, updates, function(success) {
-                        if (success) {
-                            showToast('结束时间已更新 ✓', 'success');
-                            // 刷新详情
-                            const updatedRecord = { ...record, ...updates };
-                            renderRecordDetail(updatedRecord, grouped);
-                            // 刷新日历
-                            if (typeof window.loadCompanionRecords === 'function') {
-                                window.loadCompanionRecords(function(records) {
-                                    const newGrouped = {};
-                                    records.forEach(r => {
-                                        if (!r.date) return;
-                                        if (!newGrouped[r.date]) newGrouped[r.date] = [];
-                                        newGrouped[r.date].push(r);
-                                    });
-                                    // 更新 grouped 引用
-                                    grouped = newGrouped;
-                                });
-                            }
-                        } else {
-                            showToast('更新失败，请重试', 'error');
-                        }
-                    });
-                } else {
-                    showToast('存储功能不可用', 'error');
-                }
-            });
-        }
-    }
-
-    // 编辑中断原因
-    if (isEditable && record.mode === 'interrupted') {
-        const editBtn = document.getElementById('record-edit-reason-btn');
-        const displayDiv = document.getElementById('record-reason-display');
-        const editDiv = document.getElementById('record-reason-edit');
-        const textarea = document.getElementById('record-reason-textarea');
-        const saveBtn = document.getElementById('record-reason-save');
-        const cancelBtn = document.getElementById('record-reason-cancel');
-
-        if (editBtn && displayDiv && editDiv) {
-            editBtn.addEventListener('click', function() {
-                displayDiv.style.display = 'none';
-                editDiv.style.display = 'block';
-                if (textarea) textarea.focus();
-            });
-            if (saveBtn && textarea) {
-                saveBtn.addEventListener('click', function() {
-                    const newReason = textarea.value.trim();
-                    if (typeof window.updateCompanionRecord === 'function') {
-                        window.updateCompanionRecord(record.id, { interruptReason: newReason }, function(success) {
-                            if (success) {
-                                record.interruptReason = newReason;
-                                displayDiv.textContent = newReason || '（未填写）';
-                                displayDiv.style.display = 'block';
-                                editDiv.style.display = 'none';
-                                showToast('中断原因已更新 ✓', 'success');
-                            } else {
-                                showToast('更新失败', 'error');
-                            }
-                        });
-                    }
-                });
-            }
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', function() {
-                    displayDiv.style.display = 'block';
-                    editDiv.style.display = 'none';
-                    if (textarea) textarea.value = record.interruptReason || '';
-                });
-            }
-        }
-    }
-
-    // 编辑感受
-    if (isEditable) {
-        const editBtn = document.getElementById('record-edit-note-btn');
-        const displayDiv = document.getElementById('record-note-display');
-        const editDiv = document.getElementById('record-note-edit');
-        const textarea = document.getElementById('record-note-textarea');
-        const saveBtn = document.getElementById('record-note-save');
-        const cancelBtn = document.getElementById('record-note-cancel');
-
-        if (editBtn && displayDiv && editDiv) {
-            editBtn.addEventListener('click', function() {
-                displayDiv.style.display = 'none';
-                editDiv.style.display = 'block';
-                if (textarea) textarea.focus();
-            });
-            if (saveBtn && textarea) {
-                saveBtn.addEventListener('click', function() {
-                    const newNote = textarea.value.trim();
-                    if (typeof window.updateCompanionRecord === 'function') {
-                        window.updateCompanionRecord(record.id, { note: newNote }, function(success) {
-                            if (success) {
-                                record.note = newNote;
-                                displayDiv.textContent = newNote || '（未填写）';
-                                displayDiv.style.display = 'block';
-                                editDiv.style.display = 'none';
-                                showToast('感受已更新 ✓', 'success');
-                            } else {
-                                showToast('更新失败', 'error');
-                            }
-                        });
-                    }
-                });
-            }
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', function() {
-                    displayDiv.style.display = 'block';
-                    editDiv.style.display = 'none';
-                    if (textarea) textarea.value = record.note || '';
-                });
-            }
-        }
-    }
-}
-
-// ============================================================
-// 记录编辑工具
-// ============================================================
-
-/**
- * 更新记录字段
- */
-function updateRecordField(recordId, field, value, callback) {
-    if (typeof window.updateCompanionRecord === 'function') {
-        window.updateCompanionRecord(recordId, { [field]: value }, function(success) {
-            if (callback) callback(success);
-        });
-    } else {
-        // 降级方案：直接修改 localStorage
-        try {
-            const key = 'companion_records';
-            const data = localStorage.getItem(key);
-            const records = data ? JSON.parse(data) : [];
-            const idx = records.findIndex(r => r.id === recordId);
-            if (idx === -1) { if (callback) callback(false); return; }
-            records[idx][field] = value;
-            localStorage.setItem(key, JSON.stringify(records));
-            if (callback) callback(true);
-        } catch (e) {
-            if (callback) callback(false);
-        }
-    }
-}
-
-/**
- * 删除记录（含确认）
- */
-function deleteRecord(recordId) {
-    if (!recordId) return;
-    if (!confirm('确定要删除这条陪伴记录吗？\n\n删除后不可恢复！')) return;
-
-    if (typeof window.deleteCompanionRecord === 'function') {
-        window.deleteCompanionRecord(recordId, function(success) {
-            if (success) {
-                showToast('记录已删除 ✓', 'success');
-                // 返回日历
-                const modal = document.getElementById('companion-calendar-modal');
-                if (modal) {
-                    modal.style.display = 'none';
-                    setTimeout(() => showCompanionRecords(), 200);
-                }
-            } else {
-                showToast('删除失败，请重试', 'error');
-            }
-        });
-    } else {
-        // 降级方案
-        try {
-            const key = 'companion_records';
-            const data = localStorage.getItem(key);
-            let records = data ? JSON.parse(data) : [];
-            records = records.filter(r => r.id !== recordId);
-            localStorage.setItem(key, JSON.stringify(records));
-            showToast('记录已删除 ✓', 'success');
-            const modal = document.getElementById('companion-calendar-modal');
-            if (modal) {
-                modal.style.display = 'none';
-                setTimeout(() => showCompanionRecords(), 200);
-            }
-        } catch (e) {
-            showToast('删除失败', 'error');
-        }
-    }
-}
-
     // ============================================================
     // 初始化
     // ============================================================
@@ -2977,7 +1901,6 @@ function deleteRecord(recordId) {
         console.log('[companion] 陪伴功能已加载（完整修复版）');
         window.showCompanionPicker = showCompanionPicker;
         window.openCompanion = showCompanionPicker;
-        window.showCompanionRecords = showCompanionRecords;
 
         loadMusicList();
         stopMusic();
