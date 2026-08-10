@@ -1124,103 +1124,107 @@ function selectMusic(id) {
     // ============================================================
     // 睡眠计时
     // ============================================================
-    function startSleepTracking() {
-        if (session.state === STATE.ENDED) return;
+function startSleepTracking() {
+    if (session.state === STATE.ENDED) return;
 
-        // ★★★ 新增：清理之前的变暗定时器和监听器 ★★★
-        const overlay = document.getElementById('companion-overlay');
-        if (overlay) {
-            if (window._companionIdleTimer) {
-                clearTimeout(window._companionIdleTimer);
-                window._companionIdleTimer = null;
-            }
-            if (overlay._resetIdleTimer) {
-                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
-                overlay.removeEventListener('click', overlay._resetIdleTimer);
-                delete overlay._resetIdleTimer;
-            }
-            overlay.classList.remove('idle-dim');
+    // ★ 将 overlay 声明在函数顶部，仅声明一次 ★
+    const overlay = document.getElementById('companion-overlay');
+
+    // ★★★ 清理之前的变暗定时器和监听器 ★★★
+    if (overlay) {
+        if (window._companionIdleTimer) {
+            clearTimeout(window._companionIdleTimer);
+            window._companionIdleTimer = null;
         }
-        session.state = STATE.SLEEPING;
-        currentUI = 'sleeping';
-        session.startTime = Date.now();
-        session.elapsed = 0;
-        session.lastAliveTime = Date.now();
-        session._autoStopped = false;
-
-        if (gainNode) {
-            applyVolume(); // 使用当前 volumePercent 和歌曲类型计算
-        } else {
-            updateVolumeUI(); // 安全兜底
+        if (overlay._resetIdleTimer) {
+            overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+            overlay.removeEventListener('click', overlay._resetIdleTimer);
+            delete overlay._resetIdleTimer;
         }
-
-        const name = getPartnerName();
-        const avatarHTML = getPartnerAvatarHTML();
-        const statuses = [
-            '你先休息，我处理一些事情',
-            '✨ 已进入梦境',
-            '稍等一下，我马上来',
-            '来吧，一起休息 🌙'
-        ];
-        const status = statuses[Math.floor(Math.random() * statuses.length)];
-
-        const html = `
-            <div class="companion-avatar">${avatarHTML}</div>
-            <div class="companion-name">${name}</div>
-            <div class="companion-status" id="companion-status-text">${status}</div>
-            <div class="companion-timer" id="companion-timer-display">00:00</div>
-            <div class="companion-btn-group">
-                <button class="companion-btn" id="companion-end-sleep">结束睡眠</button>
-                <button class="companion-btn secondary" id="companion-interrupt-sleep">中断</button>
-            </div>
-        `;
-
-        renderOverlay(html);
-
-        const overlay = document.getElementById('companion-overlay');
-        if (overlay) {
-            // 移除已有的 dim 类
-            overlay.classList.remove('idle-dim');
-            // 清除之前的定时器
-            if (window._companionIdleTimer) {
-                clearTimeout(window._companionIdleTimer);
-            }
-            // 定义重置函数
-            const resetIdleTimer = () => {
-                overlay.classList.remove('idle-dim');
-                if (window._companionIdleTimer) {
-                    clearTimeout(window._companionIdleTimer);
-                }
-                window._companionIdleTimer = setTimeout(() => {
-                    overlay.classList.add('idle-dim');
-                }, 10000);
-            };
-            // 移除旧监听器（防止重复绑定）
-            if (overlay._resetIdleTimer) {
-                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
-                overlay.removeEventListener('click', overlay._resetIdleTimer);
-            }
-            // 绑定事件
-            overlay.addEventListener('touchstart', resetIdleTimer, { passive: true });
-            overlay.addEventListener('click', resetIdleTimer);
-            // 保存引用以便清理
-            overlay._resetIdleTimer = resetIdleTimer;
-            // 立即启动计时器
-            resetIdleTimer();
-        }
-        addFloatingControl();
-        startTimer();
-        backupAccident();
-
-        document.getElementById('companion-end-sleep')?.addEventListener('click', () => {
-            endSession('completed');
-        });
-        document.getElementById('companion-interrupt-sleep')?.addEventListener('click', () => {
-            endSession('interrupted');
-        });
-
-        console.log('[companion] 睡眠计时开始');
+        overlay.classList.remove('idle-dim');
     }
+
+    session.state = STATE.SLEEPING;
+    currentUI = 'sleeping';
+    session.startTime = Date.now();
+    session.elapsed = 0;
+    session.lastAliveTime = Date.now();
+    session._autoStopped = false;
+
+    if (gainNode) {
+        applyVolume();
+    } else {
+        updateVolumeUI();
+    }
+
+    const name = getPartnerName();
+    const avatarHTML = getPartnerAvatarHTML();
+    const statuses = [
+        '你先休息，我处理一些事情',
+        '✨ 已进入梦境',
+        '稍等一下，我马上来',
+        '来吧，一起休息 🌙'
+    ];
+    const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+    const html = `
+        <div class="companion-avatar">${avatarHTML}</div>
+        <div class="companion-name">${name}</div>
+        <div class="companion-status" id="companion-status-text">${status}</div>
+        <div class="companion-timer" id="companion-timer-display">00:00</div>
+        <div class="companion-btn-group">
+            <button class="companion-btn" id="companion-end-sleep">结束睡眠</button>
+            <button class="companion-btn secondary" id="companion-interrupt-sleep">中断</button>
+        </div>
+    `;
+
+    renderOverlay(html);
+
+    // ★ 继续使用顶部的 overlay 变量，不再重复声明 ★
+    if (overlay) {
+        // 移除已有的 dim 类
+        overlay.classList.remove('idle-dim');
+        // 清除之前的定时器
+        if (window._companionIdleTimer) {
+            clearTimeout(window._companionIdleTimer);
+        }
+        // 定义重置函数
+        const resetIdleTimer = () => {
+            overlay.classList.remove('idle-dim');
+            if (window._companionIdleTimer) {
+                clearTimeout(window._companionIdleTimer);
+            }
+            window._companionIdleTimer = setTimeout(() => {
+                overlay.classList.add('idle-dim');
+            }, 10000);
+        };
+        // 移除旧监听器（防止重复绑定）
+        if (overlay._resetIdleTimer) {
+            overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+            overlay.removeEventListener('click', overlay._resetIdleTimer);
+        }
+        // 绑定事件
+        overlay.addEventListener('touchstart', resetIdleTimer, { passive: true });
+        overlay.addEventListener('click', resetIdleTimer);
+        // 保存引用以便清理
+        overlay._resetIdleTimer = resetIdleTimer;
+        // 立即启动计时器
+        resetIdleTimer();
+    }
+
+    addFloatingControl();
+    startTimer();
+    backupAccident();
+
+    document.getElementById('companion-end-sleep')?.addEventListener('click', () => {
+        endSession('completed');
+    });
+    document.getElementById('companion-interrupt-sleep')?.addEventListener('click', () => {
+        endSession('interrupted');
+    });
+
+    console.log('[companion] 睡眠计时开始');
+}
 
     // ============================================================
     // 悬浮音乐控制
