@@ -32,6 +32,7 @@
         countdownInterval: null,
         isEnding: false,
         _autoStopped: false,
+        volumePercent: 20,
     };
 
     let audioElement = null;
@@ -88,6 +89,13 @@
         if (h > 0) return `${h}小时${m}分钟`;
         if (m > 0) return `${m}分钟${s > 0 ? s + '秒' : ''}`;
         return `${s}秒`;
+    }
+
+    function getMusicBoost(url) {
+        if (url && (url.includes('bonfire') || url.includes('bonfire.mp3'))) {
+            return 2.0;
+        }
+        return 1.0;
     }
 
     function showToast(msg, type = 'info') {
@@ -214,12 +222,16 @@ function initAudioElement(url) {
         if (ctx.state === 'suspended') ctx.resume().catch(() => {});
         const source = ctx.createMediaElementSource(audioElement);
         gainNode = ctx.createGain();
-        gainNode.gain.value = 0.2; // 初始20%
+        // 先给一个默认值，稍后 applyVolume 覆盖
+        gainNode.gain.value = 0.2;
         source.connect(gainNode);
         gainNode.connect(ctx.destination);
 
         // 保存上下文以便后续使用
         session._audioCtx = ctx;
+
+        // ★★★ 新增：应用当前音量（根据歌曲类型和用户设置） ★★★
+        applyVolume();
 
         audioElement.addEventListener('canplaythrough', function onReady() {
             audioElement.removeEventListener('canplaythrough', onReady);
@@ -758,7 +770,20 @@ function stopMusic() {
         }
         const fc = document.getElementById('companion-floating-control');
         if (fc) fc.style.display = 'none';
+        const overlay = document.getElementById('companion-overlay');
+        if (overlay) {
+            if (window._companionIdleTimer) {
+                clearTimeout(window._companionIdleTimer);
+            }
+            if (overlay._resetIdleTimer) {
+                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+                overlay.removeEventListener('click', overlay._resetIdleTimer);
+                delete overlay._resetIdleTimer;
+            }
+            overlay.classList.remove('idle-dim');
+        }
     }
+
 
     // ============================================================
     // 渲染 - 设置界面
@@ -1102,6 +1127,21 @@ function selectMusic(id) {
     // ============================================================
     function startSleepTracking() {
         if (session.state === STATE.ENDED) return;
+
+        // ★★★ 新增：清理之前的变暗定时器和监听器 ★★★
+        const overlay = document.getElementById('companion-overlay');
+        if (overlay) {
+            if (window._companionIdleTimer) {
+                clearTimeout(window._companionIdleTimer);
+                window._companionIdleTimer = null;
+            }
+            if (overlay._resetIdleTimer) {
+                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+                overlay.removeEventListener('click', overlay._resetIdleTimer);
+                delete overlay._resetIdleTimer;
+            }
+            overlay.classList.remove('idle-dim');
+        }
         session.state = STATE.SLEEPING;
         currentUI = 'sleeping';
         session.startTime = Date.now();
@@ -1109,12 +1149,11 @@ function selectMusic(id) {
         session.lastAliveTime = Date.now();
         session._autoStopped = false;
 
-        // 重置音量为20%
         if (gainNode) {
-            gainNode.gain.value = 0.2;
+            applyVolume(); // 使用当前 volumePercent 和歌曲类型计算
+        } else {
+            updateVolumeUI(); // 安全兜底
         }
-        // 更新悬浮控件的音量显示
-        updateVolumeUI();
 
         const name = getPartnerName();
         const avatarHTML = getPartnerAvatarHTML();
@@ -1138,6 +1177,38 @@ function selectMusic(id) {
         `;
 
         renderOverlay(html);
+
+        const overlay = document.getElementById('companion-overlay');
+        if (overlay) {
+            // 移除已有的 dim 类
+            overlay.classList.remove('idle-dim');
+            // 清除之前的定时器
+            if (window._companionIdleTimer) {
+                clearTimeout(window._companionIdleTimer);
+            }
+            // 定义重置函数
+            const resetIdleTimer = () => {
+                overlay.classList.remove('idle-dim');
+                if (window._companionIdleTimer) {
+                    clearTimeout(window._companionIdleTimer);
+                }
+                window._companionIdleTimer = setTimeout(() => {
+                    overlay.classList.add('idle-dim');
+                }, 10000);
+            };
+            // 移除旧监听器（防止重复绑定）
+            if (overlay._resetIdleTimer) {
+                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+                overlay.removeEventListener('click', overlay._resetIdleTimer);
+            }
+            // 绑定事件
+            overlay.addEventListener('touchstart', resetIdleTimer, { passive: true });
+            overlay.addEventListener('click', resetIdleTimer);
+            // 保存引用以便清理
+            overlay._resetIdleTimer = resetIdleTimer;
+            // 立即启动计时器
+            resetIdleTimer();
+        }
         addFloatingControl();
         startTimer();
         backupAccident();
@@ -1187,13 +1258,11 @@ function selectMusic(id) {
             if (volSlider) {
                 volSlider.addEventListener('input', function() {
                     const val = parseInt(this.value);
-                    const gainVal = val / 100; // 因为滑块最大值是150，除以100得到1.5
-                    if (gainNode) {
-                        gainNode.gain.value = gainVal;
-                    }
-                    if (volLabel) volLabel.textContent = Math.round(gainVal * 100) + '%';
+                    session.volumePercent = val;
+                    // 应用音量（根据当前歌曲类型计算增益）
+                    applyVolume();
                 });
-        }
+            }
 
         updateFloatingControlUI();
         fc.style.display = 'flex';
@@ -1241,11 +1310,30 @@ function updateVolumeUI() {
     const volSlider = document.getElementById('fc-volume-slider');
     const volLabel = document.getElementById('fc-volume-label');
     if (volSlider && gainNode) {
-        const val = Math.round(gainNode.gain.value * 100);
-        volSlider.value = Math.min(150, val);
-        if (volLabel) volLabel.textContent = Math.min(150, val) + '%';
+        // 读取当前实际增益
+        const currentGain = gainNode.gain.value;
+        // 为了显示更直观，我们显示当前增益对应的百分比（乘以100）
+        const percent = Math.round(currentGain * 100);
+        // 更新滑块位置（滑块仍基于用户设定的百分比，所以这里不修改滑块值）
+        // 只更新标签显示
+        if (volLabel) {
+            // 显示实际百分比
+            volLabel.textContent = Math.min(150, percent) + '%';
+        }
     }
 }
+
+    // 应用当前音量设置（根据用户设定的百分比和歌曲倍率计算实际增益）
+    function applyVolume() {
+        if (!gainNode) return;
+        const boost = getMusicBoost(session.musicUrl);
+        const rawGain = (session.volumePercent / 100) * boost;
+        // 为避免过大破音，暂时不限制上限，但建议限制在 1.5 以内
+        const finalGain = Math.min(rawGain, 1.5); // 可根据需要调整上限
+        gainNode.gain.value = finalGain;
+        // 更新 UI 显示
+        updateVolumeUI();
+    }
 
     function showMusicSelectPopup() {
         const overlay = document.createElement('div');
