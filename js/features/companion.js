@@ -1,6 +1,16 @@
 /**
  * companion.js - 陪伴睡眠功能（完整修复版）
  */
+
+// 全局通话禁止标志（仅用于陪伴大弹窗期间）
+window.__companionActive = false;
+window.__setCompanionActive = function(active) {
+    window.__companionActive = active;
+};
+window.__isCompanionActive = function() {
+    return window.__companionActive;
+};
+
 (function () {
     'use strict';
 
@@ -761,6 +771,9 @@ function stopMusic() {
 
 function hideOverlay() {
     const overlay = document.getElementById('companion-overlay');
+    if (currentUI === 'ready_to_start' || currentUI === 'sleeping') {
+            window.__setCompanionActive(false);
+        }
     if (overlay) {
         overlay.style.opacity = '0';
         setTimeout(() => {
@@ -1101,6 +1114,7 @@ function selectMusic(id) {
         `;
 
         renderOverlay(html);
+        window.__setCompanionActive(true);
 
         if (withAlarm) {
             playAlarm();
