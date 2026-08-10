@@ -2187,6 +2187,7 @@
 <!-- ===== 陪伴记录模态框 ===== -->
 <div class="modal" id="companion-records-modal">
     <div class="modal-content">
+        <!-- 头部 -->
         <div class="mood-header-actions">
             <div class="modal-title" style="margin-bottom:0; border:none; padding:0;">
                 <i class="fas fa-moon"></i><span>陪伴记录</span>
@@ -2196,29 +2197,80 @@
             </button>
         </div>
 
-        <!-- 日历视图 -->
-        <div id="companion-calendar-view">
-            <div class="calendar-header">
-                <button class="calendar-nav-btn" id="comp-records-prev-month">
+        <!-- 标签栏 -->
+        <div class="stats-tab-bar" style="display:flex;gap:6px;margin:8px 0 12px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
+            <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar">
+                <i class="fas fa-calendar-alt"></i> 日历
+            </button>
+            <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats">
+                <i class="fas fa-chart-bar"></i> 统计
+            </button>
+        </div>
+
+        <!-- 年份/月份快速跳转 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px;">
+            <div style="display:flex;align-items:center;gap:4px;">
+                <button class="calendar-nav-btn" id="comp-records-prev-month" style="font-size:14px;padding:4px 8px;">
                     <i class="fas fa-chevron-left"></i>
                 </button>
-                <div class="current-month-label" id="comp-records-month-label">--</div>
-                <button class="calendar-nav-btn" id="comp-records-next-month">
+                <span id="comp-records-month-label" style="font-size:15px;font-weight:600;min-width:100px;text-align:center;"></span>
+                <button class="calendar-nav-btn" id="comp-records-next-month" style="font-size:14px;padding:4px 8px;">
                     <i class="fas fa-chevron-right"></i>
                 </button>
             </div>
+            <div style="display:flex;align-items:center;gap:4px;">
+                <select id="comp-records-year-select" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-size:13px;"></select>
+                <span style="font-size:12px;color:var(--text-secondary);">年</span>
+                <select id="comp-records-month-select" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-size:13px;"></select>
+                <span style="font-size:12px;color:var(--text-secondary);">月</span>
+                <button id="comp-records-go-to-date" style="padding:4px 12px;border-radius:6px;border:none;background:var(--accent-color);color:#fff;cursor:pointer;font-size:12px;">跳转</button>
+            </div>
+        </div>
+
+        <!-- 日历面板 -->
+        <div id="comp-records-calendar-panel">
             <div class="calendar-weekdays">
                 <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
             </div>
             <div class="calendar-grid" id="comp-records-grid"></div>
+            <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
+                <span id="comp-records-stats">本月陪伴: 0 天 · 0 次</span>
+            </div>
         </div>
 
-        <!-- 底部统计（占位，后续扩展） -->
-        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
-            <span id="comp-records-stats">本月陪伴: 0 次</span>
+        <!-- 统计面板 -->
+        <div id="comp-records-stats-panel" style="display:none;">
+            <div style="padding:4px 0;">
+                <div style="font-size:15px;font-weight:600;margin-bottom:2px;" id="comp-stats-month-label">2026年8月</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;" id="comp-stats-summary">陪伴 0 天 · 0 次</div>
+                
+                <!-- 入睡时间 -->
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
+                        <span>🌙 入睡时间</span>
+                        <span id="comp-stats-avg-bedtime" style="font-weight:600;color:var(--text-primary);">平均: --:--</span>
+                    </div>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;" id="comp-stats-bedtime-bars"></div>
+                </div>
+                
+                <!-- 睡眠时长 -->
+                <div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
+                        <span>⏱ 睡眠时长</span>
+                        <span id="comp-stats-avg-duration" style="font-weight:600;color:var(--text-primary);">平均: -- 分钟</span>
+                    </div>
+                    <div style="display:flex;gap:4px;flex-wrap:wrap;" id="comp-stats-duration-bars"></div>
+                </div>
+
+                <!-- 空状态（无记录时显示） -->
+                <div id="comp-stats-empty" style="text-align:center;padding:30px 0;color:var(--text-secondary);font-size:13px;display:none;">
+                    <i class="fas fa-moon" style="font-size:28px;opacity:0.3;display:block;margin-bottom:10px;"></i>
+                    本月还没有陪伴记录<br><span style="font-size:11px;opacity:0.6;">开启一次陪伴，记录你的好梦</span>
+                </div>
+            </div>
         </div>
 
-        <div class="modal-buttons" style="margin-top:8px;">
+        <div class="modal-buttons" style="margin-top:12px;">
             <button class="modal-btn modal-btn-secondary" id="close-companion-records-btn">关闭</button>
         </div>
     </div>
