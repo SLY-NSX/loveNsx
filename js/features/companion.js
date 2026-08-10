@@ -1952,13 +1952,27 @@ function renderCompanionStats() {
     
     if (!summaryEl || !barsBedtime || !barsDuration) return;
     
+    // 无记录时：显示灰条 + "无记录"
     if (monthRecords.length === 0) {
         summaryEl.textContent = '陪伴 0 天 · 0 次';
         if (avgBedtimeEl) avgBedtimeEl.textContent = '平均: --:--';
         if (avgDurationEl) avgDurationEl.textContent = '平均: --';
+        
+        // 为入睡时间显示灰色条
         barsBedtime.innerHTML = '';
+        const emptyBar1 = document.createElement('div');
+        emptyBar1.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar1.textContent = '无记录';
+        barsBedtime.appendChild(emptyBar1);
+        
+        // 为睡眠时长显示灰色条
         barsDuration.innerHTML = '';
-        if (emptyEl) emptyEl.style.display = 'block';
+        const emptyBar2 = document.createElement('div');
+        emptyBar2.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar2.textContent = '无记录';
+        barsDuration.appendChild(emptyBar2);
+        
+        if (emptyEl) emptyEl.style.display = 'none'; // 隐藏空状态文字（因为已经有灰条了）
         return;
     }
     if (emptyEl) emptyEl.style.display = 'none';
@@ -2038,9 +2052,8 @@ function renderCompanionStats() {
         const range = maxVal - minVal || 1;
         
         sorted.forEach(val => {
-            // 颜色映射：从蓝色到紫色（入睡越早偏蓝，越晚偏紫）
-            const ratio = (val - minVal) / range; // 0~1
-            const hue = 240 - ratio * 60; // 240(蓝) -> 180(青) 再往紫方向
+            const ratio = (val - minVal) / range;
+            const hue = 240 - ratio * 60;
             const color = `hsl(${Math.round(hue)}, 70%, 55%)`;
             const bar = document.createElement('div');
             bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
@@ -2048,7 +2061,7 @@ function renderCompanionStats() {
             barsBedtime.appendChild(bar);
         });
     } else {
-        // 无数据：显示灰色条 + "无记录"
+        // 有天数但无入睡时间（理论上不会发生，但留作保险）
         const emptyBar = document.createElement('div');
         emptyBar.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar.textContent = '无记录';
@@ -2070,9 +2083,8 @@ function renderCompanionStats() {
         const range = maxVal - minVal || 1;
         
         sorted.forEach(val => {
-            // 颜色映射：从绿色到黄色（时长越短偏绿，越长偏黄）
-            const ratio = (val - minVal) / range; // 0~1
-            const hue = 120 - ratio * 60; // 120(绿) -> 60(黄)
+            const ratio = (val - minVal) / range;
+            const hue = 120 - ratio * 60;
             const color = `hsl(${Math.round(hue)}, 70%, 55%)`;
             const bar = document.createElement('div');
             bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
@@ -2080,7 +2092,6 @@ function renderCompanionStats() {
             barsDuration.appendChild(bar);
         });
     } else {
-        // 无数据：显示灰色条 + "无记录"
         const emptyBar = document.createElement('div');
         emptyBar.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar.textContent = '无记录';
