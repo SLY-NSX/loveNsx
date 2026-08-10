@@ -1486,14 +1486,11 @@ const companionRecordsOption = document.getElementById('companion-records-option
 if (companionRecordsOption) {
     companionRecordsOption.addEventListener('click', () => {
         hideModal(document.getElementById('companion-menu-modal'));
-        // 使用 setTimeout 确保其他模块已完成初始化
-        setTimeout(function() {
-            if (typeof window.showCompanionRecords === 'function') {
-                window.showCompanionRecords();
-            } else {
-                showNotification('陪伴记录功能加载中，请稍后...', 'info');
-            }
-        }, 100);
+        if (typeof showCompanionRecords === 'function') {
+            showCompanionRecords();
+        } else {
+            showNotification('陪伴记录功能开发中...', 'info');
+        }
     });
 }
 

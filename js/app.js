@@ -278,8 +278,14 @@ window.addEventListener('load', function() {
                 if (accident) {
                     // 延迟一会，等页面完全加载后再弹窗
                     setTimeout(function() {
-                        // ★★★ 使用自定义确认对话框替代原生 confirm ★★★
-                        showAccidentRecoveryDialog(accident);
+                        if (confirm('检测到未完成的陪伴，是否补录系统中断记录？')) {
+                            if (typeof restoreCompanionAccident === 'function') {
+                                restoreCompanionAccident(accident);
+                            }
+                        } else {
+                            // 用户选择不补录，清除遗言
+                            try { localStorage.removeItem('companionAccident'); } catch(e) {}
+                        }
                     }, 1000);
                 }
             }
@@ -300,62 +306,3 @@ document.addEventListener('click', function(e) {
         }
     }
 });
-
-// ============================================================
-// 陪伴补录对话框
-// ============================================================
-function showAccidentRecoveryDialog(accident) {
-    // 如果已有对话框则移除
-    var existing = document.getElementById('accident-recovery-dialog');
-    if (existing) existing.remove();
-
-    var overlay = document.createElement('div');
-    overlay.id = 'accident-recovery-dialog';
-    overlay.style.cssText = `
-        position: fixed; inset: 0; z-index: 100000;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-        animation: companionToastIn 0.3s ease;
-    `;
-    overlay.innerHTML = `
-        <div style="background: var(--modal-bg, #1e1e2e); border-radius: 24px;
-            padding: 32px 28px; max-width: 360px; width: 90%;
-            border: 1px solid rgba(255,255,255,0.06);
-            text-align: center;">
-            <div style="font-size: 42px; margin-bottom: 12px;">🔄</div>
-            <div style="font-size: 18px; font-weight: 700; color: var(--text-primary, #fff); margin-bottom: 8px;">
-                检测到未完成的陪伴
-            </div>
-            <div style="font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.7; margin-bottom: 20px;">
-                上次的陪伴会话在 ${formatDetailTime ? formatDetailTime(accident.startTime) : '未知时间'} 开始，因意外中断。<br>
-                是否补录为系统中断记录？
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <button class="modal-btn modal-btn-secondary" id="accident-cancel-btn" style="flex: 1; padding: 12px;">取消</button>
-                <button class="modal-btn modal-btn-primary" id="accident-confirm-btn" style="flex: 2; padding: 12px;">确认补录</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-
-    overlay.querySelector('#accident-cancel-btn').addEventListener('click', function() {
-        // 清除遗言
-        try { localStorage.removeItem('companionAccident'); } catch(e) {}
-        overlay.remove();
-    });
-
-    overlay.querySelector('#accident-confirm-btn').addEventListener('click', function() {
-        overlay.remove();
-        if (typeof restoreCompanionAccident === 'function') {
-            restoreCompanionAccident(accident);
-        } else {
-            showNotification('补录功能未加载，请刷新页面重试', 'error');
-        }
-    });
-
-    overlay.addEventListener('click', function(e) {
-        if (e.target === overlay) {
-            // 点击背景不关闭，必须点击按钮
-        }
-    });
-}
