@@ -2199,15 +2199,12 @@ function showCompanionRecords(targetRecordId) {
     }
 }
 
-// ============================================================
-// 陪伴记录 - 日历模态框（完全独立版）
-// ============================================================
 function renderCalendarModal(records, targetRecordId) {
-    // 1. 移除旧的模态框（避免冲突）
+    // 移除旧的模态框
     let oldModal = document.getElementById('companion-calendar-modal');
     if (oldModal) oldModal.remove();
 
-    // 2. 按日期分组
+    // 按日期分组
     const grouped = {};
     records.forEach(record => {
         if (!record.date) return;
@@ -2215,12 +2212,11 @@ function renderCalendarModal(records, targetRecordId) {
         grouped[record.date].push(record);
     });
 
-    // 3. 当前年/月
     const now = new Date();
     let currentYear = now.getFullYear();
     let currentMonth = now.getMonth();
 
-    // 4. 创建模态框容器（完全自包含）
+    // 创建模态框容器
     const modal = document.createElement('div');
     modal.id = 'companion-calendar-modal';
     modal.style.cssText = `
@@ -2232,20 +2228,21 @@ function renderCalendarModal(records, targetRecordId) {
         box-sizing: border-box;
     `;
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden'; // 防止滚动
+    document.body.style.overflow = 'hidden';
 
-    // 5. 关闭函数（移除 DOM + 恢复滚动）
+    let _closing = false; // 防重复关闭
+
     function closeCalendar() {
+        if (_closing) return;
+        _closing = true;
         console.log('[companion] 日历模态框关闭');
         if (modal && modal.parentNode) {
             modal.parentNode.removeChild(modal);
         }
         document.body.style.overflow = '';
-        // 清理可能的焦点残留
         if (document.activeElement) document.activeElement.blur();
     }
 
-    // 6. 渲染函数（每次更新内容）
     function renderCalendar(year, month) {
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -2327,15 +2324,13 @@ function renderCalendarModal(records, targetRecordId) {
             </div>
         `;
 
-        // 更新模态框内容
         modal.innerHTML = htmlContent;
 
-        // ---- 事件绑定 ----
+        // --- 事件绑定 ---
+        // 内容区域阻止冒泡（避免点击内容时触发任何外部事件）
         const contentEl = modal.querySelector('.modal-content');
         if (contentEl) {
-            contentEl.addEventListener('click', function(e) {
-                e.stopPropagation(); // 阻止点击内容区冒泡到背景
-            });
+            contentEl.addEventListener('click', e => e.stopPropagation());
         }
 
         // 关闭按钮
@@ -2344,12 +2339,8 @@ function renderCalendarModal(records, targetRecordId) {
         if (closeBtn1) closeBtn1.addEventListener('click', closeCalendar);
         if (closeBtn2) closeBtn2.addEventListener('click', closeCalendar);
 
-        // 背景点击（只有点击到 modal 自身时才关闭）
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeCalendar();
-            }
-        });
+        // ★★★ 移除背景点击关闭（只通过按钮关闭）★★★
+        // 不添加 modal 的 click 监听
 
         // 月份切换
         const prevBtn = modal.querySelector('#calendar-prev-month');
@@ -2376,7 +2367,6 @@ function renderCalendarModal(records, targetRecordId) {
             el.addEventListener('click', function() {
                 const dateStr = this.dataset.date;
                 const dayRecords = grouped[dateStr] || [];
-                // 调用外部函数（需确保存在）
                 if (typeof renderDayRecords === 'function') {
                     renderDayRecords(dateStr, dayRecords, grouped);
                 } else {
@@ -2385,17 +2375,15 @@ function renderCalendarModal(records, targetRecordId) {
             });
         });
 
-        // 如果有目标记录，自动定位
+        // 自动定位目标记录
         if (targetRecordId) {
             const targetRecord = records.find(r => r.id === targetRecordId);
             if (targetRecord && targetRecord.date) {
                 const targetDate = new Date(targetRecord.startTime);
                 currentYear = targetDate.getFullYear();
                 currentMonth = targetDate.getMonth();
-                // 重新渲染到目标月份
                 setTimeout(() => {
                     renderCalendar(currentYear, currentMonth);
-                    // 打开对应的日期详情
                     setTimeout(() => {
                         const dateStr = targetRecord.date;
                         const dayRecords = grouped[dateStr] || [];
@@ -2417,10 +2405,9 @@ function renderCalendarModal(records, targetRecordId) {
         }
     }
 
-    // 7. 初始渲染
     renderCalendar(currentYear, currentMonth);
 
-    // 添加简单的 fadeIn 动画（若未定义）
+    // 注入 fadeIn 动画（如果不存在）
     if (!document.getElementById('companion-fadein-style')) {
         const style = document.createElement('style');
         style.id = 'companion-fadein-style';
