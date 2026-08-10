@@ -46,6 +46,8 @@ window.__isCompanionActive = function() {
     };
 
     let audioElement = null;
+    let _isSoftLooping = false;   // ★ 防止重复触发软循环
+    let _softLoopTargetGain = 0.2;
     let isStopping = false;
     let isPlaying = false;
     let gainNode = null;
@@ -263,7 +265,7 @@ function initAudioElement(url) {
 
         audioElement.load();
         session.musicUrl = url;
-
+        setupSoftLoop();
         if (audioElement.readyState >= 3) {
             audioElement.removeEventListener('canplaythrough', onReady);
             playMusic();
@@ -276,6 +278,7 @@ function initAudioElement(url) {
 
 function playMusic() {
     if (!audioElement) return;
+    _isSoftLooping = false;
     // 先确保增益为 0，准备淡入
     if (gainNode && session._audioCtx) {
         try {
@@ -313,10 +316,82 @@ function playMusic() {
         });
 }
 
+function setupSoftLoop() {
+    if (!audioElement) return;
+    // 移除旧监听避免重复绑定
+    audioElement.removeEventListener('timeupdate', _softLoopHandler);
+    _isSoftLooping = false;
+    audioElement.addEventListener('timeupdate', _softLoopHandler);
+}
+
+// 软循环处理函数（单独定义以便移除）
+function _softLoopHandler() {
+    if (isStopping) return;
+    if (!audioElement || !audioElement.duration) return;
+    if (_isSoftLooping) return;
+    
+    const duration = audioElement.duration;
+    const current = audioElement.currentTime;
+    // 在距离结尾 0.8 秒时触发
+    if (current < duration - 0.8) return;
+    
+    _isSoftLooping = true;
+    
+    // 计算当前目标增益（与 applyVolume 保持一致）
+    const boost = getMusicBoost(session.musicUrl);
+    const rawGain = (session.volumePercent / 100) * boost;
+    const targetGain = Math.min(rawGain, 1.5);
+    _softLoopTargetGain = targetGain;
+    
+    const ctx = session._audioCtx;
+    if (!ctx || ctx.state === 'closed') {
+        _isSoftLooping = false;
+        return;
+    }
+    
+    const now = ctx.currentTime;
+    const fadeDuration = 0.3; // 300ms 淡出
+    
+    try {
+        // 淡出
+        gainNode.gain.cancelScheduledValues(now);
+        gainNode.gain.setValueAtTime(targetGain, now);
+        gainNode.gain.linearRampToValueAtTime(0, now + fadeDuration);
+    } catch (e) {
+        _isSoftLooping = false;
+        return;
+    }
+    
+    // 淡出完成后跳转并淡入
+    setTimeout(() => {
+        if (isStopping || !audioElement) {
+            _isSoftLooping = false;
+            return;
+        }
+        try {
+            // 跳转到开头
+            audioElement.currentTime = 0;
+            // 重新播放
+            audioElement.play().catch(() => {});
+            // 淡入
+            const ctx2 = session._audioCtx;
+            if (ctx2 && ctx2.state !== 'closed' && gainNode) {
+                const now2 = ctx2.currentTime;
+                gainNode.gain.cancelScheduledValues(now2);
+                gainNode.gain.setValueAtTime(0, now2);
+                gainNode.gain.linearRampToValueAtTime(_softLoopTargetGain, now2 + fadeDuration);
+            }
+        } catch (e) {}
+        _isSoftLooping = false;
+    }, fadeDuration * 1000 + 50);
+}
+
 function stopMusic() {
     isStopping = true;   // 设为 true，直到下次 initAudioElement 重置
+    _isSoftLooping = false;   // ★ 重置软循环标志
     if (audioElement) {
         try {
+            audioElement.removeEventListener('timeupdate', _softLoopHandler); // ★ 移除监听
             audioElement.pause();
             audioElement.src = '';
             audioElement.load();
