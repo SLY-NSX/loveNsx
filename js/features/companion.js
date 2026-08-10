@@ -93,7 +93,7 @@
 
     function getMusicBoost(url) {
         if (url && (url.includes('bonfire') || url.includes('bonfire.mp3'))) {
-            return 2.0;
+            return 3.0;
         }
         return 1.0;
     }
@@ -1332,7 +1332,7 @@ function updateVolumeUI() {
         const boost = getMusicBoost(session.musicUrl);
         const rawGain = (session.volumePercent / 100) * boost;
         // 为避免过大破音，暂时不限制上限，但建议限制在 1.5 以内
-        const finalGain = Math.min(rawGain, 1.5); // 可根据需要调整上限
+        const finalGain = Math.min(rawGain, 4.0); // 可根据需要调整上限
         gainNode.gain.value = finalGain;
         // 更新 UI 显示
         updateVolumeUI();
