@@ -214,6 +214,7 @@ window.__isCompanionActive = function() {
     // 音频播放
     // ============================================================
 function initAudioElement(url) {
+    isStopping = false; 
     stopMusic();
     if (!url) {
         session.musicUrl = null;
@@ -306,13 +307,14 @@ function playMusic() {
             }
         })
         .catch(err => {
+            if (isStopping) return;
             console.warn('[companion] 播放被阻止:', err);
             showToast('播放失败，请点击列表重试', 'warning');
         });
 }
 
 function stopMusic() {
-    isStopping = true;   // ★ 设置标志
+    isStopping = true;   // 设为 true，直到下次 initAudioElement 重置
     if (audioElement) {
         try {
             audioElement.pause();
@@ -333,7 +335,6 @@ function stopMusic() {
     isPlaying = false;
     session.musicUrl = null;
     updateFloatingControlUI();
-    isStopping = false;   // ★ 恢复标志
 }
 
     function toggleMusicPlay() {
