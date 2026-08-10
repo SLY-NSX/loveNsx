@@ -2,7 +2,7 @@
  * companion.js - 陪伴睡眠功能（完整修复版）
  */
 
-// 全局通话禁止标志（用于陪伴大弹窗期间）
+// 全局通话禁止标志（仅用于陪伴大弹窗期间）
 window.__companionActive = false;
 window.__setCompanionActive = function(active) {
     window.__companionActive = active;
@@ -1905,6 +1905,7 @@ function updateVolumeUI() {
         loadMusicList();
         stopMusic();
         stopAlarm();
+        bindCompanionCalendarEvents();
     }
 
     // 页面卸载时清理
@@ -1921,3 +1922,179 @@ function updateVolumeUI() {
 
     console.log('[companion] 模块加载完成（完整修复版）');
 })();
+
+// ============================================================
+// 陪伴记录 - 月历展示
+// ============================================================
+
+let _compRecordsCurrentDate = new Date(); // 当前显示的月份
+
+function showCompanionRecords() {
+    // 如果已有进行中的会话，先提示但不阻止查看
+    // 直接打开模态框
+    const modal = document.getElementById('companion-records-modal');
+    if (!modal) {
+        showToast('陪伴记录模块未加载，请刷新页面', 'error');
+        return;
+    }
+    
+    // 加载记录数据
+    loadCompanionRecordsData();
+    
+    // 重置到当前月份
+    _compRecordsCurrentDate = new Date();
+    renderCompanionCalendar();
+    
+    showModal(modal);
+}
+
+function loadCompanionRecordsData() {
+    // 从 localStorage 加载记录
+    try {
+        const key = 'companion_records';
+        const data = localStorage.getItem(key);
+        if (data) {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed)) {
+                window._companionRecords = parsed;
+                return;
+            }
+        }
+    } catch (e) {}
+    window._companionRecords = [];
+}
+
+function renderCompanionCalendar() {
+    const year = _compRecordsCurrentDate.getFullYear();
+    const month = _compRecordsCurrentDate.getMonth();
+    
+    // 更新标题
+    const label = document.getElementById('comp-records-month-label');
+    if (label) {
+        label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
+    }
+    
+    // 获取该月第一天和最后一天
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDayOfWeek = firstDay.getDay(); // 0=周日
+    const daysInMonth = lastDay.getDate();
+    
+    // 获取该月的记录
+    const records = window._companionRecords || [];
+    const monthRecords = records.filter(r => {
+        if (!r.date) return false;
+        const d = new Date(r.date + 'T00:00:00');
+        return d.getFullYear() === year && d.getMonth() === month;
+    });
+    
+    // 按日期分组统计
+    const dayMap = {};
+    monthRecords.forEach(r => {
+        const day = new Date(r.date + 'T00:00:00').getDate();
+        if (!dayMap[day]) dayMap[day] = [];
+        dayMap[day].push(r);
+    });
+    
+    // 渲染网格
+    const grid = document.getElementById('comp-records-grid');
+    if (!grid) return;
+    
+    let html = '';
+    // 填充空白
+    for (let i = 0; i < startDayOfWeek; i++) {
+        html += `<div class="calendar-day empty"></div>`;
+    }
+    // 填充日期
+    for (let d = 1; d <= daysInMonth; d++) {
+        const hasRecord = dayMap[d] && dayMap[d].length > 0;
+        const isToday = (d === new Date().getDate() && 
+                         year === new Date().getFullYear() && 
+                         month === new Date().getMonth());
+        const recordsOfDay = dayMap[d] || [];
+        const totalDuration = recordsOfDay.reduce((sum, r) => sum + (r.duration || 0), 0);
+        const totalMinutes = Math.floor(totalDuration / 60000);
+        const totalHours = Math.floor(totalMinutes / 60);
+        const displayTime = totalHours > 0 ? totalHours + 'h' + (totalMinutes % 60) + 'm' : totalMinutes + 'm';
+        
+        let dotHTML = '';
+        if (hasRecord) {
+            // 根据记录类型显示不同颜色
+            const hasComplete = recordsOfDay.some(r => r.mode === 'completed');
+            const hasInterrupt = recordsOfDay.some(r => r.mode === 'interrupted' || r.mode === 'system_interrupt');
+            let dotColor = 'var(--accent-color)';
+            if (hasComplete && hasInterrupt) {
+                dotColor = 'var(--accent-color)'; // 混合
+            } else if (hasComplete) {
+                dotColor = '#4CAF50';
+            } else if (hasInterrupt) {
+                dotColor = '#FF9800';
+            }
+            dotHTML = `<div style="display:flex;gap:2px;justify-content:center;margin-top:2px;">
+                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${dotColor};"></span>
+                <span style="font-size:9px;color:var(--text-secondary);opacity:0.7;">${displayTime}</span>
+            </div>`;
+        }
+        
+        html += `
+            <div class="calendar-day ${hasRecord ? 'has-record' : ''} ${isToday ? 'today' : ''}" 
+                 data-day="${d}" data-month="${month}" data-year="${year}"
+                 style="${hasRecord ? 'cursor:pointer;' : ''}">
+                <span>${d}</span>
+                ${dotHTML}
+            </div>
+        `;
+    }
+    grid.innerHTML = html;
+    
+    // 更新统计
+    const statsEl = document.getElementById('comp-records-stats');
+    if (statsEl) {
+        const totalDays = Object.keys(dayMap).length;
+        const totalRecords = monthRecords.length;
+        statsEl.textContent = `本月陪伴: ${totalDays} 天 · ${totalRecords} 次`;
+    }
+    
+    // 绑定点击日期事件
+    grid.querySelectorAll('.calendar-day.has-record').forEach(el => {
+        el.addEventListener('click', function() {
+            const day = parseInt(this.dataset.day);
+            const month = parseInt(this.dataset.month);
+            const year = parseInt(this.dataset.year);
+            const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            showCompanionDayDetail(dateStr);
+        });
+    });
+}
+
+function showCompanionDayDetail(dateStr) {
+    // 占位：后续实现查看当天详细记录
+    showToast('查看 ' + dateStr + ' 的陪伴记录 (功能开发中)', 'info');
+}
+
+// 绑定日历导航事件（在 initCompanionFeature 或单独调用）
+function bindCompanionCalendarEvents() {
+    const prevBtn = document.getElementById('comp-records-prev-month');
+    const nextBtn = document.getElementById('comp-records-next-month');
+    const closeBtns = document.querySelectorAll('#close-companion-records, #close-companion-records-btn');
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function() {
+            _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() - 1);
+            renderCompanionCalendar();
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+            _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() + 1);
+            renderCompanionCalendar();
+        });
+    }
+    closeBtns.forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', function() {
+                hideModal(document.getElementById('companion-records-modal'));
+            });
+        }
+    });
+}
