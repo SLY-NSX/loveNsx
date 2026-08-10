@@ -16,7 +16,7 @@ window.__isCompanionActive = function() {
 
     const ACCIDENT_KEY = 'companionAccident';
     const MUSIC_STORAGE_KEY = 'companion_music_list';
-    const MIN_VALID_MINUTES = 20;
+    const MIN_VALID_MINUTES = 0;
 
     const STATE = {
         IDLE: 'idle',
@@ -1679,26 +1679,36 @@ function endSession(mode) {
     // ============================================================
     function saveRecordAndCleanup(record) {
         try {
-            if (typeof window.saveCompanionRecord === 'function') {
-                window.saveCompanionRecord(record);
-            } else {
-                const key = 'companion_records';
-                let records = JSON.parse(localStorage.getItem(key) || '[]');
-                records.push(record);
-                localStorage.setItem(key, JSON.stringify(records));
-            }
+            // 1. 直接更新内存数据
+            if (!window._companionRecords) window._companionRecords = [];
+            window._companionRecords.push(record);
+            // 按日期排序（可选）
+            window._companionRecords.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+            // 2. 保存到 localStorage
+            const key = 'companion_records';
+            localStorage.setItem(key, JSON.stringify(window._companionRecords));
+
             showToast('陪伴记录已保存 ✓', 'success');
         } catch (e) {
             console.error('[companion] 保存记录失败:', e);
-        }
+            showToast('保存失败，请重试', 'error');
+        } finally {
+            // 3. 清理会话
+            stopMusic();
+            stopAlarm();
+            releaseWakeLock();
+            clearAccident();
+            resetSession();
+            session.isEnding = false;
+            currentUI = 'idle';
 
-        stopMusic();
-        stopAlarm();
-        releaseWakeLock();
-        clearAccident();
-        resetSession();
-        session.isEnding = false;
-        currentUI = 'idle';
+            // 4. 如果陪伴记录模态框已打开，刷新日历
+            const modal = document.getElementById('companion-records-modal');
+            if (modal && modal.style.display !== 'none') {
+                renderCompanionCalendar();
+            }
+        }
     }
 
 // ============================================================
@@ -1991,16 +2001,14 @@ window.restoreCompanionAccident = function (accidentData) {
     // ★ Step 1: 先保存记录 ★
     let saved = false;
     try {
-        if (typeof window.saveCompanionRecord === 'function') {
-            window.saveCompanionRecord(record);
-            saved = true;
-        } else {
-            const key = 'companion_records';
-            let records = JSON.parse(localStorage.getItem(key) || '[]');
-            records.push(record);
-            localStorage.setItem(key, JSON.stringify(records));
-            saved = true;
-        }
+        // 直接更新内存数据
+        if (!window._companionRecords) window._companionRecords = [];
+        window._companionRecords.push(record);
+        window._companionRecords.sort((a, b) => (a.startTime || '').localeCompare(b.startTime || ''));
+
+        const key = 'companion_records';
+        localStorage.setItem(key, JSON.stringify(window._companionRecords));
+        saved = true;
     } catch (e) {
         console.error('[companion] 补录失败:', e);
     }
