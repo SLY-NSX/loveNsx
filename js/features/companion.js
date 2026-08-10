@@ -2200,16 +2200,14 @@ function showCompanionRecords(targetRecordId) {
 }
 
 // ============================================================
-// 日历视图渲染
+// 陪伴记录 - 日历模态框（完全独立版）
 // ============================================================
-
-/**
- * 渲染日历模态框
- * @param {Array} records - 所有记录
- * @param {string} [targetRecordId] - 可选，要定位的记录ID
- */
 function renderCalendarModal(records, targetRecordId) {
-    // 按日期分组
+    // 1. 移除旧的模态框（避免冲突）
+    let oldModal = document.getElementById('companion-calendar-modal');
+    if (oldModal) oldModal.remove();
+
+    // 2. 按日期分组
     const grouped = {};
     records.forEach(record => {
         if (!record.date) return;
@@ -2217,23 +2215,37 @@ function renderCalendarModal(records, targetRecordId) {
         grouped[record.date].push(record);
     });
 
-    // 获取当前日期
+    // 3. 当前年/月
     const now = new Date();
     let currentYear = now.getFullYear();
     let currentMonth = now.getMonth();
 
-    // 移除旧的模态框（避免事件监听器残留）
-    let modal = document.getElementById('companion-calendar-modal');
-    if (modal) modal.remove();
-
-    // 创建新的模态框
-    modal = document.createElement('div');
+    // 4. 创建模态框容器（完全自包含）
+    const modal = document.createElement('div');
     modal.id = 'companion-calendar-modal';
-    modal.className = 'modal';
-    modal.style.cssText = 'z-index: 99998 !important;';
+    modal.style.cssText = `
+        position: fixed; inset: 0; z-index: 99999;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+        animation: companionFadeIn 0.25s ease;
+        padding: 16px;
+        box-sizing: border-box;
+    `;
     document.body.appendChild(modal);
+    document.body.style.overflow = 'hidden'; // 防止滚动
 
-    // 渲染逻辑
+    // 5. 关闭函数（移除 DOM + 恢复滚动）
+    function closeCalendar() {
+        console.log('[companion] 日历模态框关闭');
+        if (modal && modal.parentNode) {
+            modal.parentNode.removeChild(modal);
+        }
+        document.body.style.overflow = '';
+        // 清理可能的焦点残留
+        if (document.activeElement) document.activeElement.blur();
+    }
+
+    // 6. 渲染函数（每次更新内容）
     function renderCalendar(year, month) {
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -2241,23 +2253,19 @@ function renderCalendarModal(records, targetRecordId) {
         const todayStr = today.toISOString().split('T')[0];
 
         let daysHTML = '';
-        // 填充空白
         for (let i = 0; i < firstDay; i++) {
             daysHTML += `<div class="calendar-day empty"></div>`;
         }
-        // 填充日期
         for (let d = 1; d <= daysInMonth; d++) {
             const dateObj = new Date(year, month, d);
             const dateStr = dateObj.toISOString().split('T')[0];
             const isToday = dateStr === todayStr;
             const hasRecords = grouped[dateStr] && grouped[dateStr].length > 0;
             const dotCount = hasRecords ? (grouped[dateStr].length > 1 ? 2 : 1) : 0;
-            const isClickable = hasRecords;
-
             daysHTML += `
-                <div class="calendar-day${isToday ? ' today' : ''}${isClickable ? ' has-record' : ''}" 
+                <div class="calendar-day${isToday ? ' today' : ''}${hasRecords ? ' has-record' : ''}" 
                      data-date="${dateStr}"
-                     style="${isClickable ? 'cursor:pointer;' : ''}${isToday ? 'border-color:var(--accent-color);' : ''}">
+                     style="${hasRecords ? 'cursor:pointer;' : ''}${isToday ? 'border-color:var(--accent-color);' : ''}">
                     <span style="font-size:13px;font-weight:${isToday ? '700' : '400'};color:${isToday ? 'var(--accent-color)' : 'var(--text-primary)'};">${d}</span>
                     ${dotCount > 0 ? `<div style="display:flex;gap:3px;justify-content:center;margin-top:2px;">${'<span style="width:5px;height:5px;border-radius:50%;background:var(--accent-color);display:inline-block;"></span>'.repeat(dotCount)}</div>` : ''}
                 </div>
@@ -2266,13 +2274,31 @@ function renderCalendarModal(records, targetRecordId) {
 
         const monthNames = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
 
-        const html = `
-            <div class="modal-content" style="max-width:420px;padding:20px;background:var(--secondary-bg);border-radius:20px;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+        const htmlContent = `
+            <div class="modal-content" style="
+                max-width: 420px; width: 100%;
+                padding: 20px;
+                background: var(--secondary-bg, #1e1e2e);
+                border-radius: 20px;
+                max-height: 85vh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+                border: 1px solid rgba(255,255,255,0.06);
+                box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+                position: relative;
+                z-index: 1;
+            ">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-shrink:0;">
                     <div style="font-size:18px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
                         <i class="fas fa-moon" style="color:var(--accent-color);"></i>陪伴记录
                     </div>
-                    <button id="close-calendar-btn" style="width:32px;height:32px;border-radius:50%;border:none;background:rgba(var(--accent-color-rgb),0.1);color:var(--text-secondary);cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;">×</button>
+                    <button id="close-calendar-btn" style="
+                        width:32px;height:32px;border-radius:50%;border:none;
+                        background:rgba(var(--accent-color-rgb),0.1);
+                        color:var(--text-secondary);cursor:pointer;font-size:16px;
+                        display:flex;align-items:center;justify-content:center;
+                    ">×</button>
                 </div>
 
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0;">
@@ -2289,9 +2315,11 @@ function renderCalendarModal(records, targetRecordId) {
                     ${daysHTML}
                 </div>
 
-                <div id="calendar-day-detail" style="flex:1;overflow-y:auto;margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);min-height:80px;max-height:300px;display:none;">
-                    <!-- 动态加载当日记录列表 -->
-                </div>
+                <div id="calendar-day-detail" style="
+                    flex:1; overflow-y:auto; margin-top:12px; padding-top:12px;
+                    border-top:1px solid var(--border-color);
+                    min-height:80px; max-height:300px; display:none;
+                "></div>
 
                 <div style="display:flex;gap:8px;margin-top:12px;flex-shrink:0;">
                     <button id="calendar-close-btn" class="modal-btn modal-btn-secondary" style="flex:1;">关闭</button>
@@ -2299,78 +2327,111 @@ function renderCalendarModal(records, targetRecordId) {
             </div>
         `;
 
-        modal.innerHTML = html;
-        modal.style.display = 'flex';
+        // 更新模态框内容
+        modal.innerHTML = htmlContent;
 
         // ---- 事件绑定 ----
-        // 关闭按钮
-        modal.querySelector('#close-calendar-btn')?.addEventListener('click', closeCalendar);
-        modal.querySelector('#calendar-close-btn')?.addEventListener('click', closeCalendar);
+        const contentEl = modal.querySelector('.modal-content');
+        if (contentEl) {
+            contentEl.addEventListener('click', function(e) {
+                e.stopPropagation(); // 阻止点击内容区冒泡到背景
+            });
+        }
 
-        // 点击背景关闭
+        // 关闭按钮
+        const closeBtn1 = modal.querySelector('#close-calendar-btn');
+        const closeBtn2 = modal.querySelector('#calendar-close-btn');
+        if (closeBtn1) closeBtn1.addEventListener('click', closeCalendar);
+        if (closeBtn2) closeBtn2.addEventListener('click', closeCalendar);
+
+        // 背景点击（只有点击到 modal 自身时才关闭）
         modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeCalendar();
+            if (e.target === modal) {
+                closeCalendar();
+            }
         });
 
         // 月份切换
-        modal.querySelector('#calendar-prev-month')?.addEventListener('click', function() {
-            currentMonth--;
-            if (currentMonth < 0) { currentMonth = 11; currentYear--; }
-            renderCalendar(currentYear, currentMonth);
-        });
-        modal.querySelector('#calendar-next-month')?.addEventListener('click', function() {
-            currentMonth++;
-            if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-            renderCalendar(currentYear, currentMonth);
-        });
+        const prevBtn = modal.querySelector('#calendar-prev-month');
+        const nextBtn = modal.querySelector('#calendar-next-month');
+        if (prevBtn) {
+            prevBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                currentMonth--;
+                if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+                renderCalendar(currentYear, currentMonth);
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                currentMonth++;
+                if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+                renderCalendar(currentYear, currentMonth);
+            });
+        }
 
-        // 点击日期
+        // 日期点击
         modal.querySelectorAll('.calendar-day.has-record').forEach(el => {
             el.addEventListener('click', function() {
                 const dateStr = this.dataset.date;
                 const dayRecords = grouped[dateStr] || [];
-                renderDayRecords(dateStr, dayRecords, grouped);
+                // 调用外部函数（需确保存在）
+                if (typeof renderDayRecords === 'function') {
+                    renderDayRecords(dateStr, dayRecords, grouped);
+                } else {
+                    console.warn('[companion] renderDayRecords 未定义');
+                }
             });
         });
 
-        // 如果有目标记录ID，自动定位并打开
+        // 如果有目标记录，自动定位
         if (targetRecordId) {
             const targetRecord = records.find(r => r.id === targetRecordId);
             if (targetRecord && targetRecord.date) {
-                // 切换到目标记录的月份
                 const targetDate = new Date(targetRecord.startTime);
                 currentYear = targetDate.getFullYear();
                 currentMonth = targetDate.getMonth();
-                // 重新渲染并打开对应日期的记录
+                // 重新渲染到目标月份
                 setTimeout(() => {
                     renderCalendar(currentYear, currentMonth);
+                    // 打开对应的日期详情
                     setTimeout(() => {
                         const dateStr = targetRecord.date;
                         const dayRecords = grouped[dateStr] || [];
                         if (dayRecords.length > 0) {
-                            renderDayRecords(dateStr, dayRecords, grouped);
-                            // 如果只有一条记录，直接进入详情
-                            if (dayRecords.length === 1) {
-                                setTimeout(() => {
-                                    renderRecordDetail(dayRecords[0], grouped);
-                                }, 200);
+                            if (typeof renderDayRecords === 'function') {
+                                renderDayRecords(dateStr, dayRecords, grouped);
+                                if (dayRecords.length === 1) {
+                                    setTimeout(() => {
+                                        if (typeof renderRecordDetail === 'function') {
+                                            renderRecordDetail(dayRecords[0], grouped);
+                                        }
+                                    }, 200);
+                                }
                             }
                         }
                     }, 100);
                 }, 50);
             }
         }
-
-        function closeCalendar() {
-            const currentModal = document.getElementById('companion-calendar-modal');
-            if (currentModal) {
-                currentModal.style.display = 'none';
-            }
-        }
     }
 
-    // 初始渲染
+    // 7. 初始渲染
     renderCalendar(currentYear, currentMonth);
+
+    // 添加简单的 fadeIn 动画（若未定义）
+    if (!document.getElementById('companion-fadein-style')) {
+        const style = document.createElement('style');
+        style.id = 'companion-fadein-style';
+        style.textContent = `
+            @keyframes companionFadeIn {
+                from { opacity: 0; transform: scale(0.95); }
+                to { opacity: 1; transform: scale(1); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
 }
 
 // ============================================================
