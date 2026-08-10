@@ -1918,6 +1918,165 @@ function updateVolumeUI() {
         releaseWakeLock();
     });
 
+// ============================================================
+// 陪伴记录 - 统计视图
+// ============================================================
+
+function renderCompanionStats() {
+    const year = _compRecordsCurrentDate.getFullYear();
+    const month = _compRecordsCurrentDate.getMonth();
+    
+    // 更新标题
+    const label = document.getElementById('comp-stats-month-label');
+    if (label) label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
+    
+    // 获取该月记录
+    const records = window._companionRecords || [];
+    const monthRecords = records.filter(r => {
+        if (!r.date) return false;
+        const d = new Date(r.date + 'T00:00:00');
+        return d.getFullYear() === year && d.getMonth() === month;
+    });
+    
+    const summaryEl = document.getElementById('comp-stats-summary');
+    const avgBedtimeEl = document.getElementById('comp-stats-avg-bedtime');
+    const avgDurationEl = document.getElementById('comp-stats-avg-duration');
+    const barsBedtime = document.getElementById('comp-stats-bedtime-bars');
+    const barsDuration = document.getElementById('comp-stats-duration-bars');
+    const emptyEl = document.getElementById('comp-stats-empty');
+    
+    if (!summaryEl || !barsBedtime || !barsDuration) return;
+    
+    if (monthRecords.length === 0) {
+        summaryEl.textContent = '陪伴 0 天 · 0 次';
+        if (avgBedtimeEl) avgBedtimeEl.textContent = '平均: --:--';
+        if (avgDurationEl) avgDurationEl.textContent = '平均: -- 分钟';
+        barsBedtime.innerHTML = '';
+        barsDuration.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+    if (emptyEl) emptyEl.style.display = 'none';
+    
+    // 按日期分组
+    const dayMap = {};
+    monthRecords.forEach(r => {
+        const day = new Date(r.date + 'T00:00:00').getDate();
+        if (!dayMap[day]) dayMap[day] = [];
+        dayMap[day].push(r);
+    });
+    const days = Object.keys(dayMap).sort((a,b) => a-b);
+    summaryEl.textContent = `陪伴 ${days.length} 天 · ${monthRecords.length} 次`;
+    
+    // 计算入睡时间（取每次记录的开始时间）
+    const bedtimeValues = [];
+    const durationValues = [];
+    monthRecords.forEach(r => {
+        if (r.startTime) {
+            const d = new Date(r.startTime);
+            const hours = d.getHours();
+            const mins = d.getMinutes();
+            const totalMinutes = hours * 60 + mins;
+            bedtimeValues.push(totalMinutes);
+        }
+        if (r.duration) {
+            durationValues.push(r.duration / 60000); // 转为分钟
+        }
+    });
+    
+    // 平均入睡时间（以分钟表示，0点=0，23:59=1439）
+    let avgBedtime = null;
+    if (bedtimeValues.length > 0) {
+        const sum = bedtimeValues.reduce((a,b) => a+b, 0);
+        avgBedtime = Math.round(sum / bedtimeValues.length);
+    }
+    if (avgBedtimeEl) {
+        if (avgBedtime !== null) {
+            const h = Math.floor(avgBedtime / 60);
+            const m = Math.round(avgBedtime % 60);
+            avgBedtimeEl.textContent = '平均: ' + String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+        } else {
+            avgBedtimeEl.textContent = '平均: --:--';
+        }
+    }
+    
+    // 平均睡眠时长（分钟）
+    let avgDuration = null;
+    if (durationValues.length > 0) {
+        const sum = durationValues.reduce((a,b) => a+b, 0);
+        avgDuration = Math.round(sum / durationValues.length);
+    }
+    if (avgDurationEl) {
+        if (avgDuration !== null) {
+            avgDurationEl.textContent = '平均: ' + avgDuration + ' 分钟';
+        } else {
+            avgDurationEl.textContent = '平均: -- 分钟';
+        }
+    }
+    
+    // 渲染入睡时间条（每个记录一个色块）
+    const maxBedtime = 1439; // 23:59
+    barsBedtime.innerHTML = '';
+    if (bedtimeValues.length > 0) {
+        // 按日期顺序显示
+        const sortedBedtimes = days.map(day => {
+            const recs = dayMap[day];
+            const first = recs[0];
+            if (first && first.startTime) {
+                const d = new Date(first.startTime);
+                return d.getHours() * 60 + d.getMinutes();
+            }
+            return null;
+        }).filter(v => v !== null);
+        sortedBedtimes.forEach(val => {
+            const pct = Math.min(100, (val / maxBedtime) * 100);
+            const color = `hsl(${210 - (val / maxBedtime) * 60}, 70%, 55%)`;
+            const bar = document.createElement('div');
+            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
+            bar.title = formatTimeFromMinutes(val);
+            barsBedtime.appendChild(bar);
+        });
+    } else {
+        // 全部灰色
+        for (let i = 0; i < days.length; i++) {
+            const bar = document.createElement('div');
+            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:var(--border-color);opacity:0.3;`;
+            barsBedtime.appendChild(bar);
+        }
+    }
+    
+    // 渲染睡眠时长条
+    const maxDuration = 480; // 8小时作为最大值
+    barsDuration.innerHTML = '';
+    if (durationValues.length > 0) {
+        const sortedDurations = days.map(day => {
+            const recs = dayMap[day];
+            const total = recs.reduce((sum, r) => sum + (r.duration || 0), 0);
+            return total / 60000; // 分钟
+        });
+        sortedDurations.forEach(val => {
+            const pct = Math.min(100, (val / maxDuration) * 100);
+            const color = `hsl(${120 - (val / maxDuration) * 120}, 70%, 55%)`;
+            const bar = document.createElement('div');
+            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
+            bar.title = Math.round(val) + '分钟';
+            barsDuration.appendChild(bar);
+        });
+    } else {
+        for (let i = 0; i < days.length; i++) {
+            const bar = document.createElement('div');
+            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:var(--border-color);opacity:0.3;`;
+            barsDuration.appendChild(bar);
+        }
+    }
+}
+
+function formatTimeFromMinutes(totalMinutes) {
+    const h = Math.floor(totalMinutes / 60);
+    const m = Math.round(totalMinutes % 60);
+    return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
     window.initCompanionFeature = initCompanionFeature;
 
     console.log('[companion] 模块加载完成（完整修复版）');
@@ -1930,20 +2089,30 @@ function updateVolumeUI() {
 let _compRecordsCurrentDate = new Date(); // 当前显示的月份
 
 function showCompanionRecords() {
-    // 如果已有进行中的会话，先提示但不阻止查看
-    // 直接打开模态框
     const modal = document.getElementById('companion-records-modal');
     if (!modal) {
         showToast('陪伴记录模块未加载，请刷新页面', 'error');
         return;
     }
     
-    // 加载记录数据
+    // 加载数据
     loadCompanionRecordsData();
     
     // 重置到当前月份
     _compRecordsCurrentDate = new Date();
     renderCompanionCalendar();
+    
+    // 确保日历面板可见，统计隐藏
+    const panelCalendar = document.getElementById('comp-records-calendar-panel');
+    const panelStats = document.getElementById('comp-records-stats-panel');
+    if (panelCalendar) panelCalendar.style.display = 'block';
+    if (panelStats) panelStats.style.display = 'none';
+    
+    // 重置标签页激活状态
+    const tabCal = document.getElementById('comp-records-tab-calendar');
+    const tabStat = document.getElementById('comp-records-tab-stats');
+    if (tabCal) tabCal.classList.add('active');
+    if (tabStat) tabStat.classList.remove('active');
     
     showModal(modal);
 }
@@ -1968,11 +2137,13 @@ function renderCompanionCalendar() {
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
     
-    // 更新标题
+    // 更新标题（两种显示方式）
     const label = document.getElementById('comp-records-month-label');
     if (label) {
         label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
     }
+    // 更新下拉框
+    updateCompanionDateSelectors();
     
     // 获取该月第一天和最后一天
     const firstDay = new Date(year, month, 1);
@@ -2072,24 +2243,115 @@ function showCompanionDayDetail(dateStr) {
     showToast('查看 ' + dateStr + ' 的陪伴记录 (功能开发中)', 'info');
 }
 
-// 绑定日历导航事件（在 initCompanionFeature 或单独调用）
+function populateCompanionYearMonthSelectors() {
+    const yearSelect = document.getElementById('comp-records-year-select');
+    const monthSelect = document.getElementById('comp-records-month-select');
+    if (!yearSelect || !monthSelect) return;
+    
+    const currentYear = new Date().getFullYear();
+    // 填充年份：从当前年份往前10年到往后2年
+    yearSelect.innerHTML = '';
+    for (let y = currentYear - 10; y <= currentYear + 2; y++) {
+        const opt = document.createElement('option');
+        opt.value = y;
+        opt.textContent = y;
+        if (y === _compRecordsCurrentDate.getFullYear()) opt.selected = true;
+        yearSelect.appendChild(opt);
+    }
+    
+    // 填充月份
+    monthSelect.innerHTML = '';
+    for (let m = 0; m < 12; m++) {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = (m + 1) + '月';
+        if (m === _compRecordsCurrentDate.getMonth()) opt.selected = true;
+        monthSelect.appendChild(opt);
+    }
+}
+
+function updateCompanionDateSelectors() {
+    const yearSelect = document.getElementById('comp-records-year-select');
+    const monthSelect = document.getElementById('comp-records-month-select');
+    if (yearSelect) yearSelect.value = _compRecordsCurrentDate.getFullYear();
+    if (monthSelect) monthSelect.value = _compRecordsCurrentDate.getMonth();
+}
+
 function bindCompanionCalendarEvents() {
+    // ---- 标签页切换 ----
+    const tabCalendar = document.getElementById('comp-records-tab-calendar');
+    const tabStats = document.getElementById('comp-records-tab-stats');
+    const panelCalendar = document.getElementById('comp-records-calendar-panel');
+    const panelStats = document.getElementById('comp-records-stats-panel');
+    
+    if (tabCalendar && tabStats && panelCalendar && panelStats) {
+        tabCalendar.addEventListener('click', function() {
+            tabCalendar.classList.add('active');
+            tabStats.classList.remove('active');
+            panelCalendar.style.display = 'block';
+            panelStats.style.display = 'none';
+            // 重新渲染日历（确保数据最新）
+            renderCompanionCalendar();
+        });
+        tabStats.addEventListener('click', function() {
+            tabStats.classList.add('active');
+            tabCalendar.classList.remove('active');
+            panelStats.style.display = 'block';
+            panelCalendar.style.display = 'none';
+            // 渲染统计
+            renderCompanionStats();
+        });
+    }
+    
+    // ---- 月份导航 ----
     const prevBtn = document.getElementById('comp-records-prev-month');
     const nextBtn = document.getElementById('comp-records-next-month');
-    const closeBtns = document.querySelectorAll('#close-companion-records, #close-companion-records-btn');
-    
     if (prevBtn) {
         prevBtn.addEventListener('click', function() {
             _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() - 1);
+            updateCompanionDateSelectors();
             renderCompanionCalendar();
+            // 如果统计面板可见，也刷新统计
+            if (panelStats && panelStats.style.display !== 'none') {
+                renderCompanionStats();
+            }
         });
     }
     if (nextBtn) {
         nextBtn.addEventListener('click', function() {
             _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() + 1);
+            updateCompanionDateSelectors();
             renderCompanionCalendar();
+            if (panelStats && panelStats.style.display !== 'none') {
+                renderCompanionStats();
+            }
         });
     }
+    
+    // ---- 年份/月份下拉框填充 ----
+    populateCompanionYearMonthSelectors();
+    
+    // ---- 跳转按钮 ----
+    const goBtn = document.getElementById('comp-records-go-to-date');
+    if (goBtn) {
+        goBtn.addEventListener('click', function() {
+            const yearSelect = document.getElementById('comp-records-year-select');
+            const monthSelect = document.getElementById('comp-records-month-select');
+            if (yearSelect && monthSelect) {
+                const year = parseInt(yearSelect.value);
+                const month = parseInt(monthSelect.value);
+                _compRecordsCurrentDate = new Date(year, month, 1);
+                updateCompanionDateSelectors();
+                renderCompanionCalendar();
+                if (panelStats && panelStats.style.display !== 'none') {
+                    renderCompanionStats();
+                }
+            }
+        });
+    }
+    
+    // ---- 关闭按钮 ----
+    const closeBtns = document.querySelectorAll('#close-companion-records, #close-companion-records-btn');
     closeBtns.forEach(btn => {
         if (btn) {
             btn.addEventListener('click', function() {
