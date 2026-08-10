@@ -1489,7 +1489,7 @@ if (companionRecordsOption) {
         if (typeof showCompanionRecords === 'function') {
             showCompanionRecords();
         } else {
-            showNotification('陪伴记录功能开发中...', 'info');
+            showNotification('陪伴记录功能加载中...', 'info');
         }
     });
 }
