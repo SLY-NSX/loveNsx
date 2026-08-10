@@ -759,30 +759,29 @@ function stopMusic() {
         overlay.style.opacity = '1';
     }
 
-    function hideOverlay() {
-        const overlay = document.getElementById('companion-overlay');
-        if (overlay) {
-            overlay.style.opacity = '0';
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                overlay.style.opacity = '1';
-            }, 400);
+function hideOverlay() {
+    const overlay = document.getElementById('companion-overlay');
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.style.opacity = '1';
+        }, 400);
+        // ★★★ 清理定时器和监听器（移到这里） ★★★
+        if (window._companionIdleTimer) {
+            clearTimeout(window._companionIdleTimer);
+            window._companionIdleTimer = null;
         }
-        const fc = document.getElementById('companion-floating-control');
-        if (fc) fc.style.display = 'none';
-        const overlay = document.getElementById('companion-overlay');
-        if (overlay) {
-            if (window._companionIdleTimer) {
-                clearTimeout(window._companionIdleTimer);
-            }
-            if (overlay._resetIdleTimer) {
-                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
-                overlay.removeEventListener('click', overlay._resetIdleTimer);
-                delete overlay._resetIdleTimer;
-            }
-            overlay.classList.remove('idle-dim');
+        if (overlay._resetIdleTimer) {
+            overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+            overlay.removeEventListener('click', overlay._resetIdleTimer);
+            delete overlay._resetIdleTimer;
         }
+        overlay.classList.remove('idle-dim');
     }
+    const fc = document.getElementById('companion-floating-control');
+    if (fc) fc.style.display = 'none';
+}
 
 
     // ============================================================
