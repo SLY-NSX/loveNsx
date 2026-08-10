@@ -2222,15 +2222,16 @@ function renderCalendarModal(records, targetRecordId) {
     let currentYear = now.getFullYear();
     let currentMonth = now.getMonth();
 
-    // 创建模态框
+    // 移除旧的模态框（避免事件监听器残留）
     let modal = document.getElementById('companion-calendar-modal');
-    if (!modal) {
-        modal = document.createElement('div');
-        modal.id = 'companion-calendar-modal';
-        modal.className = 'modal';
-        modal.style.cssText = 'z-index: 99998 !important;';
-        document.body.appendChild(modal);
-    }
+    if (modal) modal.remove();
+
+    // 创建新的模态框
+    modal = document.createElement('div');
+    modal.id = 'companion-calendar-modal';
+    modal.className = 'modal';
+    modal.style.cssText = 'z-index: 99998 !important;';
+    document.body.appendChild(modal);
 
     // 渲染逻辑
     function renderCalendar(year, month) {
@@ -2360,9 +2361,11 @@ function renderCalendarModal(records, targetRecordId) {
             }
         }
 
-        // 关闭函数
         function closeCalendar() {
-            modal.style.display = 'none';
+            const currentModal = document.getElementById('companion-calendar-modal');
+            if (currentModal) {
+                currentModal.style.display = 'none';
+            }
         }
     }
 
