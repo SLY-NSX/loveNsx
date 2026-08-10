@@ -46,6 +46,7 @@ window.__isCompanionActive = function() {
     };
 
     let audioElement = null;
+    let isStopping = false;
     let isPlaying = false;
     let gainNode = null;
     let alarmNodes = [];
@@ -250,6 +251,11 @@ function initAudioElement(url) {
         });
 
         audioElement.addEventListener('error', function (e) {
+            if (isStopping) {
+                // 正在主动停止，不显示错误
+                console.log('[companion] 音频停止，忽略错误');
+                return;
+            }
             console.error('[companion] 音频加载错误:', e);
             showToast('音频加载失败，请检查链接', 'error');
         });
@@ -269,12 +275,32 @@ function initAudioElement(url) {
 
 function playMusic() {
     if (!audioElement) return;
+    // 先确保增益为 0，准备淡入
+    if (gainNode && session._audioCtx) {
+        try {
+            const ctx = session._audioCtx;
+            gainNode.gain.cancelScheduledValues(ctx.currentTime);
+            gainNode.gain.setValueAtTime(0, ctx.currentTime);
+        } catch (e) {}
+    }
     audioElement.play()
         .then(() => {
             isPlaying = true;
             console.log('[companion] 播放成功');
+            // 淡入到目标音量
+            if (gainNode && session._audioCtx && session._audioCtx.state !== 'closed') {
+                const ctx = session._audioCtx;
+                // 计算目标增益（与 applyVolume 保持一致）
+                const boost = getMusicBoost(session.musicUrl);
+                const rawGain = (session.volumePercent / 100) * boost;
+                const finalGain = Math.min(rawGain, 1.5);
+                try {
+                    gainNode.gain.cancelScheduledValues(ctx.currentTime);
+                    gainNode.gain.setValueAtTime(0, ctx.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(finalGain, ctx.currentTime + 1.5);
+                } catch (e) {}
+            }
             updateFloatingControlUI();
-            // 只在设置界面时才刷新列表，睡眠界面不刷新
             if (currentUI === 'setup' && session.state !== STATE.SLEEPING) {
                 renderSetupUI();
             }
@@ -286,6 +312,7 @@ function playMusic() {
 }
 
 function stopMusic() {
+    isStopping = true;   // ★ 设置标志
     if (audioElement) {
         try {
             audioElement.pause();
@@ -306,6 +333,7 @@ function stopMusic() {
     isPlaying = false;
     session.musicUrl = null;
     updateFloatingControlUI();
+    isStopping = false;   // ★ 恢复标志
 }
 
     function toggleMusicPlay() {
@@ -334,9 +362,28 @@ function stopMusic() {
         }
     }
 
-    function fadeOutMusic(duration) {
-        setTimeout(() => { stopMusic(); }, duration || 1000);
+function fadeOutMusic(duration = 1500) {
+    if (!gainNode || !session._audioCtx) {
+        stopMusic();
+        return;
     }
+    const ctx = session._audioCtx;
+    if (ctx.state === 'closed') {
+        stopMusic();
+        return;
+    }
+    try {
+        const currentGain = gainNode.gain.value;
+        gainNode.gain.cancelScheduledValues(ctx.currentTime);
+        gainNode.gain.setValueAtTime(currentGain, ctx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration / 1000);
+        setTimeout(() => {
+            stopMusic();
+        }, duration + 100);
+    } catch (e) {
+        stopMusic();
+    }
+}
 
     // ============================================================
     // 闹钟

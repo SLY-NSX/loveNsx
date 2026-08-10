@@ -1156,7 +1156,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
     function scheduleRandomCall() {
         clearTimeout(S.randomCallTimer);
         if (!S.enabled) return;
-        const ms = 3 * 60 * 1000;
+        const ms = (30 + Math.random() * 45) * 60 * 1000; 
         S.randomCallTimer = setTimeout(() => {
         // === 新增：检查陪伴是否激活 ===
         if (typeof window.__isCompanionActive === 'function' && window.__isCompanionActive()) {
@@ -1203,7 +1203,7 @@ html:not([data-theme="dark"])[data-color-theme="black-white"] .message-sent{
 
             // 核心修改：如果不在禁止时间内，才执行原有的概率判定
             if (!isBanTime) {
-                if (S.enabled && !S.active) showIncomingCall();
+                if (S.enabled && !S.active && Math.random() < 0.25) showIncomingCall();
             }
             
             scheduleRandomCall(); // 继续下一轮循环
