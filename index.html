@@ -2183,6 +2183,47 @@
         </div>
     </div>
     <!-- ===== 结束 ===== -->
+
+<!-- ===== 陪伴记录模态框 ===== -->
+<div class="modal" id="companion-records-modal">
+    <div class="modal-content">
+        <div class="mood-header-actions">
+            <div class="modal-title" style="margin-bottom:0; border:none; padding:0;">
+                <i class="fas fa-moon"></i><span>陪伴记录</span>
+            </div>
+            <button class="view-switch-btn" id="close-companion-records">
+                <i class="fas fa-times"></i> 关闭
+            </button>
+        </div>
+
+        <!-- 日历视图 -->
+        <div id="companion-calendar-view">
+            <div class="calendar-header">
+                <button class="calendar-nav-btn" id="comp-records-prev-month">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <div class="current-month-label" id="comp-records-month-label">--</div>
+                <button class="calendar-nav-btn" id="comp-records-next-month">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+            <div class="calendar-weekdays">
+                <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+            </div>
+            <div class="calendar-grid" id="comp-records-grid"></div>
+        </div>
+
+        <!-- 底部统计（占位，后续扩展） -->
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-color);display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
+            <span id="comp-records-stats">本月陪伴: 0 次</span>
+        </div>
+
+        <div class="modal-buttons" style="margin-top:8px;">
+            <button class="modal-btn modal-btn-secondary" id="close-companion-records-btn">关闭</button>
+        </div>
+    </div>
+</div>
+<!-- ===== 结束 ===== -->
     
     <div class="modal" id="wheel-modal">
         <div class="modal-content">
