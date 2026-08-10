@@ -11247,3 +11247,14 @@ body.with-background .time-separator span {
     filter: brightness(1) !important;
     transition: filter 0.6s ease !important;
 }
+
+/* 陪伴记录 - 统计项间距 */
+#comp-stats-bedtime-bars,
+#comp-stats-duration-bars {
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+/* 如果需要增大上下间距，可给父级容器添加 padding */
+#comp-stats-bedtime-bars {
+    margin-bottom: 16px; /* 入睡时间与睡眠时长之间的间距 */
+}
