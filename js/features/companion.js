@@ -1676,29 +1676,49 @@ function updateVolumeUI() {
     // ============================================================
     // 记录保存与清理
     // ============================================================
-    function saveRecordAndCleanup(record) {
+function saveRecordAndCleanup(record) {
+    try {
+        // 直接保存到 localStorage，确保与 loadCompanionRecordsData 读取位置一致
+        const key = 'companion_records';
+        let records = [];
         try {
-            if (typeof window.saveCompanionRecord === 'function') {
-                window.saveCompanionRecord(record);
-            } else {
-                const key = 'companion_records';
-                let records = JSON.parse(localStorage.getItem(key) || '[]');
-                records.push(record);
-                localStorage.setItem(key, JSON.stringify(records));
+            const existingData = localStorage.getItem(key);
+            if (existingData) {
+                records = JSON.parse(existingData);
             }
-            showToast('陪伴记录已保存 ✓', 'success');
-        } catch (e) {
-            console.error('[companion] 保存记录失败:', e);
+        } catch (e) {}
+        if (!Array.isArray(records)) records = [];
+        
+        // 检查是否已存在相同id，存在则更新
+        const existingIdx = records.findIndex(r => r.id === record.id);
+        if (existingIdx >= 0) {
+            records[existingIdx] = record;
+        } else {
+            records.push(record);
         }
-
-        stopMusic();
-        stopAlarm();
-        releaseWakeLock();
-        clearAccident();
-        resetSession();
-        session.isEnding = false;
-        currentUI = 'idle';
+        // 按日期排序（最新在前）
+        records.sort(function(a, b) {
+            const dateA = a.startTime || a.date || '';
+            const dateB = b.startTime || b.date || '';
+            return dateB.localeCompare(dateA);
+        });
+        localStorage.setItem(key, JSON.stringify(records));
+        // 同步更新内存中的记录
+        window._companionRecords = records;
+        showToast('陪伴记录已保存 ✓', 'success');
+    } catch (e) {
+        console.error('[companion] 保存记录失败:', e);
+        showToast('记录保存失败，请检查存储空间', 'error');
     }
+
+    stopMusic();
+    stopAlarm();
+    releaseWakeLock();
+    clearAccident();
+    resetSession();
+    session.isEnding = false;
+    currentUI = 'idle';
+}
 
     // ============================================================
     // Toast弹窗
