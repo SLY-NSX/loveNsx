@@ -254,13 +254,24 @@ window.__isCompanionActive = function() {
 function showModalWithConfirm(title, message, onConfirm, onCancel) {
     const modal = document.createElement('div');
     modal.className = 'companion-toast open';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(8px);
+        z-index: 100000;
+        animation: companionToastIn 0.3s ease;
+    `;
     modal.innerHTML = `
         <div class="toast-box">
             <div class="toast-title">${title}</div>
             <div class="toast-body">${message}</div>
-            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
-                <button class="toast-btn" id="modal-confirm-btn" style="padding:10px 28px;border-radius:30px;border:none;background:var(--accent-color,#7c5cbf);color:#fff;font-size:15px;font-weight:600;cursor:pointer;">查看记录</button>
-                <button class="toast-btn" id="modal-cancel-btn" style="padding:10px 28px;border-radius:30px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.7);font-size:15px;font-weight:400;cursor:pointer;">关闭</button>
+            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+                <button class="toast-btn" id="modal-confirm-btn" style="padding:10px 28px;border-radius:30px;border:none;background:var(--accent-color,#7c5cbf);color:#fff;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(var(--accent-color-rgb,124,92,191),0.3);">查看记录</button>
+                <button class="toast-btn" id="modal-cancel-btn" style="padding:10px 28px;border-radius:30px;border:1px solid var(--border-color,rgba(255,255,255,0.2));background:transparent;color:var(--text-secondary,rgba(255,255,255,0.7));font-size:15px;font-weight:400;cursor:pointer;transition:background 0.2s;">关闭</button>
             </div>
         </div>
     `;
