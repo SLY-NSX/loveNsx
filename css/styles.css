@@ -11275,3 +11275,40 @@ body.with-background .time-separator span {
     padding-left: 20px !important;
     /* 不添加阴影和渐变，避免黑影 */
 }
+/* ★ 陪伴记录详情 - 可编辑字段样式 */
+#companion-record-detail-content [id^="field-display-"]:hover {
+    background: rgba(var(--accent-color-rgb), 0.08) !important;
+    border: 1px dashed rgba(var(--accent-color-rgb), 0.3);
+}
+#companion-record-detail-content [id^="field-edit-"]:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(var(--accent-color-rgb), 0.15);
+}
+#companion-record-detail-content [id^="field-edit-"] {
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* ★ 详情弹窗底部按钮布局 */
+#companion-record-detail-modal .modal-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-start; /* 从左到右排列 */
+    flex-wrap: wrap;
+}
+#companion-record-detail-modal .modal-buttons .modal-btn-primary {
+    background: var(--accent-color);
+    color: #fff;
+    border: none;
+}
+#companion-record-detail-modal .modal-buttons .modal-btn-danger {
+    background: #e74c3c;
+    color: #fff;
+    border: none;
+}
+#companion-record-detail-modal .modal-buttons .modal-btn-secondary {
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
