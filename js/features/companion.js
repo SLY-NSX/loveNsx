@@ -16,7 +16,7 @@ window.__isCompanionActive = function() {
 
     const ACCIDENT_KEY = 'companionAccident';
     const MUSIC_STORAGE_KEY = 'companion_music_list';
-    const MIN_VALID_MINUTES = 20;
+    const MIN_VALID_MINUTES = 0;
 
     const STATE = {
         IDLE: 'idle',
@@ -1919,6 +1919,9 @@ function updateVolumeUI() {
     });
 
     window.initCompanionFeature = initCompanionFeature;
+    window.showToast = showToast;
+    window.formatTime = formatTime;
+    window.formatDuration = formatDuration;
 
     console.log('[companion] 模块加载完成（完整修复版）');
 })();
@@ -2256,7 +2259,8 @@ function renderCompanionCalendar() {
     }
     
     // 绑定点击日期事件
-    grid.querySelectorAll('.calendar-day.has-record').forEach(el => {
+    // 在 renderCompanionCalendar 中，原来的 grid.querySelectorAll('.calendar-day.has-record') 部分替换为：
+    grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
         el.addEventListener('click', function() {
             const day = parseInt(this.dataset.day);
             const month = parseInt(this.dataset.month);
@@ -2265,11 +2269,6 @@ function renderCompanionCalendar() {
             showCompanionDayDetail(dateStr);
         });
     });
-}
-
-function showCompanionDayDetail(dateStr) {
-    // 占位：后续实现查看当天详细记录
-    showToast('查看 ' + dateStr + ' 的陪伴记录 (功能开发中)', 'info');
 }
 
 function populateCompanionYearMonthSelectors() {
@@ -2304,6 +2303,142 @@ function updateCompanionDateSelectors() {
     const monthSelect = document.getElementById('comp-records-month-select');
     if (yearSelect) yearSelect.value = _compRecordsCurrentDate.getFullYear();
     if (monthSelect) monthSelect.value = _compRecordsCurrentDate.getMonth();
+}
+
+// 显示某一天的所有记录（一级卡片）
+function showCompanionDayDetail(dateStr) {
+    const modal = document.getElementById('companion-day-modal');
+    if (!modal) {
+        showToast('详情模块未加载', 'error');
+        return;
+    }
+    // 设置标题
+    const titleEl = document.getElementById('companion-day-title');
+    if (titleEl) {
+        const parts = dateStr.split('-');
+        titleEl.textContent = parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+    }
+    // 获取该日记录
+    const records = window._companionRecords || [];
+    const dayRecords = records.filter(r => r.date === dateStr);
+    const listEl = document.getElementById('companion-day-records-list');
+    if (!listEl) return;
+    
+    if (dayRecords.length === 0) {
+        listEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text-secondary);opacity:0.6;font-size:14px;">当日无记录</div>`;
+    } else {
+        let html = '';
+        dayRecords.forEach((rec, index) => {
+            const recordNum = index + 1;
+            const statusText = rec.mode === 'completed' ? '✓ 完成' : 
+                               rec.mode === 'interrupted' ? '⏸ 中断' : '⚠ 系统中断';
+            html += `
+                <div class="companion-record-entry" data-id="${rec.id}" style="padding:12px 16px;margin-bottom:8px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:background 0.2s;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-weight:600;font-size:15px;">睡眠记录${recordNum}：<span style="font-weight:400;color:var(--text-secondary);">${statusText}</span></span>
+                        <i class="fas fa-chevron-right" style="color:var(--text-secondary);opacity:0.5;"></i>
+                    </div>
+                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                        开始：${window.formatTime(rec.startTime)} · 时长：${window.formatDuration(rec.duration)}
+                    </div>
+                </div>
+            `;
+        });
+        listEl.innerHTML = html;
+        // 绑定点击事件
+        listEl.querySelectorAll('.companion-record-entry').forEach(el => {
+            el.addEventListener('click', function() {
+                const id = this.dataset.id;
+                showCompanionRecordDetail(id);
+            });
+        });
+    }
+    showModal(modal);
+}
+
+// 显示单条记录详情（二级卡片）
+function showCompanionRecordDetail(recordId) {
+    const records = window._companionRecords || [];
+    const record = records.find(r => r.id === recordId);
+    if (!record) {
+        showToast('记录不存在', 'error');
+        return;
+    }
+    const modal = document.getElementById('companion-record-detail-modal');
+    if (!modal) {
+        showToast('详情模块未加载', 'error');
+        return;
+    }
+    // 设置标题
+    const titleEl = document.getElementById('companion-record-detail-title');
+    if (titleEl) {
+        const dateStr = record.date;
+        const parts = dateStr.split('-');
+        titleEl.textContent = parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
+    }
+    // 渲染详情
+    const contentEl = document.getElementById('companion-record-detail-content');
+    if (!contentEl) return;
+    
+    const modeText = record.mode === 'completed' ? '完成' : 
+                     record.mode === 'interrupted' ? '中断' : '系统中断';
+    const startTimeFormatted = window.formatTime(record.startTime);
+    const endTimeFormatted = window.formatTime(record.endTime);
+    const durationFormatted = window.formatDuration(record.duration);
+    
+    contentEl.innerHTML = `
+        <div style="background:var(--secondary-bg);padding:16px;border-radius:12px;border:1px solid var(--border-color);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">状态</span>
+                <span>${modeText}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">开始时间</span>
+                <span>${startTimeFormatted}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">结束时间</span>
+                <span>${endTimeFormatted}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">睡眠时长</span>
+                <span>${durationFormatted}</span>
+            </div>
+            ${record.interruptReason ? `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">中断原因</span><span>${record.interruptReason}</span></div>` : ''}
+        </div>
+    `;
+    
+    // 绑定删除按钮
+    const deleteBtn = document.getElementById('delete-companion-record-btn');
+    if (deleteBtn) {
+        // 移除旧监听，避免重复绑定
+        deleteBtn.onclick = function() {
+            if (confirm('确定要删除这条陪伴记录吗？此操作不可恢复！')) {
+                // 删除记录
+                const index = window._companionRecords.findIndex(r => r.id === recordId);
+                if (index > -1) {
+                    window._companionRecords.splice(index, 1);
+                    // 保存到 localStorage
+                    try {
+                        localStorage.setItem('companion_records', JSON.stringify(window._companionRecords));
+                    } catch (e) {}
+                    // 关闭模态框
+                    hideModal(modal);
+                    // 关闭日详情（如果打开）
+                    hideModal(document.getElementById('companion-day-modal'));
+                    // 刷新月历
+                    renderCompanionCalendar();
+                    // 如果统计面板打开，刷新统计
+                    const panelStats = document.getElementById('comp-records-stats-panel');
+                    if (panelStats && panelStats.style.display !== 'none') {
+                        renderCompanionStats();
+                    }
+                    showToast('记录已删除', 'success');
+                }
+            }
+        };
+    }
+    showModal(modal);
 }
 
 
@@ -2388,5 +2523,20 @@ function bindCompanionCalendarEvents() {
                 hideModal(document.getElementById('companion-records-modal'));
             });
         }
+    });
+
+    // 关闭日详情模态框
+    document.getElementById('close-companion-day-modal')?.addEventListener('click', function() {
+        hideModal(document.getElementById('companion-day-modal'));
+    });
+    document.getElementById('close-companion-day-modal-btn')?.addEventListener('click', function() {
+        hideModal(document.getElementById('companion-day-modal'));
+    });
+    // 关闭记录详情模态框
+    document.getElementById('close-companion-record-detail-modal')?.addEventListener('click', function() {
+        hideModal(document.getElementById('companion-record-detail-modal'));
+    });
+    document.getElementById('close-companion-record-detail-modal-btn')?.addEventListener('click', function() {
+        hideModal(document.getElementById('companion-record-detail-modal'));
     });
 }
