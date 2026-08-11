@@ -276,15 +276,10 @@ window.addEventListener('load', function() {
             if (typeof checkCompanionAccident === 'function') {
                 var accident = checkCompanionAccident();
                 if (accident) {
-                    // 延迟一会，等页面完全加载后再弹窗
+                    // ★★★ 直接调用 restoreCompanionAccident，由它内部处理弹窗和记录 ★★★
                     setTimeout(function() {
-                        if (confirm('检测到未完成的陪伴，是否补录系统中断记录？')) {
-                            if (typeof restoreCompanionAccident === 'function') {
-                                restoreCompanionAccident(accident);
-                            }
-                        } else {
-                            // 用户选择不补录，清除遗言
-                            try { localStorage.removeItem('companionAccident'); } catch(e) {}
+                        if (typeof restoreCompanionAccident === 'function') {
+                            restoreCompanionAccident(accident);
                         }
                     }, 1000);
                 }
