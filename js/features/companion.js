@@ -1,5 +1,5 @@
 /**
- * companion.js - 陪伴睡眠功能（完整修复版）
+ * companion.js - 陪伴睡眠功能（实时记录版）
  */
 
 // 全局通话禁止标志（仅用于陪伴大弹窗期间）
@@ -45,8 +45,11 @@ window.__isCompanionActive = function() {
         volumePercent: 20,
     };
 
+    // ★ 新增：当前活动记录的ID（用于实时更新）
+    let activeRecordId = null;
+
     let audioElement = null;
-    let _isSoftLooping = false;   // ★ 防止重复触发软循环
+    let _isSoftLooping = false;
     let _softLoopTargetGain = 0.2;
     let isStopping = false;
     let isPlaying = false;
@@ -104,18 +107,17 @@ window.__isCompanionActive = function() {
         return `${s}秒`;
     }
 
-// 格式化时间为 "某月某日 几时几分"
-function formatDateTime(isoStr) {
-    if (!isoStr) return '--:--';
-    try {
-        const d = new Date(isoStr);
-        const month = d.getMonth() + 1;
-        const day = d.getDate();
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        return month + '月' + day + '日 ' + hours + ':' + minutes;
-    } catch { return isoStr; }
-}
+    function formatDateTime(isoStr) {
+        if (!isoStr) return '--:--';
+        try {
+            const d = new Date(isoStr);
+            const month = d.getMonth() + 1;
+            const day = d.getDate();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            return month + '月' + day + '日 ' + hours + ':' + minutes;
+        } catch { return isoStr; }
+    }
 
     function getMusicBoost(url) {
         if (url && (url.includes('bonfire') || url.includes('bonfire.mp3'))) {
@@ -132,31 +134,145 @@ function formatDateTime(isoStr) {
         }
     }
 
-    // 自定义模态框（替代 confirm，避免被拦截）
-function showModalWithConfirm(title, message, onConfirm, onCancel) {
-    const modal = document.createElement('div');
-    modal.className = 'companion-toast open';
-    modal.innerHTML = `
-        <div class="toast-box">
-            <div class="toast-title">${title}</div>
-            <div class="toast-body">${message}</div>
-            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
-                <button class="toast-btn" id="modal-confirm-btn">查看记录</button>
-                <button class="toast-btn secondary" id="modal-cancel-btn">关闭</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(modal);
+    // ============================================================
+    // ★ 实时记录管理函数
+    // ============================================================
+    function _getRecords() {
+        try {
+            const data = localStorage.getItem('companion_records');
+            return data ? JSON.parse(data) : [];
+        } catch { return []; }
+    }
 
-    modal.querySelector('#modal-confirm-btn').addEventListener('click', () => {
-        document.body.removeChild(modal);
-        if (onConfirm) onConfirm();
-    });
-    modal.querySelector('#modal-cancel-btn').addEventListener('click', () => {
-        document.body.removeChild(modal);
-        if (onCancel) onCancel();
-    });
-}
+    function _saveRecords(records) {
+        try {
+            localStorage.setItem('companion_records', JSON.stringify(records));
+            window._companionRecords = records;
+        } catch (e) {
+            console.error('[companion] 保存记录失败:', e);
+        }
+    }
+
+    // 创建一条进行中的记录
+    function createOngoingRecord() {
+        const now = new Date();
+        const record = {
+            id: 'comp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+            date: now.toISOString().split('T')[0],
+            startTime: now.toISOString(),
+            endTime: null,
+            duration: 0,
+            mode: 'ongoing',          // 标记为进行中
+            soundType: session.musicTitle || '无音乐',
+            status: '进行中',
+            interruptReason: '',
+            isSystemInterrupt: false,
+        };
+        const records = _getRecords();
+        records.push(record);
+        _saveRecords(records);
+        activeRecordId = record.id;
+        return record.id;
+    }
+
+    // 更新进行中记录的时长
+    function updateOngoingRecord() {
+        if (!activeRecordId) return;
+        const records = _getRecords();
+        const idx = records.findIndex(r => r.id === activeRecordId);
+        if (idx === -1) {
+            activeRecordId = null;
+            return;
+        }
+        const record = records[idx];
+        if (record.mode !== 'ongoing') {
+            activeRecordId = null;
+            return;
+        }
+        record.duration = session.elapsed || 0;
+        _saveRecords(records);
+    }
+
+    // 完成或中断时，结束记录
+    function finalizeOngoingRecord(mode) {
+        if (!activeRecordId) return;
+        const records = _getRecords();
+        const idx = records.findIndex(r => r.id === activeRecordId);
+        if (idx === -1) {
+            activeRecordId = null;
+            return;
+        }
+        const record = records[idx];
+        if (record.mode !== 'ongoing') {
+            activeRecordId = null;
+            return;
+        }
+        const now = new Date();
+        record.endTime = now.toISOString();
+        record.duration = session.elapsed || 0;
+        record.mode = mode;                 // 'completed' 或 'interrupted'
+        record.status = mode === 'completed' ? '完成陪伴' : '未能完成陪伴';
+        _saveRecords(records);
+        activeRecordId = null;
+    }
+
+    // 检查并恢复意外中断的进行中记录
+    function checkAndRecoverOngoingRecord() {
+        const records = _getRecords();
+        const ongoing = records.filter(r => r.mode === 'ongoing');
+        if (ongoing.length === 0) return;
+
+        const record = ongoing[0];
+        const now = new Date();
+        record.endTime = now.toISOString();
+        record.mode = 'system_interrupt';
+        record.status = '系统中断';
+        record.interruptReason = '页面意外退出';
+        record.isSystemInterrupt = true;
+        _saveRecords(records);
+
+        // 弹窗询问是否查看记录
+        showModalWithConfirm(
+            '🌙 陪伴中断',
+            `开始于 ${formatDateTime(record.startTime)}，已中断。是否立即查看陪伴记录？`,
+            () => {
+                if (typeof showCompanionRecords === 'function') {
+                    showCompanionRecords();
+                } else {
+                    showToast('已补录系统中断记录，请到陪伴记录中查看', 'info');
+                }
+            },
+            () => {
+                showToast('已补录系统中断记录', 'info');
+            }
+        );
+    }
+
+    // 自定义模态框（替代 confirm）
+    function showModalWithConfirm(title, message, onConfirm, onCancel) {
+        const modal = document.createElement('div');
+        modal.className = 'companion-toast open';
+        modal.innerHTML = `
+            <div class="toast-box">
+                <div class="toast-title">${title}</div>
+                <div class="toast-body">${message}</div>
+                <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
+                    <button class="toast-btn" id="modal-confirm-btn">查看记录</button>
+                    <button class="toast-btn secondary" id="modal-cancel-btn">关闭</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.querySelector('#modal-confirm-btn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            if (onConfirm) onConfirm();
+        });
+        modal.querySelector('#modal-cancel-btn').addEventListener('click', () => {
+            document.body.removeChild(modal);
+            if (onCancel) onCancel();
+        });
+    }
 
     // ============================================================
     // 音乐列表存储（自动修复 id）
@@ -180,7 +296,6 @@ function showModalWithConfirm(title, message, onConfirm, onCancel) {
             if (data) {
                 const parsed = JSON.parse(data);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    // ★ 修复：确保每个条目都有 id
                     let needSave = false;
                     const fixed = parsed.map(item => {
                         if (!item.id) {
@@ -194,7 +309,7 @@ function showModalWithConfirm(title, message, onConfirm, onCancel) {
                     });
                     session.musicList = fixed;
                     if (needSave) {
-                        saveMusicList(); // 保存修复后的数据
+                        saveMusicList();
                         console.log('[companion] 已自动修复缺失的 id');
                     }
                     console.log('[companion] 加载本地音乐列表，共', session.musicList.length, '首');
@@ -252,204 +367,186 @@ function showModalWithConfirm(title, message, onConfirm, onCancel) {
     }
 
     // ============================================================
-    // 音频播放
+    // 音频播放（保持不变）
     // ============================================================
-function initAudioElement(url) {
-    isStopping = false; 
-    stopMusic();
-    if (!url) {
-        session.musicUrl = null;
-        session.musicTitle = '无音乐';
-        isPlaying = false;
-        return;
-    }
-
-    try {
-        console.log('[companion] 尝试播放:', url);
-        audioElement = new Audio(url);
-        audioElement.loop = true;
-        audioElement.crossOrigin = 'anonymous';
-
-        // 创建音频上下文和 GainNode
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-        const source = ctx.createMediaElementSource(audioElement);
-        gainNode = ctx.createGain();
-        // 先给一个默认值，稍后 applyVolume 覆盖
-        gainNode.gain.value = 0.2;
-        source.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        // 保存上下文以便后续使用
-        session._audioCtx = ctx;
-
-        // ★★★ 新增：应用当前音量（根据歌曲类型和用户设置） ★★★
-        applyVolume();
-
-        audioElement.addEventListener('canplaythrough', function onReady() {
-            audioElement.removeEventListener('canplaythrough', onReady);
-            console.log('[companion] 音频加载完成，开始播放');
-            playMusic();
-        });
-
-        audioElement.addEventListener('error', function (e) {
-            if (isStopping) {
-                // 正在主动停止，不显示错误
-                console.log('[companion] 音频停止，忽略错误');
-                return;
-            }
-            console.error('[companion] 音频加载错误:', e);
-            showToast('音频加载失败，请检查链接', 'error');
-        });
-
-        audioElement.load();
-        session.musicUrl = url;
-        setupSoftLoop();
-        if (audioElement.readyState >= 3) {
-            audioElement.removeEventListener('canplaythrough', onReady);
-            playMusic();
+    function initAudioElement(url) {
+        isStopping = false;
+        stopMusic();
+        if (!url) {
+            session.musicUrl = null;
+            session.musicTitle = '无音乐';
+            isPlaying = false;
+            return;
         }
-    } catch (e) {
-        console.error('[companion] 初始化音频失败:', e);
-        showToast('音频初始化失败', 'error');
-    }
-}
 
-function playMusic() {
-    if (!audioElement) return;
-    _isSoftLooping = false;
-    // 先确保增益为 0，准备淡入
-    if (gainNode && session._audioCtx) {
         try {
-            const ctx = session._audioCtx;
-            gainNode.gain.cancelScheduledValues(ctx.currentTime);
-            gainNode.gain.setValueAtTime(0, ctx.currentTime);
-        } catch (e) {}
+            console.log('[companion] 尝试播放:', url);
+            audioElement = new Audio(url);
+            audioElement.loop = true;
+            audioElement.crossOrigin = 'anonymous';
+
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+            const source = ctx.createMediaElementSource(audioElement);
+            gainNode = ctx.createGain();
+            gainNode.gain.value = 0.2;
+            source.connect(gainNode);
+            gainNode.connect(ctx.destination);
+
+            session._audioCtx = ctx;
+
+            applyVolume();
+
+            audioElement.addEventListener('canplaythrough', function onReady() {
+                audioElement.removeEventListener('canplaythrough', onReady);
+                console.log('[companion] 音频加载完成，开始播放');
+                playMusic();
+            });
+
+            audioElement.addEventListener('error', function (e) {
+                if (isStopping) {
+                    console.log('[companion] 音频停止，忽略错误');
+                    return;
+                }
+                console.error('[companion] 音频加载错误:', e);
+                showToast('音频加载失败，请检查链接', 'error');
+            });
+
+            audioElement.load();
+            session.musicUrl = url;
+            setupSoftLoop();
+            if (audioElement.readyState >= 3) {
+                audioElement.removeEventListener('canplaythrough', onReady);
+                playMusic();
+            }
+        } catch (e) {
+            console.error('[companion] 初始化音频失败:', e);
+            showToast('音频初始化失败', 'error');
+        }
     }
-    audioElement.play()
-        .then(() => {
-            isPlaying = true;
-            console.log('[companion] 播放成功');
-            // 淡入到目标音量
-            if (gainNode && session._audioCtx && session._audioCtx.state !== 'closed') {
+
+    function playMusic() {
+        if (!audioElement) return;
+        _isSoftLooping = false;
+        if (gainNode && session._audioCtx) {
+            try {
                 const ctx = session._audioCtx;
-                // 计算目标增益（与 applyVolume 保持一致）
-                const boost = getMusicBoost(session.musicUrl);
-                const rawGain = (session.volumePercent / 100) * boost;
-                const finalGain = Math.min(rawGain, 1.5);
-                try {
-                    gainNode.gain.cancelScheduledValues(ctx.currentTime);
-                    gainNode.gain.setValueAtTime(0, ctx.currentTime);
-                    gainNode.gain.linearRampToValueAtTime(finalGain, ctx.currentTime + 1.5);
-                } catch (e) {}
-            }
-            updateFloatingControlUI();
-            if (currentUI === 'setup' && session.state !== STATE.SLEEPING) {
-                renderSetupUI();
-            }
-        })
-        .catch(err => {
-            if (isStopping) return;
-            console.warn('[companion] 播放被阻止:', err);
-            showToast('播放失败，请点击列表重试', 'warning');
-        });
-}
-
-function setupSoftLoop() {
-    if (!audioElement) return;
-    // 移除旧监听避免重复绑定
-    audioElement.removeEventListener('timeupdate', _softLoopHandler);
-    _isSoftLooping = false;
-    audioElement.addEventListener('timeupdate', _softLoopHandler);
-}
-
-// 软循环处理函数（单独定义以便移除）
-function _softLoopHandler() {
-    if (isStopping) return;
-    if (!audioElement || !audioElement.duration) return;
-    if (_isSoftLooping) return;
-    
-    const duration = audioElement.duration;
-    const current = audioElement.currentTime;
-    // 在距离结尾 0.8 秒时触发
-    if (current < duration - 0.8) return;
-    
-    _isSoftLooping = true;
-    
-    // 计算当前目标增益（与 applyVolume 保持一致）
-    const boost = getMusicBoost(session.musicUrl);
-    const rawGain = (session.volumePercent / 100) * boost;
-    const targetGain = Math.min(rawGain, 1.5);
-    _softLoopTargetGain = targetGain;
-    
-    const ctx = session._audioCtx;
-    if (!ctx || ctx.state === 'closed') {
-        _isSoftLooping = false;
-        return;
+                gainNode.gain.cancelScheduledValues(ctx.currentTime);
+                gainNode.gain.setValueAtTime(0, ctx.currentTime);
+            } catch (e) {}
+        }
+        audioElement.play()
+            .then(() => {
+                isPlaying = true;
+                console.log('[companion] 播放成功');
+                if (gainNode && session._audioCtx && session._audioCtx.state !== 'closed') {
+                    const ctx = session._audioCtx;
+                    const boost = getMusicBoost(session.musicUrl);
+                    const rawGain = (session.volumePercent / 100) * boost;
+                    const finalGain = Math.min(rawGain, 1.5);
+                    try {
+                        gainNode.gain.cancelScheduledValues(ctx.currentTime);
+                        gainNode.gain.setValueAtTime(0, ctx.currentTime);
+                        gainNode.gain.linearRampToValueAtTime(finalGain, ctx.currentTime + 1.5);
+                    } catch (e) {}
+                }
+                updateFloatingControlUI();
+                if (currentUI === 'setup' && session.state !== STATE.SLEEPING) {
+                    renderSetupUI();
+                }
+            })
+            .catch(err => {
+                if (isStopping) return;
+                console.warn('[companion] 播放被阻止:', err);
+                showToast('播放失败，请点击列表重试', 'warning');
+            });
     }
-    
-    const now = ctx.currentTime;
-    const fadeDuration = 0.3; // 300ms 淡出
-    
-    try {
-        // 淡出
-        gainNode.gain.cancelScheduledValues(now);
-        gainNode.gain.setValueAtTime(targetGain, now);
-        gainNode.gain.linearRampToValueAtTime(0, now + fadeDuration);
-    } catch (e) {
+
+    function setupSoftLoop() {
+        if (!audioElement) return;
+        audioElement.removeEventListener('timeupdate', _softLoopHandler);
         _isSoftLooping = false;
-        return;
+        audioElement.addEventListener('timeupdate', _softLoopHandler);
     }
-    
-    // 淡出完成后跳转并淡入
-    setTimeout(() => {
-        if (isStopping || !audioElement) {
+
+    function _softLoopHandler() {
+        if (isStopping) return;
+        if (!audioElement || !audioElement.duration) return;
+        if (_isSoftLooping) return;
+
+        const duration = audioElement.duration;
+        const current = audioElement.currentTime;
+        if (current < duration - 0.8) return;
+
+        _isSoftLooping = true;
+
+        const boost = getMusicBoost(session.musicUrl);
+        const rawGain = (session.volumePercent / 100) * boost;
+        const targetGain = Math.min(rawGain, 1.5);
+        _softLoopTargetGain = targetGain;
+
+        const ctx = session._audioCtx;
+        if (!ctx || ctx.state === 'closed') {
             _isSoftLooping = false;
             return;
         }
-        try {
-            // 跳转到开头
-            audioElement.currentTime = 0;
-            // 重新播放
-            audioElement.play().catch(() => {});
-            // 淡入
-            const ctx2 = session._audioCtx;
-            if (ctx2 && ctx2.state !== 'closed' && gainNode) {
-                const now2 = ctx2.currentTime;
-                gainNode.gain.cancelScheduledValues(now2);
-                gainNode.gain.setValueAtTime(0, now2);
-                gainNode.gain.linearRampToValueAtTime(_softLoopTargetGain, now2 + fadeDuration);
-            }
-        } catch (e) {}
-        _isSoftLooping = false;
-    }, fadeDuration * 1000 + 50);
-}
 
-function stopMusic() {
-    isStopping = true;   // 设为 true，直到下次 initAudioElement 重置
-    _isSoftLooping = false;   // ★ 重置软循环标志
-    if (audioElement) {
+        const now = ctx.currentTime;
+        const fadeDuration = 0.3;
+
         try {
-            audioElement.removeEventListener('timeupdate', _softLoopHandler); // ★ 移除监听
-            audioElement.pause();
-            audioElement.src = '';
-            audioElement.load();
-        } catch (e) {}
-        audioElement = null;
+            gainNode.gain.cancelScheduledValues(now);
+            gainNode.gain.setValueAtTime(targetGain, now);
+            gainNode.gain.linearRampToValueAtTime(0, now + fadeDuration);
+        } catch (e) {
+            _isSoftLooping = false;
+            return;
+        }
+
+        setTimeout(() => {
+            if (isStopping || !audioElement) {
+                _isSoftLooping = false;
+                return;
+            }
+            try {
+                audioElement.currentTime = 0;
+                audioElement.play().catch(() => {});
+                const ctx2 = session._audioCtx;
+                if (ctx2 && ctx2.state !== 'closed' && gainNode) {
+                    const now2 = ctx2.currentTime;
+                    gainNode.gain.cancelScheduledValues(now2);
+                    gainNode.gain.setValueAtTime(0, now2);
+                    gainNode.gain.linearRampToValueAtTime(_softLoopTargetGain, now2 + fadeDuration);
+                }
+            } catch (e) {}
+            _isSoftLooping = false;
+        }, fadeDuration * 1000 + 50);
     }
-    // 断开 GainNode 和上下文
-    if (gainNode) {
-        try { gainNode.disconnect(); } catch (e) {}
-        gainNode = null;
+
+    function stopMusic() {
+        isStopping = true;
+        _isSoftLooping = false;
+        if (audioElement) {
+            try {
+                audioElement.removeEventListener('timeupdate', _softLoopHandler);
+                audioElement.pause();
+                audioElement.src = '';
+                audioElement.load();
+            } catch (e) {}
+            audioElement = null;
+        }
+        if (gainNode) {
+            try { gainNode.disconnect(); } catch (e) {}
+            gainNode = null;
+        }
+        if (session._audioCtx) {
+            try { session._audioCtx.close(); } catch (e) {}
+            session._audioCtx = null;
+        }
+        isPlaying = false;
+        session.musicUrl = null;
+        updateFloatingControlUI();
     }
-    if (session._audioCtx) {
-        try { session._audioCtx.close(); } catch (e) {}
-        session._audioCtx = null;
-    }
-    isPlaying = false;
-    session.musicUrl = null;
-    updateFloatingControlUI();
-}
 
     function toggleMusicPlay() {
         if (!audioElement) {
@@ -477,28 +574,28 @@ function stopMusic() {
         }
     }
 
-function fadeOutMusic(duration = 1500) {
-    if (!gainNode || !session._audioCtx) {
-        stopMusic();
-        return;
-    }
-    const ctx = session._audioCtx;
-    if (ctx.state === 'closed') {
-        stopMusic();
-        return;
-    }
-    try {
-        const currentGain = gainNode.gain.value;
-        gainNode.gain.cancelScheduledValues(ctx.currentTime);
-        gainNode.gain.setValueAtTime(currentGain, ctx.currentTime);
-        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration / 1000);
-        setTimeout(() => {
+    function fadeOutMusic(duration = 1500) {
+        if (!gainNode || !session._audioCtx) {
             stopMusic();
-        }, duration + 100);
-    } catch (e) {
-        stopMusic();
+            return;
+        }
+        const ctx = session._audioCtx;
+        if (ctx.state === 'closed') {
+            stopMusic();
+            return;
+        }
+        try {
+            const currentGain = gainNode.gain.value;
+            gainNode.gain.cancelScheduledValues(ctx.currentTime);
+            gainNode.gain.setValueAtTime(currentGain, ctx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration / 1000);
+            setTimeout(() => {
+                stopMusic();
+            }, duration + 100);
+        } catch (e) {
+            stopMusic();
+        }
     }
-}
 
     // ============================================================
     // 闹钟
@@ -931,33 +1028,31 @@ function fadeOutMusic(duration = 1500) {
         overlay.style.opacity = '1';
     }
 
-function hideOverlay() {
-    const overlay = document.getElementById('companion-overlay');
-    if (currentUI === 'ready_to_start' || currentUI === 'sleeping') {
+    function hideOverlay() {
+        const overlay = document.getElementById('companion-overlay');
+        if (currentUI === 'ready_to_start' || currentUI === 'sleeping') {
             window.__setCompanionActive(false);
         }
-    if (overlay) {
-        overlay.style.opacity = '0';
-        setTimeout(() => {
-            overlay.style.display = 'none';
-            overlay.style.opacity = '1';
-        }, 400);
-        // ★★★ 清理定时器和监听器（移到这里） ★★★
-        if (window._companionIdleTimer) {
-            clearTimeout(window._companionIdleTimer);
-            window._companionIdleTimer = null;
+        if (overlay) {
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                overlay.style.opacity = '1';
+            }, 400);
+            if (window._companionIdleTimer) {
+                clearTimeout(window._companionIdleTimer);
+                window._companionIdleTimer = null;
+            }
+            if (overlay._resetIdleTimer) {
+                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+                overlay.removeEventListener('click', overlay._resetIdleTimer);
+                delete overlay._resetIdleTimer;
+            }
+            overlay.classList.remove('idle-dim');
         }
-        if (overlay._resetIdleTimer) {
-            overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
-            overlay.removeEventListener('click', overlay._resetIdleTimer);
-            delete overlay._resetIdleTimer;
-        }
-        overlay.classList.remove('idle-dim');
+        const fc = document.getElementById('companion-floating-control');
+        if (fc) fc.style.display = 'none';
     }
-    const fc = document.getElementById('companion-floating-control');
-    if (fc) fc.style.display = 'none';
-}
-
 
     // ============================================================
     // 渲染 - 设置界面
@@ -1026,7 +1121,6 @@ function hideOverlay() {
 
         renderOverlay(html);
 
-        // ---- 事件绑定：使用事件委托 ----
         const musicListEl = document.getElementById('companion-music-list');
         if (musicListEl) {
             musicListEl._listener && musicListEl.removeEventListener('click', musicListEl._listener);
@@ -1096,33 +1190,32 @@ function hideOverlay() {
     // ============================================================
     // 选择音乐
     // ============================================================
-function selectMusic(id) {
-    const item = getMusicItem(id);
-    if (!item) {
-        console.warn('[companion] 未找到音乐:', id);
-        return;
+    function selectMusic(id) {
+        const item = getMusicItem(id);
+        if (!item) {
+            console.warn('[companion] 未找到音乐:', id);
+            return;
+        }
+
+        console.log('[companion] 选择音乐:', item.title, item.url);
+
+        if (session.selectedMusicId === id) {
+            toggleMusicPlay();
+            return;
+        }
+
+        stopMusic();
+        session.selectedMusicId = id;
+        session.musicTitle = item.title;
+        initAudioElement(item.url);
+
+        if (currentUI === 'setup') {
+            renderSetupUI();
+        } else if (currentUI === 'sleeping' || currentUI === 'ready_to_start') {
+            updateFloatingControlUI();
+        }
     }
 
-    console.log('[companion] 选择音乐:', item.title, item.url);
-
-    if (session.selectedMusicId === id) {
-        toggleMusicPlay();
-        return;
-    }
-
-    stopMusic();
-    session.selectedMusicId = id;
-    session.musicTitle = item.title;
-    initAudioElement(item.url);
-
-    // 只在设置界面时刷新列表
-    if (currentUI === 'setup') {
-        renderSetupUI();
-    } else if (currentUI === 'sleeping' || currentUI === 'ready_to_start') {
-        // 睡眠界面只更新悬浮控件的标题
-        updateFloatingControlUI();
-    }
-}
     // ============================================================
     // 添加音乐对话框
     // ============================================================
@@ -1298,109 +1391,103 @@ function selectMusic(id) {
     }
 
     // ============================================================
-    // 睡眠计时
+    // ★ 睡眠计时（核心修改）
     // ============================================================
-function startSleepTracking() {
-    if (session.state === STATE.ENDED) return;
+    function startSleepTracking() {
+        if (session.state === STATE.ENDED) return;
 
-    // ★ 将 overlay 声明在函数顶部，仅声明一次 ★
-    const overlay = document.getElementById('companion-overlay');
+        const overlay = document.getElementById('companion-overlay');
 
-    // ★★★ 清理之前的变暗定时器和监听器 ★★★
-    if (overlay) {
-        if (window._companionIdleTimer) {
-            clearTimeout(window._companionIdleTimer);
-            window._companionIdleTimer = null;
+        if (overlay) {
+            if (window._companionIdleTimer) {
+                clearTimeout(window._companionIdleTimer);
+                window._companionIdleTimer = null;
+            }
+            if (overlay._resetIdleTimer) {
+                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+                overlay.removeEventListener('click', overlay._resetIdleTimer);
+                delete overlay._resetIdleTimer;
+            }
+            overlay.classList.remove('idle-dim');
         }
-        if (overlay._resetIdleTimer) {
-            overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
-            overlay.removeEventListener('click', overlay._resetIdleTimer);
-            delete overlay._resetIdleTimer;
+
+        session.state = STATE.SLEEPING;
+        currentUI = 'sleeping';
+        session.startTime = Date.now();
+        session.elapsed = 0;
+        session.lastAliveTime = Date.now();
+        session._autoStopped = false;
+
+        // ★ 创建进行中的记录
+        createOngoingRecord();
+        console.log('[companion] 创建实时记录，id:', activeRecordId);
+
+        if (gainNode) {
+            applyVolume();
+        } else {
+            updateVolumeUI();
         }
-        overlay.classList.remove('idle-dim');
-    }
 
-    session.state = STATE.SLEEPING;
-    currentUI = 'sleeping';
-    session.startTime = Date.now();
-    session.elapsed = 0;
-    session.lastAliveTime = Date.now();
-    session._autoStopped = false;
+        const name = getPartnerName();
+        const avatarHTML = getPartnerAvatarHTML();
+        const statuses = [
+            '你先休息，我处理一些事情',
+            '✨ 已进入梦境',
+            '稍等一下，我马上来',
+            '来吧，一起休息 🌙'
+        ];
+        const status = statuses[Math.floor(Math.random() * statuses.length)];
 
-    if (gainNode) {
-        applyVolume();
-    } else {
-        updateVolumeUI();
-    }
+        const html = `
+            <div class="companion-avatar">${avatarHTML}</div>
+            <div class="companion-name">${name}</div>
+            <div class="companion-status" id="companion-status-text">${status}</div>
+            <div class="companion-timer" id="companion-timer-display">00:00</div>
+            <div class="companion-btn-group">
+                <button class="companion-btn" id="companion-end-sleep">结束睡眠</button>
+                <button class="companion-btn secondary" id="companion-interrupt-sleep">中断</button>
+            </div>
+        `;
 
-    const name = getPartnerName();
-    const avatarHTML = getPartnerAvatarHTML();
-    const statuses = [
-        '你先休息，我处理一些事情',
-        '✨ 已进入梦境',
-        '稍等一下，我马上来',
-        '来吧，一起休息 🌙'
-    ];
-    const status = statuses[Math.floor(Math.random() * statuses.length)];
+        renderOverlay(html);
 
-    const html = `
-        <div class="companion-avatar">${avatarHTML}</div>
-        <div class="companion-name">${name}</div>
-        <div class="companion-status" id="companion-status-text">${status}</div>
-        <div class="companion-timer" id="companion-timer-display">00:00</div>
-        <div class="companion-btn-group">
-            <button class="companion-btn" id="companion-end-sleep">结束睡眠</button>
-            <button class="companion-btn secondary" id="companion-interrupt-sleep">中断</button>
-        </div>
-    `;
-
-    renderOverlay(html);
-
-    // ★ 继续使用顶部的 overlay 变量，不再重复声明 ★
-    if (overlay) {
-        // 移除已有的 dim 类
-        overlay.classList.remove('idle-dim');
-        // 清除之前的定时器
-        if (window._companionIdleTimer) {
-            clearTimeout(window._companionIdleTimer);
-        }
-        // 定义重置函数
-        const resetIdleTimer = () => {
+        if (overlay) {
             overlay.classList.remove('idle-dim');
             if (window._companionIdleTimer) {
                 clearTimeout(window._companionIdleTimer);
             }
-            window._companionIdleTimer = setTimeout(() => {
-                overlay.classList.add('idle-dim');
-            }, 10000);
-        };
-        // 移除旧监听器（防止重复绑定）
-        if (overlay._resetIdleTimer) {
-            overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
-            overlay.removeEventListener('click', overlay._resetIdleTimer);
+            const resetIdleTimer = () => {
+                overlay.classList.remove('idle-dim');
+                if (window._companionIdleTimer) {
+                    clearTimeout(window._companionIdleTimer);
+                }
+                window._companionIdleTimer = setTimeout(() => {
+                    overlay.classList.add('idle-dim');
+                }, 10000);
+            };
+            if (overlay._resetIdleTimer) {
+                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+                overlay.removeEventListener('click', overlay._resetIdleTimer);
+            }
+            overlay.addEventListener('touchstart', resetIdleTimer, { passive: true });
+            overlay.addEventListener('click', resetIdleTimer);
+            overlay._resetIdleTimer = resetIdleTimer;
+            resetIdleTimer();
         }
-        // 绑定事件
-        overlay.addEventListener('touchstart', resetIdleTimer, { passive: true });
-        overlay.addEventListener('click', resetIdleTimer);
-        // 保存引用以便清理
-        overlay._resetIdleTimer = resetIdleTimer;
-        // 立即启动计时器
-        resetIdleTimer();
+
+        addFloatingControl();
+        startTimer();
+        backupAccident();
+
+        document.getElementById('companion-end-sleep')?.addEventListener('click', () => {
+            endSession('completed');
+        });
+        document.getElementById('companion-interrupt-sleep')?.addEventListener('click', () => {
+            endSession('interrupted');
+        });
+
+        console.log('[companion] 睡眠计时开始');
     }
-
-    addFloatingControl();
-    startTimer();
-    backupAccident();
-
-    document.getElementById('companion-end-sleep')?.addEventListener('click', () => {
-        endSession('completed');
-    });
-    document.getElementById('companion-interrupt-sleep')?.addEventListener('click', () => {
-        endSession('interrupted');
-    });
-
-    console.log('[companion] 睡眠计时开始');
-}
 
     // ============================================================
     // 悬浮音乐控制
@@ -1438,44 +1525,40 @@ function startSleepTracking() {
                 volSlider.addEventListener('input', function() {
                     const val = parseInt(this.value);
                     session.volumePercent = val;
-                    // 应用音量（根据当前歌曲类型计算增益）
                     applyVolume();
                 });
             }
 
-        updateFloatingControlUI();
-        fc.style.display = 'flex';
+            updateFloatingControlUI();
+            fc.style.display = 'flex';
 
-        let idleTimer = null;
+            let idleTimer = null;
 
-        function resetIdleTimer() {
-            if (idleTimer) clearTimeout(idleTimer);
-            fc.classList.remove('dim');
-            idleTimer = setTimeout(() => {
-                fc.classList.add('dim');
-            }, 10000);
+            function resetIdleTimer() {
+                if (idleTimer) clearTimeout(idleTimer);
+                fc.classList.remove('dim');
+                idleTimer = setTimeout(() => {
+                    fc.classList.add('dim');
+                }, 10000);
+            }
+
+            fc.addEventListener('mouseenter', resetIdleTimer);
+            fc.addEventListener('mouseleave', () => {
+                if (idleTimer) clearTimeout(idleTimer);
+                idleTimer = setTimeout(() => {
+                    fc.classList.add('dim');
+                }, 10000);
+            });
+            fc.addEventListener('touchstart', resetIdleTimer);
+
+            fc.querySelectorAll('.fc-btn, .fc-volume-slider').forEach(el => {
+                el.addEventListener('pointerdown', resetIdleTimer);
+            });
+
+            resetIdleTimer();
         }
-
-        // 监听交互事件
-        fc.addEventListener('mouseenter', resetIdleTimer);
-        fc.addEventListener('mouseleave', () => {
-            if (idleTimer) clearTimeout(idleTimer);
-            idleTimer = setTimeout(() => {
-                fc.classList.add('dim');
-            }, 10000);
-        });
-        fc.addEventListener('touchstart', resetIdleTimer);
-
-        // 点击内部按钮或滑块时也重置
-        fc.querySelectorAll('.fc-btn, .fc-volume-slider').forEach(el => {
-            el.addEventListener('pointerdown', resetIdleTimer);
-        });
-
-        // 初始启动计时器
-        resetIdleTimer();
-
     }
-}  
+
     function updateFloatingControlUI() {
         const fc = document.getElementById('companion-floating-control');
         if (!fc) return;
@@ -1485,32 +1568,24 @@ function startSleepTracking() {
         if (playBtn) playBtn.innerHTML = isPlaying ? '<i class="fas fa-pause"></i>' : '<i class="fas fa-play"></i>';
     }
 
-function updateVolumeUI() {
-    const volSlider = document.getElementById('fc-volume-slider');
-    const volLabel = document.getElementById('fc-volume-label');
-    if (volSlider && gainNode) {
-        // 读取当前实际增益
-        const currentGain = gainNode.gain.value;
-        // 为了显示更直观，我们显示当前增益对应的百分比（乘以100）
-        const percent = Math.round(currentGain * 100);
-        // 更新滑块位置（滑块仍基于用户设定的百分比，所以这里不修改滑块值）
-        // 只更新标签显示
-        if (volLabel) {
-            // 显示实际百分比
-            volLabel.textContent = Math.min(150, percent) + '%';
+    function updateVolumeUI() {
+        const volSlider = document.getElementById('fc-volume-slider');
+        const volLabel = document.getElementById('fc-volume-label');
+        if (volSlider && gainNode) {
+            const currentGain = gainNode.gain.value;
+            const percent = Math.round(currentGain * 100);
+            if (volLabel) {
+                volLabel.textContent = Math.min(150, percent) + '%';
+            }
         }
     }
-}
 
-    // 应用当前音量设置（根据用户设定的百分比和歌曲倍率计算实际增益）
     function applyVolume() {
         if (!gainNode) return;
         const boost = getMusicBoost(session.musicUrl);
         const rawGain = (session.volumePercent / 100) * boost;
-        // 为避免过大破音，暂时不限制上限，但建议限制在 1.5 以内
-        const finalGain = Math.min(rawGain, 4.0); // 可根据需要调整上限
+        const finalGain = Math.min(rawGain, 4.0);
         gainNode.gain.value = finalGain;
-        // 更新 UI 显示
         updateVolumeUI();
     }
 
@@ -1584,12 +1659,13 @@ function updateVolumeUI() {
     }
 
     // ============================================================
-    // 计时器
+    // 计时器（修改：每5秒保存一次记录）
     // ============================================================
     function startTimer() {
         if (session.rafId) cancelAnimationFrame(session.rafId);
         const start = Date.now();
         const baseElapsed = session.elapsed || 0;
+        let lastSaveTime = Date.now();
 
         function tick() {
             if (session.state !== STATE.SLEEPING) return;
@@ -1597,6 +1673,12 @@ function updateVolumeUI() {
             session.elapsed = baseElapsed + (now - start);
             session.lastAliveTime = now;
             updateSleepTimerUI();
+
+            // ★ 每5秒保存一次记录
+            if (now - lastSaveTime >= 5000) {
+                updateOngoingRecord();
+                lastSaveTime = now;
+            }
 
             if (session.elapsed >= 30 * 60 * 1000) {
                 hideStatusText();
@@ -1638,7 +1720,7 @@ function updateVolumeUI() {
     }
 
     // ============================================================
-    // 结束会话
+    // 结束会话（修改）
     // ============================================================
     function endSession(mode) {
         if (session.isEnding) return;
@@ -1652,6 +1734,14 @@ function updateVolumeUI() {
         const elapsedMinutes = elapsedMs / (60 * 1000);
 
         if (elapsedMinutes < MIN_VALID_MINUTES) {
+            // 时长不足，删除进行中的记录（或不保存）
+            if (activeRecordId) {
+                const records = _getRecords();
+                const idx = records.findIndex(r => r.id === activeRecordId);
+                if (idx !== -1) records.splice(idx, 1);
+                _saveRecords(records);
+                activeRecordId = null;
+            }
             stopMusic();
             releaseWakeLock();
             hideOverlay();
@@ -1662,93 +1752,47 @@ function updateVolumeUI() {
             return;
         }
 
+        // 先完成记录
+        finalizeOngoingRecord(mode);
+
+        // 构造用于显示Toast的记录（使用session数据）
         const startDate = session.startTime ? new Date(session.startTime) : new Date();
         const endDate = new Date();
-        const durationMs = elapsedMs;
-
         const record = {
-            id: 'comp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-            date: startDate.toISOString().split('T')[0],
             startTime: startDate.toISOString(),
             endTime: endDate.toISOString(),
-            duration: durationMs,
+            duration: elapsedMs,
             mode: mode,
-            soundType: session.musicTitle || '无音乐',
-            status: mode === 'completed' ? '完成陪伴' : '未能完成陪伴',
-            interruptReason: '',
-            isSystemInterrupt: false,
         };
 
         if (mode === 'interrupted') {
             hideOverlay();
-            showInterruptReasonToast(record, () => saveRecordAndCleanup(record));
-            return;
-        }
-
-        if (mode === 'completed') {
-            hideOverlay();
-            showCompletionToast(record, () => saveRecordAndCleanup(record));
-            return;
-        }
-
-        stopMusic();
-        releaseWakeLock();
-        hideOverlay();
-        resetSession();
-        session.isEnding = false;
-        currentUI = 'idle';
-    }
-
-    // ============================================================
-    // 记录保存与清理
-    // ============================================================
-function saveRecordAndCleanup(record) {
-    try {
-        // 直接保存到 localStorage，确保与 loadCompanionRecordsData 读取位置一致
-        const key = 'companion_records';
-        let records = [];
-        try {
-            const existingData = localStorage.getItem(key);
-            if (existingData) {
-                records = JSON.parse(existingData);
-            }
-        } catch (e) {}
-        if (!Array.isArray(records)) records = [];
-        
-        // 检查是否已存在相同id，存在则更新
-        const existingIdx = records.findIndex(r => r.id === record.id);
-        if (existingIdx >= 0) {
-            records[existingIdx] = record;
+            showInterruptReasonToast(record, () => {
+                // 在确认保存原因后，更新记录
+                // 但因为我们已经在 finalizeOngoingRecord 中保存了，这里只需要清理UI
+                // 实际原因更新在 showInterruptReasonToast 内部处理
+                stopMusic();
+                releaseWakeLock();
+                clearAccident();
+                resetSession();
+                session.isEnding = false;
+                currentUI = 'idle';
+            });
         } else {
-            records.push(record);
+            // 完成
+            hideOverlay();
+            showCompletionToast(record, () => {
+                stopMusic();
+                releaseWakeLock();
+                clearAccident();
+                resetSession();
+                session.isEnding = false;
+                currentUI = 'idle';
+            });
         }
-        // 按日期排序（最新在前）
-        records.sort(function(a, b) {
-            const dateA = a.startTime || a.date || '';
-            const dateB = b.startTime || b.date || '';
-            return dateB.localeCompare(dateA);
-        });
-        localStorage.setItem(key, JSON.stringify(records));
-        // 同步更新内存中的记录
-        window._companionRecords = records;
-        showToast('陪伴记录已保存 ✓', 'success');
-    } catch (e) {
-        console.error('[companion] 保存记录失败:', e);
-        showToast('记录保存失败，请检查存储空间', 'error');
     }
 
-    stopMusic();
-    stopAlarm();
-    releaseWakeLock();
-    clearAccident();
-    resetSession();
-    session.isEnding = false;
-    currentUI = 'idle';
-}
-
-    // ============================================================
-    // Toast弹窗
-    // ============================================================
+    // 显示中断原因Toast（重写以支持更新记录）
     function showInterruptReasonToast(record, onSave) {
         const toast = document.createElement('div');
         toast.className = 'companion-toast open';
@@ -1777,7 +1821,13 @@ function saveRecordAndCleanup(record) {
         const input = toast.querySelector('#interrupt-reason-input');
 
         const doSave = (reason) => {
-            record.interruptReason = reason || '';
+            // 更新已有的记录（找到最近的一条 interrupted 记录）
+            const records = _getRecords();
+            const idx = records.findIndex(r => r.mode === 'interrupted');
+            if (idx !== -1) {
+                records[idx].interruptReason = reason || '';
+                _saveRecords(records);
+            }
             document.body.removeChild(toast);
             if (onSave) onSave();
         };
@@ -1786,6 +1836,7 @@ function saveRecordAndCleanup(record) {
         skipBtn.addEventListener('click', () => doSave(''));
     }
 
+    // 显示完成Toast（原有）
     function showCompletionToast(record, onSave) {
         const toast = document.createElement('div');
         toast.className = 'companion-toast open';
@@ -1817,7 +1868,7 @@ function saveRecordAndCleanup(record) {
     }
 
     // ============================================================
-    // 遗言机制
+    // 遗言机制（保留作为备选，但主要靠实时记录）
     // ============================================================
     function backupAccident() {
         if (session.state === STATE.IDLE || session.state === STATE.ENDED) {
@@ -1845,10 +1896,22 @@ function saveRecordAndCleanup(record) {
         try { localStorage.removeItem(ACCIDENT_KEY); } catch (e) {}
     }
 
-    // 暴露给 app.js
     window._backupCompanionAccident = backupAccident;
 
+    // 检查遗言（兼容旧逻辑，但优先使用实时记录恢复）
     window.checkCompanionAccident = function () {
+        // 先检查是否有 ongoing 记录
+        const records = _getRecords();
+        const ongoing = records.filter(r => r.mode === 'ongoing');
+        if (ongoing.length > 0) {
+            return {
+                state: STATE.SLEEPING,
+                startTime: ongoing[0].startTime,
+                lastAliveTime: Date.now(),
+                musicTitle: ongoing[0].soundType,
+            };
+        }
+        // 否则检查旧的遗言
         try {
             const raw = localStorage.getItem(ACCIDENT_KEY);
             if (!raw) return null;
@@ -1860,88 +1923,48 @@ function saveRecordAndCleanup(record) {
         } catch { return null; }
     };
 
+    // 恢复遗言（统一处理）
     window.restoreCompanionAccident = function (accidentData) {
-    if (!accidentData) return;
+        // 优先调用实时记录恢复
+        checkAndRecoverOngoingRecord();
 
-    // 只处理正式睡眠阶段，倒计时等不生成记录
-    if (accidentData.state !== 'sleeping') {
-        clearAccident();
-        resetSession();
-        showToast('陪伴尚未正式开始，不生成记录', 'info');
-        return;
-    }
-
-    // ★ 容错：优先使用 startTime，若缺失则用 timestamp 兜底
-    let startTime = accidentData.startTime ? new Date(accidentData.startTime) : null;
-    if (!startTime && accidentData.timestamp) {
-        startTime = new Date(accidentData.timestamp);
-        console.warn('[companion] 使用 timestamp 作为开始时间（近似）');
-    }
-    if (!startTime) {
-        // 仍然无法确定，放弃记录
-        clearAccident();
-        resetSession();
-        showToast('无法确定开始时间，不生成记录', 'warning');
-        return;
-    }
-
-    const lastAlive = accidentData.lastAliveTime ? new Date(accidentData.lastAliveTime) : new Date();
-    const durationMs = Math.max(0, lastAlive - startTime);
-
-    // 生成系统中断记录
-    const record = {
-        id: 'comp_sys_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-        date: startTime.toISOString().split('T')[0],
-        startTime: startTime.toISOString(),
-        endTime: lastAlive.toISOString(),
-        duration: durationMs,
-        mode: 'system_interrupt',
-        soundType: accidentData.musicTitle || '未知',
-        status: '系统中断',
-        interruptReason: '页面意外退出',
-        isSystemInterrupt: true,
-    };
-
-    // 保存记录
-    try {
-        const key = 'companion_records';
-        let records = [];
-        const existing = localStorage.getItem(key);
-        if (existing) records = JSON.parse(existing);
-        if (!Array.isArray(records)) records = [];
-        records.push(record);
-        records.sort((a, b) => (b.startTime || b.date || '').localeCompare(a.startTime || a.date || ''));
-        localStorage.setItem(key, JSON.stringify(records));
-        window._companionRecords = records;
-        console.log('[companion] 系统中断记录已自动保存');
-    } catch (e) {
-        console.error('[companion] 补录失败:', e);
-        clearAccident();
-        resetSession();
-        showToast('补录失败，请检查存储空间', 'error');
-        return;
-    }
-
-    // ★ 使用自定义弹窗（避免被拦截），并询问是否查看记录
-    showModalWithConfirm(
-        '🌙 陪伴中断',
-        `开始于 ${formatDateTime(startTime)}，已中断。是否立即查看陪伴记录？`,
-        () => {
-            if (typeof showCompanionRecords === 'function') {
-                showCompanionRecords();
-            } else {
-                showToast('已补录系统中断记录，请到陪伴记录中查看', 'info');
+        // 如果还有旧的遗言（可能在实时记录没有的情况下），也处理
+        if (accidentData) {
+            const records = _getRecords();
+            const hasOngoing = records.some(r => r.mode === 'ongoing');
+            if (hasOngoing) {
+                clearAccident();
+                resetSession();
+                return;
             }
-        },
-        () => {
-            showToast('已补录系统中断记录', 'info');
+            // 否则按旧逻辑处理（但旧逻辑可能不会产生记录，只提示）
+            if (accidentData.state === STATE.SLEEPING && accidentData.startTime) {
+                const startTime = new Date(accidentData.startTime);
+                const durationMs = Math.max(0, (accidentData.lastAliveTime || Date.now()) - startTime);
+                if (durationMs / 60000 >= MIN_VALID_MINUTES) {
+                    const record = {
+                        id: 'comp_sys_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                        date: startTime.toISOString().split('T')[0],
+                        startTime: startTime.toISOString(),
+                        endTime: new Date().toISOString(),
+                        duration: durationMs,
+                        mode: 'system_interrupt',
+                        soundType: accidentData.musicTitle || '未知',
+                        status: '系统中断',
+                        interruptReason: '页面意外退出（遗言恢复）',
+                        isSystemInterrupt: true,
+                    };
+                    const records2 = _getRecords();
+                    records2.push(record);
+                    _saveRecords(records2);
+                    showToast('检测到未完成的陪伴，已补录系统中断记录', 'warning');
+                }
+            }
+            clearAccident();
+            resetSession();
+            currentUI = 'idle';
         }
-    );
-
-    clearAccident();
-    resetSession();
-    currentUI = 'idle';
-};
+    };
 
     // ============================================================
     // 重置会话
@@ -1982,7 +2005,7 @@ function saveRecordAndCleanup(record) {
     // 初始化
     // ============================================================
     function initCompanionFeature() {
-        console.log('[companion] 陪伴功能已加载（完整修复版）');
+        console.log('[companion] 陪伴功能已加载（实时记录版）');
         window.showCompanionPicker = showCompanionPicker;
         window.openCompanion = showCompanionPicker;
 
@@ -1990,104 +2013,96 @@ function saveRecordAndCleanup(record) {
         stopMusic();
         stopAlarm();
         bindCompanionCalendarEvents();
+
+        // ★ 检查是否有未完成的进行中记录（页面加载时）
+        checkAndRecoverOngoingRecord();
     }
 
     // 页面卸载时清理
-    // 页面卸载时清理（修改版）
     window.addEventListener('beforeunload', function () {
-        // ★★★ 无条件保存遗言（和通话一样） ★★★
-        // 只要当前不是空闲状态，就保存遗言
-        if (session.state !== STATE.IDLE && session.state !== STATE.ENDED) {
-            try {
-                const data = {
-                    state: session.state,
-                    musicTitle: session.musicTitle,
-                    musicUrl: session.musicUrl,
-                    selectedMusicId: session.selectedMusicId,
-                    startTime: session.startTime,
-                    lastAliveTime: session.lastAliveTime || Date.now(),
-                    elapsed: session.elapsed || 0,
-                    countdownRemain: session.countdownRemain || 0,
-                    countdownMinutes: session.countdownMinutes || 5,
-                    timestamp: Date.now(),
-                };
-                localStorage.setItem(ACCIDENT_KEY, JSON.stringify(data));
-            } catch (e) {}
+        if (session.state === STATE.SLEEPING || session.state === STATE.COUNTDOWN || session.state === STATE.READY_TO_START) {
+            backupAccident();
+            if (session.state === STATE.SLEEPING && activeRecordId) {
+                updateOngoingRecord();
+            }
         }
         stopMusic();
         stopAlarm();
         releaseWakeLock();
     });
+
     window.addEventListener('pagehide', function() {
-        // 与 beforeunload 保持一致，增强移动端兼容性
         if (session.state !== STATE.IDLE && session.state !== STATE.ENDED) {
             backupAccident();
+            if (session.state === STATE.SLEEPING && activeRecordId) {
+                updateOngoingRecord();
+            }
         }
     });
+
     window.initCompanionFeature = initCompanionFeature;
     window.showToast = showToast;
     window.formatTime = formatTime;
     window.formatDuration = formatDuration;
     window.formatDateTime = formatDateTime;
 
-    console.log('[companion] 模块加载完成（完整修复版）');
+    console.log('[companion] 模块加载完成（实时记录版）');
 })();
-
-let _compRecordsCurrentDate = new Date(); // 当前显示的月份
 
 // ============================================================
 // 陪伴记录 - 统计视图（全局）
 // ============================================================
 
+let _compRecordsCurrentDate = new Date();
+
+// 辅助函数：获取记录并过滤掉 ongoing
+function getFilteredRecords() {
+    const records = window._companionRecords || [];
+    return records.filter(r => r.mode !== 'ongoing');
+}
+
 function renderCompanionStats() {
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
-    
+
     const label = document.getElementById('comp-stats-month-label');
     if (label) label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
-    
-    const records = window._companionRecords || [];
+
+    const records = getFilteredRecords();
     const monthRecords = records.filter(r => {
         if (!r.date) return false;
         const d = new Date(r.date + 'T00:00:00');
         return d.getFullYear() === year && d.getMonth() === month;
     });
-    
+
     const summaryEl = document.getElementById('comp-stats-summary');
     const avgBedtimeEl = document.getElementById('comp-stats-avg-bedtime');
     const avgDurationEl = document.getElementById('comp-stats-avg-duration');
     const barsBedtime = document.getElementById('comp-stats-bedtime-bars');
     const barsDuration = document.getElementById('comp-stats-duration-bars');
     const emptyEl = document.getElementById('comp-stats-empty');
-    
+
     if (!summaryEl || !barsBedtime || !barsDuration) return;
-    
-    // 无记录时：显示灰条 + "无记录"
+
     if (monthRecords.length === 0) {
         summaryEl.textContent = '陪伴 0 天 · 0 次';
         if (avgBedtimeEl) avgBedtimeEl.textContent = '平均: --:--';
         if (avgDurationEl) avgDurationEl.textContent = '平均: --';
-        
-        // 为入睡时间显示灰色条
         barsBedtime.innerHTML = '';
         const emptyBar1 = document.createElement('div');
         emptyBar1.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar1.textContent = '无记录';
         barsBedtime.appendChild(emptyBar1);
-        
-        // 为睡眠时长显示灰色条
         barsDuration.innerHTML = '';
         const emptyBar2 = document.createElement('div');
         emptyBar2.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar2.textContent = '无记录';
         barsDuration.appendChild(emptyBar2);
-        
-        if (emptyEl) emptyEl.style.display = 'none'; // 隐藏空状态文字（因为已经有灰条了）
+        if (emptyEl) emptyEl.style.display = 'none';
         return;
     }
     if (emptyEl) emptyEl.style.display = 'none';
-    
-    // 按日期分组
+
     const dayMap = {};
     monthRecords.forEach(r => {
         const day = new Date(r.date + 'T00:00:00').getDate();
@@ -2096,8 +2111,7 @@ function renderCompanionStats() {
     });
     const days = Object.keys(dayMap).sort((a,b) => a-b);
     summaryEl.textContent = `陪伴 ${days.length} 天 · ${monthRecords.length} 次`;
-    
-    // 提取入睡时间和睡眠时长
+
     const bedtimeValues = [];
     const durationValues = [];
     monthRecords.forEach(r => {
@@ -2107,12 +2121,10 @@ function renderCompanionStats() {
             bedtimeValues.push(totalMinutes);
         }
         if (r.duration) {
-            durationValues.push(r.duration / 60000); // 分钟
+            durationValues.push(r.duration / 60000);
         }
     });
-    
-    // ---- 计算平均值 ----
-    // 平均入睡时间
+
     let avgBedtime = null;
     if (bedtimeValues.length > 0) {
         const sum = bedtimeValues.reduce((a,b) => a+b, 0);
@@ -2127,8 +2139,7 @@ function renderCompanionStats() {
             avgBedtimeEl.textContent = '平均: --:--';
         }
     }
-    
-    // 平均睡眠时长（分钟）
+
     let avgDuration = null;
     if (durationValues.length > 0) {
         const sum = durationValues.reduce((a,b) => a+b, 0);
@@ -2141,11 +2152,9 @@ function renderCompanionStats() {
             avgDurationEl.textContent = '平均: --';
         }
     }
-    
-    // ---- 渲染入睡时间长条 ----
+
     barsBedtime.innerHTML = '';
     if (bedtimeValues.length > 0) {
-        // 按日期顺序排列
         const sorted = days.map(day => {
             const recs = dayMap[day];
             const first = recs[0];
@@ -2155,12 +2164,9 @@ function renderCompanionStats() {
             }
             return null;
         }).filter(v => v !== null);
-        
-        // 计算最小值/最大值用于映射颜色
         const minVal = Math.min(...sorted);
         const maxVal = Math.max(...sorted);
         const range = maxVal - minVal || 1;
-        
         sorted.forEach(val => {
             const ratio = (val - minVal) / range;
             const hue = 240 - ratio * 60;
@@ -2171,27 +2177,22 @@ function renderCompanionStats() {
             barsBedtime.appendChild(bar);
         });
     } else {
-        // 有天数但无入睡时间（理论上不会发生，但留作保险）
         const emptyBar = document.createElement('div');
         emptyBar.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar.textContent = '无记录';
         barsBedtime.appendChild(emptyBar);
     }
-    
-    // ---- 渲染睡眠时长条 ----
+
     barsDuration.innerHTML = '';
     if (durationValues.length > 0) {
-        // 按日期顺序排列
         const sorted = days.map(day => {
             const recs = dayMap[day];
             const total = recs.reduce((sum, r) => sum + (r.duration || 0), 0);
-            return total / 60000; // 分钟
+            return total / 60000;
         });
-        
         const minVal = Math.min(...sorted);
         const maxVal = Math.max(...sorted);
         const range = maxVal - minVal || 1;
-        
         sorted.forEach(val => {
             const ratio = (val - minVal) / range;
             const hue = 120 - ratio * 60;
@@ -2209,7 +2210,6 @@ function renderCompanionStats() {
     }
 }
 
-// 辅助函数：格式化分钟数为 "X小时X分钟"
 function formatHoursMinutes(totalMinutes) {
     if (!totalMinutes || totalMinutes < 0) return '0分钟';
     const hours = Math.floor(totalMinutes / 60);
@@ -2219,13 +2219,11 @@ function formatHoursMinutes(totalMinutes) {
     return hours + '小时' + mins + '分钟';
 }
 
-// 辅助函数：将分钟数转为 HH:MM（用于 tooltip）
 function formatTimeFromMinutes(totalMinutes) {
     const h = Math.floor(totalMinutes / 60);
     const m = Math.round(totalMinutes % 60);
     return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 }
-
 
 function showCompanionRecords() {
     const modal = document.getElementById('companion-records-modal');
@@ -2233,31 +2231,21 @@ function showCompanionRecords() {
         showToast('陪伴记录模块未加载，请刷新页面', 'error');
         return;
     }
-    
-    // 加载数据
     loadCompanionRecordsData();
-    
-    // 重置到当前月份
     _compRecordsCurrentDate = new Date();
     renderCompanionCalendar();
-    
-    // 确保日历面板可见，统计隐藏
     const panelCalendar = document.getElementById('comp-records-calendar-panel');
     const panelStats = document.getElementById('comp-records-stats-panel');
     if (panelCalendar) panelCalendar.style.display = 'block';
     if (panelStats) panelStats.style.display = 'none';
-    
-    // 重置标签页激活状态
     const tabCal = document.getElementById('comp-records-tab-calendar');
     const tabStat = document.getElementById('comp-records-tab-stats');
     if (tabCal) tabCal.classList.add('active');
     if (tabStat) tabStat.classList.remove('active');
-    
     showModal(modal);
 }
 
 function loadCompanionRecordsData() {
-    // 从 localStorage 加载记录
     try {
         const key = 'companion_records';
         const data = localStorage.getItem(key);
@@ -2275,66 +2263,57 @@ function loadCompanionRecordsData() {
 function renderCompanionCalendar() {
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
-    
-    // 更新标题（两种显示方式）
+
     const label = document.getElementById('comp-records-month-label');
     if (label) {
         label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
     }
-    // 更新下拉框
     updateCompanionDateSelectors();
-    
-    // 获取该月第一天和最后一天
+
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startDayOfWeek = firstDay.getDay(); // 0=周日
+    const startDayOfWeek = firstDay.getDay();
     const daysInMonth = lastDay.getDate();
-    
-    // 获取该月的记录
-    const records = window._companionRecords || [];
+
+    const records = getFilteredRecords();
     const monthRecords = records.filter(r => {
         if (!r.date) return false;
         const d = new Date(r.date + 'T00:00:00');
         return d.getFullYear() === year && d.getMonth() === month;
     });
-    
-    // 按日期分组统计
+
     const dayMap = {};
     monthRecords.forEach(r => {
         const day = new Date(r.date + 'T00:00:00').getDate();
         if (!dayMap[day]) dayMap[day] = [];
         dayMap[day].push(r);
     });
-    
-    // 渲染网格
+
     const grid = document.getElementById('comp-records-grid');
     if (!grid) return;
-    
+
     let html = '';
-    // 填充空白
     for (let i = 0; i < startDayOfWeek; i++) {
         html += `<div class="calendar-day empty"></div>`;
     }
-    // 填充日期
     for (let d = 1; d <= daysInMonth; d++) {
         const hasRecord = dayMap[d] && dayMap[d].length > 0;
-        const isToday = (d === new Date().getDate() && 
-                         year === new Date().getFullYear() && 
+        const isToday = (d === new Date().getDate() &&
+                         year === new Date().getFullYear() &&
                          month === new Date().getMonth());
         const recordsOfDay = dayMap[d] || [];
         const totalDuration = recordsOfDay.reduce((sum, r) => sum + (r.duration || 0), 0);
         const totalMinutes = Math.floor(totalDuration / 60000);
         const totalHours = Math.floor(totalMinutes / 60);
         const displayTime = totalHours > 0 ? totalHours + 'h' + (totalMinutes % 60) + 'm' : totalMinutes + 'm';
-        
+
         let dotHTML = '';
         if (hasRecord) {
-            // 根据记录类型显示不同颜色
             const hasComplete = recordsOfDay.some(r => r.mode === 'completed');
             const hasInterrupt = recordsOfDay.some(r => r.mode === 'interrupted' || r.mode === 'system_interrupt');
             let dotColor = 'var(--accent-color)';
             if (hasComplete && hasInterrupt) {
-                dotColor = 'var(--accent-color)'; // 混合
+                dotColor = 'var(--accent-color)';
             } else if (hasComplete) {
                 dotColor = '#4CAF50';
             } else if (hasInterrupt) {
@@ -2345,9 +2324,9 @@ function renderCompanionCalendar() {
                 <span style="font-size:9px;color:var(--text-secondary);opacity:0.7;">${displayTime}</span>
             </div>`;
         }
-        
+
         html += `
-            <div class="calendar-day ${hasRecord ? 'has-record' : ''} ${isToday ? 'today' : ''}" 
+            <div class="calendar-day ${hasRecord ? 'has-record' : ''} ${isToday ? 'today' : ''}"
                  data-day="${d}" data-month="${month}" data-year="${year}"
                  style="${hasRecord ? 'cursor:pointer;' : ''}">
                 <span>${d}</span>
@@ -2356,17 +2335,14 @@ function renderCompanionCalendar() {
         `;
     }
     grid.innerHTML = html;
-    
-    // 更新统计
+
     const statsEl = document.getElementById('comp-records-stats');
     if (statsEl) {
         const totalDays = Object.keys(dayMap).length;
         const totalRecords = monthRecords.length;
         statsEl.textContent = `本月陪伴: ${totalDays} 天 · ${totalRecords} 次`;
     }
-    
-    // 绑定点击日期事件
-    // 在 renderCompanionCalendar 中，原来的 grid.querySelectorAll('.calendar-day.has-record') 部分替换为：
+
     grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
         el.addEventListener('click', function() {
             const day = parseInt(this.dataset.day);
@@ -2382,9 +2358,8 @@ function populateCompanionYearMonthSelectors() {
     const yearSelect = document.getElementById('comp-records-year-select');
     const monthSelect = document.getElementById('comp-records-month-select');
     if (!yearSelect || !monthSelect) return;
-    
+
     const currentYear = new Date().getFullYear();
-    // 填充年份：从当前年份往前10年到往后2年
     yearSelect.innerHTML = '';
     for (let y = currentYear - 10; y <= currentYear + 2; y++) {
         const opt = document.createElement('option');
@@ -2393,8 +2368,6 @@ function populateCompanionYearMonthSelectors() {
         if (y === _compRecordsCurrentDate.getFullYear()) opt.selected = true;
         yearSelect.appendChild(opt);
     }
-    
-    // 填充月份
     monthSelect.innerHTML = '';
     for (let m = 0; m < 12; m++) {
         const opt = document.createElement('option');
@@ -2412,32 +2385,29 @@ function updateCompanionDateSelectors() {
     if (monthSelect) monthSelect.value = _compRecordsCurrentDate.getMonth();
 }
 
-// 显示某一天的所有记录（一级卡片）
 function showCompanionDayDetail(dateStr) {
     const modal = document.getElementById('companion-day-modal');
     if (!modal) {
         showToast('详情模块未加载', 'error');
         return;
     }
-    // 设置标题
     const titleEl = document.getElementById('companion-day-title');
     if (titleEl) {
         const parts = dateStr.split('-');
         titleEl.textContent = parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
     }
-    // 获取该日记录
-    const records = window._companionRecords || [];
+    const records = getFilteredRecords();
     const dayRecords = records.filter(r => r.date === dateStr);
     const listEl = document.getElementById('companion-day-records-list');
     if (!listEl) return;
-    
+
     if (dayRecords.length === 0) {
         listEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text-secondary);opacity:0.6;font-size:14px;">当日无记录</div>`;
     } else {
         let html = '';
         dayRecords.forEach((rec, index) => {
             const recordNum = index + 1;
-            const statusText = rec.mode === 'completed' ? '✓ 完成' : 
+            const statusText = rec.mode === 'completed' ? '✓ 完成' :
                                rec.mode === 'interrupted' ? '⏸ 中断' : '⚠ 系统中断';
             html += `
                 <div class="companion-record-entry" data-id="${rec.id}" style="padding:12px 16px;margin-bottom:8px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:background 0.2s;">
@@ -2452,7 +2422,6 @@ function showCompanionDayDetail(dateStr) {
             `;
         });
         listEl.innerHTML = html;
-        // 绑定点击事件
         listEl.querySelectorAll('.companion-record-entry').forEach(el => {
             el.addEventListener('click', function() {
                 const id = this.dataset.id;
@@ -2463,9 +2432,8 @@ function showCompanionDayDetail(dateStr) {
     showModal(modal);
 }
 
-// 显示单条记录详情（二级卡片）
 function showCompanionRecordDetail(recordId) {
-    const records = window._companionRecords || [];
+    const records = getFilteredRecords();
     const record = records.find(r => r.id === recordId);
     if (!record) {
         showToast('记录不存在', 'error');
@@ -2476,24 +2444,21 @@ function showCompanionRecordDetail(recordId) {
         showToast('详情模块未加载', 'error');
         return;
     }
-    // 设置标题
     const titleEl = document.getElementById('companion-record-detail-title');
     if (titleEl) {
         const dateStr = record.date;
         const parts = dateStr.split('-');
         titleEl.textContent = parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
     }
-    // 渲染详情
     const contentEl = document.getElementById('companion-record-detail-content');
     if (!contentEl) return;
-    
-    const modeText = record.mode === 'completed' ? '完成' : 
+
+    const modeText = record.mode === 'completed' ? '完成' :
                      record.mode === 'interrupted' ? '中断' : '系统中断';
-    // ★★★ 先计算好变量 ★★★
     const startTimeFormatted = window.formatDateTime(record.startTime);
     const endTimeFormatted = window.formatDateTime(record.endTime);
     const durationFormatted = window.formatDuration(record.duration);
-    
+
     contentEl.innerHTML = `
         <div style="background:var(--secondary-bg);padding:16px;border-radius:12px;border:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
@@ -2515,17 +2480,18 @@ function showCompanionRecordDetail(recordId) {
             ${record.interruptReason ? `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">中断原因</span><span>${record.interruptReason}</span></div>` : ''}
         </div>
     `;
-    
-    // 绑定删除按钮
+
     const deleteBtn = document.getElementById('delete-companion-record-btn');
     if (deleteBtn) {
         deleteBtn.onclick = function() {
             if (confirm('确定要删除这条陪伴记录吗？此操作不可恢复！')) {
-                const index = window._companionRecords.findIndex(r => r.id === recordId);
+                const allRecords = window._companionRecords || [];
+                const index = allRecords.findIndex(r => r.id === recordId);
                 if (index > -1) {
-                    window._companionRecords.splice(index, 1);
+                    allRecords.splice(index, 1);
                     try {
-                        localStorage.setItem('companion_records', JSON.stringify(window._companionRecords));
+                        localStorage.setItem('companion_records', JSON.stringify(allRecords));
+                        window._companionRecords = allRecords;
                     } catch (e) {}
                     hideModal(modal);
                     hideModal(document.getElementById('companion-day-modal'));
@@ -2542,21 +2508,18 @@ function showCompanionRecordDetail(recordId) {
     showModal(modal);
 }
 
-
 function bindCompanionCalendarEvents() {
-    // ---- 标签页切换 ----
     const tabCalendar = document.getElementById('comp-records-tab-calendar');
     const tabStats = document.getElementById('comp-records-tab-stats');
     const panelCalendar = document.getElementById('comp-records-calendar-panel');
     const panelStats = document.getElementById('comp-records-stats-panel');
-    
+
     if (tabCalendar && tabStats && panelCalendar && panelStats) {
         tabCalendar.addEventListener('click', function() {
             tabCalendar.classList.add('active');
             tabStats.classList.remove('active');
             panelCalendar.style.display = 'block';
             panelStats.style.display = 'none';
-            // 重新渲染日历（确保数据最新）
             renderCompanionCalendar();
         });
         tabStats.addEventListener('click', function() {
@@ -2564,12 +2527,10 @@ function bindCompanionCalendarEvents() {
             tabCalendar.classList.remove('active');
             panelStats.style.display = 'block';
             panelCalendar.style.display = 'none';
-            // 渲染统计
             renderCompanionStats();
         });
     }
-    
-    // ---- 月份导航 ----
+
     const prevBtn = document.getElementById('comp-records-prev-month');
     const nextBtn = document.getElementById('comp-records-next-month');
     if (prevBtn) {
@@ -2577,7 +2538,6 @@ function bindCompanionCalendarEvents() {
             _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() - 1);
             updateCompanionDateSelectors();
             renderCompanionCalendar();
-            // 如果统计面板可见，也刷新统计
             if (panelStats && panelStats.style.display !== 'none') {
                 renderCompanionStats();
             }
@@ -2593,11 +2553,9 @@ function bindCompanionCalendarEvents() {
             }
         });
     }
-    
-    // ---- 年份/月份下拉框填充 ----
+
     populateCompanionYearMonthSelectors();
-    
-    // ---- 跳转按钮 ----
+
     const goBtn = document.getElementById('comp-records-go-to-date');
     if (goBtn) {
         goBtn.addEventListener('click', function() {
@@ -2615,8 +2573,7 @@ function bindCompanionCalendarEvents() {
             }
         });
     }
-    
-    // ---- 关闭按钮 ----
+
     const closeBtns = document.querySelectorAll('#close-companion-records, #close-companion-records-btn');
     closeBtns.forEach(btn => {
         if (btn) {
@@ -2626,14 +2583,12 @@ function bindCompanionCalendarEvents() {
         }
     });
 
-    // 关闭日详情模态框
     document.getElementById('close-companion-day-modal')?.addEventListener('click', function() {
         hideModal(document.getElementById('companion-day-modal'));
     });
     document.getElementById('close-companion-day-modal-btn')?.addEventListener('click', function() {
         hideModal(document.getElementById('companion-day-modal'));
     });
-    // 关闭记录详情模态框
     document.getElementById('close-companion-record-detail-modal')?.addEventListener('click', function() {
         hideModal(document.getElementById('companion-record-detail-modal'));
     });
