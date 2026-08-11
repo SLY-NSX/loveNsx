@@ -11312,3 +11312,21 @@ body.with-background .time-separator span {
     border: 1px solid var(--border-color);
 }
 
+/* ★ 系统中断记录 – 结束时间编辑样式 */
+#companion-record-detail-content [id^="endtime-display-"]:hover {
+    background: rgba(var(--accent-color-rgb), 0.08);
+    border-radius: 4px;
+    padding: 2px 4px;
+}
+#companion-record-detail-content [id^="endtime-edit-"] input[type="datetime-local"] {
+    font-family: var(--font-family);
+    border-color: var(--accent-color);
+}
+#companion-record-detail-content [id^="endtime-edit-"] button {
+    font-family: var(--font-family);
+}
+/* ★ 状态切换箭头悬停效果 */
+#companion-record-detail-content [id^="status-arrow-"]:hover {
+    transform: scale(1.3);
+    color: var(--accent-color-dark);
+}
