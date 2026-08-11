@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         welcomeScreen.classList.add('hidden');
         setTimeout(() => {
             welcomeScreen.style.display = 'none';
+            window.dispatchEvent(new CustomEvent('welcomeAnimationEnded'));
         }, 800);
     };
 
