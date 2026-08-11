@@ -1881,8 +1881,8 @@ function showInterruptReasonToast(record, onSave) {
     toast.id = 'companion-toast-temp';
     toast.innerHTML = `
         <div class="toast-box" style="background:var(--secondary-bg);border-radius:24px;padding:24px 22px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border-color);">
-            <div class="toast-title" style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--text-primary);">⏸️ 睡眠终止</div>
-            <div class="toast-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px;">
+            <div class="toast-title" style="font-size:22px;font-weight:700;margin-bottom:14px;color:var(--text-primary);letter-spacing:1px;">⏸️ 睡眠终止</div>
+            <div class="toast-body" style="font-size:14px;color:var(--text-secondary);line-height:1.8;margin-bottom:6px;text-align:left;padding-left:4px;">
                 <div>开始时间：${startFormatted}</div>
                 <div>结束时间：${endFormatted}</div>
                 <div>睡眠时长：${durationFormatted}</div>
@@ -1905,7 +1905,8 @@ function showInterruptReasonToast(record, onSave) {
 
     const doSave = (reason) => {
         const records = _getRecords();
-        const idx = records.findIndex(r => r.mode === 'interrupted');
+        // 使用开始时间 + mode 精确定位
+        const idx = records.findIndex(r => r.startTime === record.startTime && r.mode === 'interrupted');
         if (idx !== -1) {
             records[idx].terminateReason = reason || '';
             _saveRecords(records);
@@ -1937,8 +1938,8 @@ function showCompletionToast(record, onSave) {
     toast.id = 'companion-toast-temp';
     toast.innerHTML = `
         <div class="toast-box" style="background:var(--secondary-bg);border-radius:24px;padding:24px 22px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border-color);">
-            <div class="toast-title" style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--text-primary);">🌙 好梦</div>
-            <div class="toast-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px;">
+            <div class="toast-title" style="font-size:22px;font-weight:700;margin-bottom:14px;color:var(--text-primary);letter-spacing:1px;">🌙 好梦</div>
+            <div class="toast-body" style="font-size:14px;color:var(--text-secondary);line-height:1.8;margin-bottom:6px;text-align:left;padding-left:4px;">
                 <div>开始时间：${startFormatted}</div>
                 <div>结束时间：${endFormatted}</div>
                 <div>睡眠时长：${durationFormatted}</div>
@@ -1961,13 +1962,13 @@ function showCompletionToast(record, onSave) {
 
     const doSave = () => {
         const reflection = input.value.trim();
-        // 更新记录的感想字段
         let allRecords = [];
         try {
             const data = localStorage.getItem('companion_records');
             allRecords = data ? JSON.parse(data) : [];
         } catch (e) { allRecords = []; }
-        const idx = allRecords.findIndex(r => r.id === record.id || (r.startTime === record.startTime && r.mode === 'completed'));
+        // 用开始时间和模式定位记录
+        const idx = allRecords.findIndex(r => r.startTime === record.startTime && r.mode === 'completed');
         if (idx !== -1) {
             allRecords[idx].reflection = reflection;
             try {
@@ -1982,9 +1983,8 @@ function showCompletionToast(record, onSave) {
     saveBtn.addEventListener('click', doSave);
     cancelBtn.addEventListener('click', () => {
         document.body.removeChild(toast);
-        if (onSave) onSave(); // 取消也继续执行清理（但不保存感想）
+        if (onSave) onSave();
     });
-    // 点击背景关闭（可选）
     toast.addEventListener('click', (e) => {
         if (e.target === toast) {
             document.body.removeChild(toast);
