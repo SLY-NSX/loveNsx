@@ -2072,10 +2072,11 @@ function showInterruptReasonToast(record, onSave) {
         stopAlarm();
         bindCompanionCalendarEvents();
 
-        // ★ 延迟检查，等开屏动画结束（约4.5秒后）
-        setTimeout(() => {
+        // ★ 监听开屏动画结束事件
+        window.addEventListener('welcomeAnimationEnded', function onWelcomeEnded() {
+            window.removeEventListener('welcomeAnimationEnded', onWelcomeEnded); // 只执行一次
             checkAndRecoverOngoingRecord();
-        }, 4500);
+        });
     }
 
     // 页面卸载时清理
