@@ -1579,69 +1579,81 @@ function showModalWithConfirm(record) {
     // ============================================================
 function addFloatingControl() {
     let fc = document.getElementById('companion-floating-control');
-    if (!fc) {
-        fc = document.createElement('div');
-        fc.id = 'companion-floating-control';
-        fc.innerHTML = `
-            <span class="fc-title" id="fc-title">无音乐</span>
-            <div class="fc-volume-wrap">
-                <input type="range" min="0" max="150" value="20" class="fc-volume-slider" id="fc-volume-slider">
-                <span class="fc-volume-label" id="fc-volume-label">20%</span>
-            </div>
-            <button class="fc-btn" id="fc-play-btn"><i class="fas fa-play"></i></button>
-            <button class="fc-btn" id="fc-select-btn"><i class="fas fa-list"></i></button>
-        `;
-        const overlay = document.getElementById('companion-overlay');
-        if (overlay) overlay.appendChild(fc);
-        else document.body.appendChild(fc);
-
-        document.getElementById('fc-play-btn')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            toggleMusicPlay();
-        });
-
-        document.getElementById('fc-select-btn')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            showMusicSelectPopup();
-        });
-        const volSlider = document.getElementById('fc-volume-slider');
-        const volLabel = document.getElementById('fc-volume-label');
-        if (volSlider) {
-            volSlider.addEventListener('input', function() {
-                const val = parseInt(this.value);
-                session.volumePercent = val;
-                applyVolume();
-            });
+    
+    // 如果已存在，确保它显示在 body 中（不受 overlay 隐藏影响）
+    if (fc) {
+        // 如果父节点是 overlay，则移到 body
+        const parent = fc.parentNode;
+        if (parent && parent.id === 'companion-overlay') {
+            document.body.appendChild(fc);
         }
-
-        updateFloatingControlUI();
         fc.style.display = 'flex';
-
-        let idleTimer = null;
-
-        function resetIdleTimer() {
-            if (idleTimer) clearTimeout(idleTimer);
-            fc.classList.remove('dim');
-            idleTimer = setTimeout(() => {
-                fc.classList.add('dim');
-            }, 10000);
-        }
-
-        fc.addEventListener('mouseenter', resetIdleTimer);
-        fc.addEventListener('mouseleave', () => {
-            if (idleTimer) clearTimeout(idleTimer);
-            idleTimer = setTimeout(() => {
-                fc.classList.add('dim');
-            }, 10000);
-        });
-        fc.addEventListener('touchstart', resetIdleTimer);
-
-        fc.querySelectorAll('.fc-btn, .fc-volume-slider').forEach(el => {
-            el.addEventListener('pointerdown', resetIdleTimer);
-        });
-
-        resetIdleTimer();
+        return;
     }
+
+    // 创建新的悬浮窗
+    fc = document.createElement('div');
+    fc.id = 'companion-floating-control';
+    fc.innerHTML = `
+        <span class="fc-title" id="fc-title">无音乐</span>
+        <div class="fc-volume-wrap">
+            <input type="range" min="0" max="150" value="20" class="fc-volume-slider" id="fc-volume-slider">
+            <span class="fc-volume-label" id="fc-volume-label">20%</span>
+        </div>
+        <button class="fc-btn" id="fc-play-btn"><i class="fas fa-play"></i></button>
+        <button class="fc-btn" id="fc-select-btn"><i class="fas fa-list"></i></button>
+    `;
+    // 直接挂载到 body，避免被 overlay 隐藏
+    document.body.appendChild(fc);
+
+    // 事件绑定
+    document.getElementById('fc-play-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMusicPlay();
+    });
+
+    document.getElementById('fc-select-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showMusicSelectPopup();
+    });
+
+    const volSlider = document.getElementById('fc-volume-slider');
+    const volLabel = document.getElementById('fc-volume-label');
+    if (volSlider) {
+        volSlider.addEventListener('input', function() {
+            const val = parseInt(this.value);
+            session.volumePercent = val;
+            applyVolume();
+        });
+    }
+
+    updateFloatingControlUI();
+    fc.style.display = 'flex';
+
+    // 自动变暗功能
+    let idleTimer = null;
+    function resetIdleTimer() {
+        if (idleTimer) clearTimeout(idleTimer);
+        fc.classList.remove('dim');
+        idleTimer = setTimeout(() => {
+            fc.classList.add('dim');
+        }, 10000);
+    }
+
+    fc.addEventListener('mouseenter', resetIdleTimer);
+    fc.addEventListener('mouseleave', () => {
+        if (idleTimer) clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+            fc.classList.add('dim');
+        }, 10000);
+    });
+    fc.addEventListener('touchstart', resetIdleTimer);
+
+    fc.querySelectorAll('.fc-btn, .fc-volume-slider').forEach(el => {
+        el.addEventListener('pointerdown', resetIdleTimer);
+    });
+
+    resetIdleTimer();
 }
 
     function updateFloatingControlUI() {
