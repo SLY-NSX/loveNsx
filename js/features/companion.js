@@ -242,32 +242,18 @@ function checkAndRecoverOngoingRecord() {
         record.terminateReason = '';
         _saveRecords(records);
         console.log('[companion] 记录已保存为系统中断');
-
-        // ★ 弹窗询问
-        showModalWithConfirm(
-            '🌙 陪伴中断',
-            `开始于 ${formatDateTime(record.startTime)}，已中断。是否立即查看陪伴记录？`,
-            () => {
-                console.log('[companion] 用户选择查看记录');
-                if (typeof showCompanionRecords === 'function') {
-                    showCompanionRecords();
-                } else {
-                    showToast('已补录系统中断记录，请到陪伴记录中查看', 'info');
-                }
-            },
-            () => {
-                console.log('[companion] 用户关闭弹窗');
-                showToast('已补录系统中断记录', 'info');
-            }
-        );
+        showModalWithConfirm(record);
     } catch (e) {
         console.error('[companion] 恢复 ongoing 记录时出错:', e);
         showToast('检测到未完成的陪伴，但恢复失败，请手动检查存储', 'error');
     }
 }
 
-    // 自定义模态框（替代 confirm）
-function showModalWithConfirm(title, message, onConfirm, onCancel) {
+// 自定义模态框（系统中断专用）
+function showModalWithConfirm(record) {
+    if (!record) return;
+    const startTime = formatDateTime(record.startTime);
+
     const modal = document.createElement('div');
     modal.className = 'companion-toast open';
     modal.style.cssText = `
@@ -298,33 +284,23 @@ function showModalWithConfirm(title, message, onConfirm, onCancel) {
                 font-size: 18px; 
                 font-weight: 700; 
                 margin-bottom: 8px;
-            ">${title}</div>
+                color: var(--text-primary);
+            ">🌙 陪伴中断</div>
             <div class="toast-body" style="
                 font-size: 14px; 
                 color: var(--text-secondary, rgba(255,255,255,0.7)); 
                 line-height: 1.6; 
                 margin-bottom: 16px;
-            ">${message}</div>
+            ">开始于 ${startTime} 的陪伴意外中断，是否立即进行补录？</div>
             <div style="
                 display:flex;
                 gap:12px;
                 justify-content:center;
                 margin-top:12px;
-                flex-wrap:wrap;
             ">
-                <button class="toast-btn" id="modal-confirm-btn" style="
-                    padding:10px 28px;
-                    border-radius:30px;
-                    border:none;
-                    background:var(--accent-color,#7c5cbf);
-                    color:#fff;
-                    font-size:15px;
-                    font-weight:600;
-                    cursor:pointer;
-                    box-shadow:0 2px 8px rgba(var(--accent-color-rgb,124,92,191),0.3);
-                ">查看记录</button>
                 <button class="toast-btn" id="modal-cancel-btn" style="
-                    padding:10px 28px;
+                    flex:1;
+                    padding:10px 0;
                     border-radius:30px;
                     border:1px solid var(--border-color,rgba(255,255,255,0.2));
                     background:transparent;
@@ -333,19 +309,47 @@ function showModalWithConfirm(title, message, onConfirm, onCancel) {
                     font-weight:400;
                     cursor:pointer;
                     transition:background 0.2s;
-                ">关闭</button>
+                ">取消</button>
+                <button class="toast-btn" id="modal-confirm-btn" style="
+                    flex:1;
+                    padding:10px 0;
+                    border-radius:30px;
+                    border:none;
+                    background:var(--accent-color,#7c5cbf);
+                    color:#fff;
+                    font-size:15px;
+                    font-weight:600;
+                    cursor:pointer;
+                    box-shadow:0 2px 8px rgba(var(--accent-color-rgb,124,92,191),0.3);
+                ">补录</button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
 
-    modal.querySelector('#modal-confirm-btn').addEventListener('click', () => {
+    const confirmBtn = modal.querySelector('#modal-confirm-btn');
+    const cancelBtn = modal.querySelector('#modal-cancel-btn');
+
+    confirmBtn.addEventListener('click', () => {
         document.body.removeChild(modal);
-        if (onConfirm) onConfirm();
+        // 跳转到月历
+        if (typeof showCompanionRecords === 'function') {
+            showCompanionRecords();
+        } else {
+            showToast('已补录系统中断记录，请到陪伴记录中查看', 'info');
+        }
     });
-    modal.querySelector('#modal-cancel-btn').addEventListener('click', () => {
+
+    cancelBtn.addEventListener('click', () => {
         document.body.removeChild(modal);
-        if (onCancel) onCancel();
+        // 仅关闭，无额外操作
+    });
+
+    // 点击背景关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
     });
 }
 
@@ -1867,32 +1871,36 @@ function showModalWithConfirm(title, message, onConfirm, onCancel) {
         }
     }
 
-    // 显示中断原因Toast（重写以支持更新记录）
 function showInterruptReasonToast(record, onSave) {
+    const startFormatted = window.formatDateTime(record.startTime);
+    const endFormatted = window.formatDateTime(record.endTime);
+    const durationFormatted = window.formatDuration(record.duration);
+
     const toast = document.createElement('div');
     toast.className = 'companion-toast open';
     toast.id = 'companion-toast-temp';
     toast.innerHTML = `
-        <div class="toast-box">
-            <div class="toast-title">⏸️ 睡眠中断</div>
-            <div class="toast-body">
-                <div>开始时间：${formatTime(record.startTime)}</div>
-                <div>持续时间：${formatDuration(record.duration)}</div>
-                <div style="margin-top:12px;">
-                    <label style="font-size:13px;color:rgba(255,255,255,0.5);">终止原因（选填）</label>
-                    <input type="text" id="interrupt-reason-input" placeholder="例如：被电话吵醒..." maxlength="100">
-                </div>
+        <div class="toast-box" style="background:var(--secondary-bg);border-radius:24px;padding:24px 22px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border-color);">
+            <div class="toast-title" style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--text-primary);">⏸️ 睡眠终止</div>
+            <div class="toast-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px;">
+                <div>开始时间：${startFormatted}</div>
+                <div>结束时间：${endFormatted}</div>
+                <div>睡眠时长：${durationFormatted}</div>
             </div>
-            <button class="toast-btn" id="toast-confirm-btn">确认保存</button>
-            <div style="margin-top:8px;">
-                <button class="toast-btn" id="toast-skip-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.1);padding:6px 16px;font-size:13px;">不保存原因</button>
+            <div style="margin-top:14px;border-top:1px solid var(--border-color);padding-top:12px;text-align:left;">
+                <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">终止原因</label>
+                <textarea id="interrupt-reason-input" rows="2" placeholder="例如：被电话吵醒…" style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-family:var(--font-family);font-size:13px;resize:vertical;box-sizing:border-box;outline:none;">${record.interruptReason || ''}</textarea>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
+                <button class="toast-btn" id="toast-cancel-btn" style="flex:1;padding:10px 0;border-radius:30px;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer;transition:background 0.2s;">取消</button>
+                <button class="toast-btn" id="toast-save-btn" style="flex:1;padding:10px 0;border-radius:30px;border:none;background:var(--accent-color);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);">保存</button>
             </div>
         </div>
     `;
     document.body.appendChild(toast);
 
-    const confirmBtn = toast.querySelector('#toast-confirm-btn');
-    const skipBtn = toast.querySelector('#toast-skip-btn');
+    const saveBtn = toast.querySelector('#toast-save-btn');
+    const cancelBtn = toast.querySelector('#toast-cancel-btn');
     const input = toast.querySelector('#interrupt-reason-input');
 
     const doSave = (reason) => {
@@ -1906,40 +1914,84 @@ function showInterruptReasonToast(record, onSave) {
         if (onSave) onSave();
     };
 
-    confirmBtn.addEventListener('click', () => doSave(input.value.trim()));
-    skipBtn.addEventListener('click', () => doSave(''));
-}
-
-    // 显示完成Toast（原有）
-    function showCompletionToast(record, onSave) {
-        const toast = document.createElement('div');
-        toast.className = 'companion-toast open';
-        toast.id = 'companion-toast-temp';
-        toast.innerHTML = `
-            <div class="toast-box">
-                <div class="toast-title">🌙 好梦</div>
-                <div class="toast-body">
-                    <div>开始时间：${formatTime(record.startTime)}</div>
-                    <div>持续时间：${formatDuration(record.duration)}</div>
-                    <div>结束时间：${formatTime(record.endTime)}</div>
-                </div>
-                <button class="toast-btn" id="toast-confirm-btn">好的</button>
-            </div>
-        `;
-        document.body.appendChild(toast);
-
-        const confirmBtn = toast.querySelector('#toast-confirm-btn');
-        confirmBtn.addEventListener('click', () => {
+    saveBtn.addEventListener('click', () => doSave(input.value.trim()));
+    cancelBtn.addEventListener('click', () => {
+        document.body.removeChild(toast);
+        if (onSave) onSave();
+    });
+    toast.addEventListener('click', (e) => {
+        if (e.target === toast) {
             document.body.removeChild(toast);
             if (onSave) onSave();
-        });
-        toast.addEventListener('click', (e) => {
-            if (e.target === toast) {
-                document.body.removeChild(toast);
-                if (onSave) onSave();
-            }
-        });
-    }
+        }
+    });
+}
+
+function showCompletionToast(record, onSave) {
+    const startFormatted = window.formatDateTime(record.startTime);
+    const endFormatted = window.formatDateTime(record.endTime);
+    const durationFormatted = window.formatDuration(record.duration);
+
+    const toast = document.createElement('div');
+    toast.className = 'companion-toast open';
+    toast.id = 'companion-toast-temp';
+    toast.innerHTML = `
+        <div class="toast-box" style="background:var(--secondary-bg);border-radius:24px;padding:24px 22px 20px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.6);border:1px solid var(--border-color);">
+            <div class="toast-title" style="font-size:20px;font-weight:700;margin-bottom:12px;color:var(--text-primary);">🌙 好梦</div>
+            <div class="toast-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:6px;">
+                <div>开始时间：${startFormatted}</div>
+                <div>结束时间：${endFormatted}</div>
+                <div>睡眠时长：${durationFormatted}</div>
+            </div>
+            <div style="margin-top:14px;border-top:1px solid var(--border-color);padding-top:12px;text-align:left;">
+                <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px;">感想记录</label>
+                <textarea id="completion-reflection-input" rows="2" placeholder="记录此刻的感想…" style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border-color);background:var(--primary-bg);color:var(--text-primary);font-family:var(--font-family);font-size:13px;resize:vertical;box-sizing:border-box;outline:none;"></textarea>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
+                <button class="toast-btn" id="toast-cancel-btn" style="flex:1;padding:10px 0;border-radius:30px;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer;transition:background 0.2s;">取消</button>
+                <button class="toast-btn" id="toast-save-btn" style="flex:1;padding:10px 0;border-radius:30px;border:none;background:var(--accent-color);color:#fff;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);">保存</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(toast);
+
+    const saveBtn = toast.querySelector('#toast-save-btn');
+    const cancelBtn = toast.querySelector('#toast-cancel-btn');
+    const input = toast.querySelector('#completion-reflection-input');
+
+    const doSave = () => {
+        const reflection = input.value.trim();
+        // 更新记录的感想字段
+        let allRecords = [];
+        try {
+            const data = localStorage.getItem('companion_records');
+            allRecords = data ? JSON.parse(data) : [];
+        } catch (e) { allRecords = []; }
+        const idx = allRecords.findIndex(r => r.id === record.id || (r.startTime === record.startTime && r.mode === 'completed'));
+        if (idx !== -1) {
+            allRecords[idx].reflection = reflection;
+            try {
+                localStorage.setItem('companion_records', JSON.stringify(allRecords));
+                window._companionRecords = allRecords;
+            } catch (e) { console.warn('保存感想失败', e); }
+        }
+        document.body.removeChild(toast);
+        if (onSave) onSave();
+    };
+
+    saveBtn.addEventListener('click', doSave);
+    cancelBtn.addEventListener('click', () => {
+        document.body.removeChild(toast);
+        if (onSave) onSave(); // 取消也继续执行清理（但不保存感想）
+    });
+    // 点击背景关闭（可选）
+    toast.addEventListener('click', (e) => {
+        if (e.target === toast) {
+            document.body.removeChild(toast);
+            if (onSave) onSave();
+        }
+    });
+}
 
     // ============================================================
     // 遗言机制（保留作为备选，但主要靠实时记录）
