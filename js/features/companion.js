@@ -154,28 +154,34 @@ window.__isCompanionActive = function() {
     }
 
     // 创建一条进行中的记录
-    function createOngoingRecord() {
-        const now = new Date();
-        const record = {
-            id: 'comp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-            date: now.toISOString().split('T')[0],
-            startTime: now.toISOString(),
-            endTime: null,
-            duration: 0,
-            mode: 'ongoing',          // 标记为进行中
-            soundType: session.musicTitle || '无音乐',
-            status: '进行中',
-            interruptReason: '',
-            isSystemInterrupt: false,
-            reflection: '',      // 新增：感想记录
-            terminateReason: ''  // 新增：终止原因
-        };
-        const records = _getRecords();
-        records.push(record);
-        _saveRecords(records);
-        activeRecordId = record.id;
-        return record.id;
-    }
+function createOngoingRecord() {
+    const now = new Date();
+    // 使用本地日期（年-月-日），避免时区偏移
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const localDate = year + '-' + month + '-' + day;
+
+    const record = {
+        id: 'comp_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        date: localDate,
+        startTime: now.toISOString(),
+        endTime: null,
+        duration: 0,
+        mode: 'ongoing',
+        soundType: session.musicTitle || '无音乐',
+        status: '进行中',
+        interruptReason: '',
+        isSystemInterrupt: false,
+        reflection: '',
+        terminateReason: ''
+    };
+    const records = _getRecords();
+    records.push(record);
+    _saveRecords(records);
+    activeRecordId = record.id;
+    return record.id;
+}
 
     // 更新进行中记录的时长
     function updateOngoingRecord() {
@@ -1571,72 +1577,72 @@ function showModalWithConfirm(record) {
     // ============================================================
     // 悬浮音乐控制
     // ============================================================
-    function addFloatingControl() {
-        let fc = document.getElementById('companion-floating-control');
-        if (!fc) {
-            fc = document.createElement('div');
-            fc.id = 'companion-floating-control';
-            fc.innerHTML = `
-                <span class="fc-title" id="fc-title">无音乐</span>
-                <div class="fc-volume-wrap">
-                    <input type="range" min="0" max="150" value="20" class="fc-volume-slider" id="fc-volume-slider">
-                    <span class="fc-volume-label" id="fc-volume-label">20%</span>
-                </div>
-                <button class="fc-btn" id="fc-play-btn"><i class="fas fa-play"></i></button>
-                <button class="fc-btn" id="fc-select-btn"><i class="fas fa-list"></i></button>
-            `;
-            const overlay = document.getElementById('companion-overlay');
-            if (overlay) overlay.appendChild(fc);
-            else document.body.appendChild(fc);
+function addFloatingControl() {
+    let fc = document.getElementById('companion-floating-control');
+    if (!fc) {
+        fc = document.createElement('div');
+        fc.id = 'companion-floating-control';
+        fc.innerHTML = `
+            <span class="fc-title" id="fc-title">无音乐</span>
+            <div class="fc-volume-wrap">
+                <input type="range" min="0" max="150" value="20" class="fc-volume-slider" id="fc-volume-slider">
+                <span class="fc-volume-label" id="fc-volume-label">20%</span>
+            </div>
+            <button class="fc-btn" id="fc-play-btn"><i class="fas fa-play"></i></button>
+            <button class="fc-btn" id="fc-select-btn"><i class="fas fa-list"></i></button>
+        `;
+        const overlay = document.getElementById('companion-overlay');
+        if (overlay) overlay.appendChild(fc);
+        else document.body.appendChild(fc);
 
-            document.getElementById('fc-play-btn')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                toggleMusicPlay();
+        document.getElementById('fc-play-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMusicPlay();
+        });
+
+        document.getElementById('fc-select-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            showMusicSelectPopup();
+        });
+        const volSlider = document.getElementById('fc-volume-slider');
+        const volLabel = document.getElementById('fc-volume-label');
+        if (volSlider) {
+            volSlider.addEventListener('input', function() {
+                const val = parseInt(this.value);
+                session.volumePercent = val;
+                applyVolume();
             });
-
-            document.getElementById('fc-select-btn')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                showMusicSelectPopup();
-            });
-            const volSlider = document.getElementById('fc-volume-slider');
-            const volLabel = document.getElementById('fc-volume-label');
-            if (volSlider) {
-                volSlider.addEventListener('input', function() {
-                    const val = parseInt(this.value);
-                    session.volumePercent = val;
-                    applyVolume();
-                });
-            }
-
-            updateFloatingControlUI();
-            fc.style.display = 'flex';
-
-            let idleTimer = null;
-
-            function resetIdleTimer() {
-                if (idleTimer) clearTimeout(idleTimer);
-                fc.classList.remove('dim');
-                idleTimer = setTimeout(() => {
-                    fc.classList.add('dim');
-                }, 10000);
-            }
-
-            fc.addEventListener('mouseenter', resetIdleTimer);
-            fc.addEventListener('mouseleave', () => {
-                if (idleTimer) clearTimeout(idleTimer);
-                idleTimer = setTimeout(() => {
-                    fc.classList.add('dim');
-                }, 10000);
-            });
-            fc.addEventListener('touchstart', resetIdleTimer);
-
-            fc.querySelectorAll('.fc-btn, .fc-volume-slider').forEach(el => {
-                el.addEventListener('pointerdown', resetIdleTimer);
-            });
-
-            resetIdleTimer();
         }
+
+        updateFloatingControlUI();
+        fc.style.display = 'flex';
+
+        let idleTimer = null;
+
+        function resetIdleTimer() {
+            if (idleTimer) clearTimeout(idleTimer);
+            fc.classList.remove('dim');
+            idleTimer = setTimeout(() => {
+                fc.classList.add('dim');
+            }, 10000);
+        }
+
+        fc.addEventListener('mouseenter', resetIdleTimer);
+        fc.addEventListener('mouseleave', () => {
+            if (idleTimer) clearTimeout(idleTimer);
+            idleTimer = setTimeout(() => {
+                fc.classList.add('dim');
+            }, 10000);
+        });
+        fc.addEventListener('touchstart', resetIdleTimer);
+
+        fc.querySelectorAll('.fc-btn, .fc-volume-slider').forEach(el => {
+            el.addEventListener('pointerdown', resetIdleTimer);
+        });
+
+        resetIdleTimer();
     }
+}
 
     function updateFloatingControlUI() {
         const fc = document.getElementById('companion-floating-control');
@@ -2138,15 +2144,12 @@ function initCompanionFeature() {
     loadMusicList();
     stopMusic();
     stopAlarm();
-    // ★ 防止未定义错误
-    try {
-        if (typeof bindCompanionCalendarEvents === 'function') {
-            bindCompanionCalendarEvents();
-        } else {
-            console.warn('[companion] bindCompanionCalendarEvents 未定义，跳过绑定');
-        }
-    } catch(e) {
-        console.warn('[companion] 绑定日历事件失败:', e);
+
+    // ★ 调用全局的 bindCompanionCalendarEvents（已在自执行函数外定义）
+    if (typeof bindCompanionCalendarEvents === 'function') {
+        bindCompanionCalendarEvents();
+    } else {
+        console.warn('[companion] bindCompanionCalendarEvents 未定义，跳过绑定');
     }
 
     // ★ 监听开屏动画结束事件
@@ -2193,6 +2196,125 @@ function initCompanionFeature() {
 
     console.log('[companion] 模块加载完成（实时记录版）');
 })();
+
+// ============================================================
+// 陪伴记录 - 日历事件绑定（全局）
+// ============================================================
+function bindCompanionCalendarEvents() {
+    // ---- 标签页切换 ----
+    const tabCalendar = document.getElementById('comp-records-tab-calendar');
+    const tabStats = document.getElementById('comp-records-tab-stats');
+    const panelCalendar = document.getElementById('comp-records-calendar-panel');
+    const panelStats = document.getElementById('comp-records-stats-panel');
+
+    if (tabCalendar && tabStats && panelCalendar && panelStats) {
+        tabCalendar.addEventListener('click', function() {
+            tabCalendar.classList.add('active');
+            tabStats.classList.remove('active');
+            panelCalendar.style.display = 'block';
+            panelStats.style.display = 'none';
+            renderCompanionCalendar();
+        });
+        tabStats.addEventListener('click', function() {
+            tabStats.classList.add('active');
+            tabCalendar.classList.remove('active');
+            panelStats.style.display = 'block';
+            panelCalendar.style.display = 'none';
+            renderCompanionStats();
+        });
+    }
+
+    // ---- 月份导航 ----
+    const prevBtn = document.getElementById('comp-records-prev-month');
+    const nextBtn = document.getElementById('comp-records-next-month');
+    if (prevBtn) {
+        prevBtn.addEventListener('click', function() {
+            _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() - 1);
+            updateCompanionDateSelectors();
+            renderCompanionCalendar();
+            const panelStats = document.getElementById('comp-records-stats-panel');
+            if (panelStats && panelStats.style.display !== 'none') {
+                renderCompanionStats();
+            }
+        });
+    }
+    if (nextBtn) {
+        nextBtn.addEventListener('click', function() {
+            _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() + 1);
+            updateCompanionDateSelectors();
+            renderCompanionCalendar();
+            const panelStats = document.getElementById('comp-records-stats-panel');
+            if (panelStats && panelStats.style.display !== 'none') {
+                renderCompanionStats();
+            }
+        });
+    }
+
+    // ---- 年份/月份下拉框填充 ----
+    populateCompanionYearMonthSelectors();
+
+    // ---- 跳转按钮 ----
+    const goBtn = document.getElementById('comp-records-go-to-date');
+    if (goBtn) {
+        goBtn.addEventListener('click', function() {
+            const yearSelect = document.getElementById('comp-records-year-select');
+            const monthSelect = document.getElementById('comp-records-month-select');
+            if (yearSelect && monthSelect) {
+                const year = parseInt(yearSelect.value);
+                const month = parseInt(monthSelect.value);
+                _compRecordsCurrentDate = new Date(year, month, 1);
+                updateCompanionDateSelectors();
+                renderCompanionCalendar();
+                const panelStats = document.getElementById('comp-records-stats-panel');
+                if (panelStats && panelStats.style.display !== 'none') {
+                    renderCompanionStats();
+                }
+            }
+        });
+    }
+
+    // ---- 关闭按钮（只保留右上角） ----
+    const closeTop = document.getElementById('close-companion-records');
+    if (closeTop) {
+        closeTop.replaceWith(closeTop.cloneNode(true));
+        const newCloseTop = document.getElementById('close-companion-records');
+        if (newCloseTop) {
+            newCloseTop.addEventListener('click', function() {
+                hideModal(document.getElementById('companion-records-modal'));
+            });
+        }
+    }
+    const closeBottom = document.getElementById('close-companion-records-btn');
+    if (closeBottom) closeBottom.style.display = 'none';
+
+    // 日详情右上角关闭
+    const closeDayTop = document.getElementById('close-companion-day-modal');
+    if (closeDayTop) {
+        closeDayTop.replaceWith(closeDayTop.cloneNode(true));
+        const newCloseDayTop = document.getElementById('close-companion-day-modal');
+        if (newCloseDayTop) {
+            newCloseDayTop.addEventListener('click', function() {
+                hideModal(document.getElementById('companion-day-modal'));
+            });
+        }
+    }
+    const closeDayBottom = document.getElementById('close-companion-day-modal-btn');
+    if (closeDayBottom) closeDayBottom.style.display = 'none';
+
+    // 记录详情右上角关闭（已在 showCompanionRecordDetail 中处理，但保留兜底）
+    const closeDetailTop = document.getElementById('close-companion-record-detail-modal');
+    if (closeDetailTop) {
+        closeDetailTop.replaceWith(closeDetailTop.cloneNode(true));
+        const newCloseDetailTop = document.getElementById('close-companion-record-detail-modal');
+        if (newCloseDetailTop) {
+            newCloseDetailTop.addEventListener('click', function() {
+                hideModal(document.getElementById('companion-record-detail-modal'));
+            });
+        }
+    }
+    const closeDetailBottom = document.getElementById('close-companion-record-detail-modal-btn');
+    if (closeDetailBottom) closeDetailBottom.style.display = 'none';
+}
 
 // ============================================================
 // 陪伴记录 - 统计视图（全局）
