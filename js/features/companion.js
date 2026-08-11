@@ -266,12 +266,58 @@ function showModalWithConfirm(title, message, onConfirm, onCancel) {
         animation: companionToastIn 0.3s ease;
     `;
     modal.innerHTML = `
-        <div class="toast-box">
-            <div class="toast-title">${title}</div>
-            <div class="toast-body">${message}</div>
-            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;flex-wrap:wrap;">
-                <button class="toast-btn" id="modal-confirm-btn" style="padding:10px 28px;border-radius:30px;border:none;background:var(--accent-color,#7c5cbf);color:#fff;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(var(--accent-color-rgb,124,92,191),0.3);">查看记录</button>
-                <button class="toast-btn" id="modal-cancel-btn" style="padding:10px 28px;border-radius:30px;border:1px solid var(--border-color,rgba(255,255,255,0.2));background:transparent;color:var(--text-secondary,rgba(255,255,255,0.7));font-size:15px;font-weight:400;cursor:pointer;transition:background 0.2s;">关闭</button>
+        <div class="toast-box" style="
+            background: var(--secondary-bg, #1e1e2e);
+            max-width: 320px;
+            width: 85%;
+            margin: 0 auto;
+            border-radius: 24px;
+            padding: 28px 22px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+            border: 1px solid var(--border-color, rgba(255,255,255,0.08));
+            color: var(--text-primary, #fff);
+            text-align: center;
+        ">
+            <div class="toast-title" style="
+                font-size: 18px; 
+                font-weight: 700; 
+                margin-bottom: 8px;
+            ">${title}</div>
+            <div class="toast-body" style="
+                font-size: 14px; 
+                color: var(--text-secondary, rgba(255,255,255,0.7)); 
+                line-height: 1.6; 
+                margin-bottom: 16px;
+            ">${message}</div>
+            <div style="
+                display:flex;
+                gap:12px;
+                justify-content:center;
+                margin-top:12px;
+                flex-wrap:wrap;
+            ">
+                <button class="toast-btn" id="modal-confirm-btn" style="
+                    padding:10px 28px;
+                    border-radius:30px;
+                    border:none;
+                    background:var(--accent-color,#7c5cbf);
+                    color:#fff;
+                    font-size:15px;
+                    font-weight:600;
+                    cursor:pointer;
+                    box-shadow:0 2px 8px rgba(var(--accent-color-rgb,124,92,191),0.3);
+                ">查看记录</button>
+                <button class="toast-btn" id="modal-cancel-btn" style="
+                    padding:10px 28px;
+                    border-radius:30px;
+                    border:1px solid var(--border-color,rgba(255,255,255,0.2));
+                    background:transparent;
+                    color:var(--text-secondary,rgba(255,255,255,0.7));
+                    font-size:15px;
+                    font-weight:400;
+                    cursor:pointer;
+                    transition:background 0.2s;
+                ">关闭</button>
             </div>
         </div>
     `;
