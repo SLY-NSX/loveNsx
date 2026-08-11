@@ -104,6 +104,19 @@ window.__isCompanionActive = function() {
         return `${s}秒`;
     }
 
+// 格式化时间为 "某月某日 几时几分"
+function formatDateTime(isoStr) {
+    if (!isoStr) return '--:--';
+    try {
+        const d = new Date(isoStr);
+        const month = d.getMonth() + 1;
+        const day = d.getDate();
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+        return month + '月' + day + '日 ' + hours + ':' + minutes;
+    } catch { return isoStr; }
+}
+
     function getMusicBoost(url) {
         if (url && (url.includes('bonfire') || url.includes('bonfire.mp3'))) {
             return 3.0;
@@ -1922,6 +1935,7 @@ function updateVolumeUI() {
     window.showToast = showToast;
     window.formatTime = formatTime;
     window.formatDuration = formatDuration;
+    window.formatDateTime = formatDateTime;
 
     console.log('[companion] 模块加载完成（完整修复版）');
 })();
@@ -2339,7 +2353,7 @@ function showCompanionDayDetail(dateStr) {
                         <i class="fas fa-chevron-right" style="color:var(--text-secondary);opacity:0.5;"></i>
                     </div>
                     <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-                        开始：${window.formatTime(rec.startTime)} · 时长：${window.formatDuration(rec.duration)}
+                        开始：${window.formatDateTime(rec.startTime)} · 时长：${window.formatDuration(rec.duration)}
                     </div>
                 </div>
             `;
@@ -2382,8 +2396,9 @@ function showCompanionRecordDetail(recordId) {
     
     const modeText = record.mode === 'completed' ? '完成' : 
                      record.mode === 'interrupted' ? '中断' : '系统中断';
-    const startTimeFormatted = window.formatTime(record.startTime);
-    const endTimeFormatted = window.formatTime(record.endTime);
+    // ★★★ 先计算好变量 ★★★
+    const startTimeFormatted = window.formatDateTime(record.startTime);
+    const endTimeFormatted = window.formatDateTime(record.endTime);
     const durationFormatted = window.formatDuration(record.duration);
     
     contentEl.innerHTML = `
@@ -2411,24 +2426,17 @@ function showCompanionRecordDetail(recordId) {
     // 绑定删除按钮
     const deleteBtn = document.getElementById('delete-companion-record-btn');
     if (deleteBtn) {
-        // 移除旧监听，避免重复绑定
         deleteBtn.onclick = function() {
             if (confirm('确定要删除这条陪伴记录吗？此操作不可恢复！')) {
-                // 删除记录
                 const index = window._companionRecords.findIndex(r => r.id === recordId);
                 if (index > -1) {
                     window._companionRecords.splice(index, 1);
-                    // 保存到 localStorage
                     try {
                         localStorage.setItem('companion_records', JSON.stringify(window._companionRecords));
                     } catch (e) {}
-                    // 关闭模态框
                     hideModal(modal);
-                    // 关闭日详情（如果打开）
                     hideModal(document.getElementById('companion-day-modal'));
-                    // 刷新月历
                     renderCompanionCalendar();
-                    // 如果统计面板打开，刷新统计
                     const panelStats = document.getElementById('comp-records-stats-panel');
                     if (panelStats && panelStats.style.display !== 'none') {
                         renderCompanionStats();
