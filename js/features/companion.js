@@ -2072,8 +2072,10 @@ function showInterruptReasonToast(record, onSave) {
         stopAlarm();
         bindCompanionCalendarEvents();
 
-        // ★ 检查是否有未完成的进行中记录（页面加载时）
-        checkAndRecoverOngoingRecord();
+        // ★ 延迟检查，等开屏动画结束（约4.5秒后）
+        setTimeout(() => {
+            checkAndRecoverOngoingRecord();
+        }, 4500);
     }
 
     // 页面卸载时清理
