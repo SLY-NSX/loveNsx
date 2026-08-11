@@ -2078,29 +2078,38 @@ function showInterruptReasonToast(record, onSave) {
     // ============================================================
     // 初始化
     // ============================================================
-    function initCompanionFeature() {
-        console.log('[companion] 陪伴功能已加载（实时记录版）');
-        window.showCompanionPicker = showCompanionPicker;
-        window.openCompanion = showCompanionPicker;
+function initCompanionFeature() {
+    console.log('[companion] 陪伴功能已加载（实时记录版）');
+    window.showCompanionPicker = showCompanionPicker;
+    window.openCompanion = showCompanionPicker;
 
-        loadMusicList();
-        stopMusic();
-        stopAlarm();
-        bindCompanionCalendarEvents();
-
-        // ★ 监听开屏动画结束事件（只触发一次）
-        window.addEventListener('welcomeAnimationEnded', function onWelcomeEnded() {
-            console.log('[companion] 收到开屏动画结束事件');
-            window.removeEventListener('welcomeAnimationEnded', onWelcomeEnded);
-            checkAndRecoverOngoingRecord();
-        });
-
-        // ★ 备用：如果事件未触发，5秒后也检查一次（安全兜底）
-        setTimeout(function() {
-            console.log('[companion] 5秒兜底检查 ongoing 记录');
-            checkAndRecoverOngoingRecord();
-        }, 5000);
+    loadMusicList();
+    stopMusic();
+    stopAlarm();
+    // ★ 防止未定义错误
+    try {
+        if (typeof bindCompanionCalendarEvents === 'function') {
+            bindCompanionCalendarEvents();
+        } else {
+            console.warn('[companion] bindCompanionCalendarEvents 未定义，跳过绑定');
+        }
+    } catch(e) {
+        console.warn('[companion] 绑定日历事件失败:', e);
     }
+
+    // ★ 监听开屏动画结束事件
+    window.addEventListener('welcomeAnimationEnded', function onWelcomeEnded() {
+        console.log('[companion] 收到开屏动画结束事件');
+        window.removeEventListener('welcomeAnimationEnded', onWelcomeEnded);
+        checkAndRecoverOngoingRecord();
+    });
+
+    // ★ 备用：如果事件未触发，5秒后也检查一次
+    setTimeout(function() {
+        console.log('[companion] 5秒兜底检查 ongoing 记录');
+        checkAndRecoverOngoingRecord();
+    }, 5000);
+}
 
     // 页面卸载时清理
     window.addEventListener('beforeunload', function () {
