@@ -167,6 +167,8 @@ window.__isCompanionActive = function() {
             status: '进行中',
             interruptReason: '',
             isSystemInterrupt: false,
+            reflection: '',      // 新增：感想记录
+            terminateReason: ''  // 新增：终止原因
         };
         const records = _getRecords();
         records.push(record);
@@ -227,7 +229,7 @@ window.__isCompanionActive = function() {
         record.endTime = now.toISOString();
         record.mode = 'system_interrupt';
         record.status = '系统中断';
-        record.interruptReason = '页面意外退出';
+        record.interruptReason = '';  
         record.isSystemInterrupt = true;
         _saveRecords(records);
 
@@ -249,30 +251,30 @@ window.__isCompanionActive = function() {
     }
 
     // 自定义模态框（替代 confirm）
-    function showModalWithConfirm(title, message, onConfirm, onCancel) {
-        const modal = document.createElement('div');
-        modal.className = 'companion-toast open';
-        modal.innerHTML = `
-            <div class="toast-box">
-                <div class="toast-title">${title}</div>
-                <div class="toast-body">${message}</div>
-                <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
-                    <button class="toast-btn" id="modal-confirm-btn">查看记录</button>
-                    <button class="toast-btn secondary" id="modal-cancel-btn">关闭</button>
-                </div>
+function showModalWithConfirm(title, message, onConfirm, onCancel) {
+    const modal = document.createElement('div');
+    modal.className = 'companion-toast open';
+    modal.innerHTML = `
+        <div class="toast-box">
+            <div class="toast-title">${title}</div>
+            <div class="toast-body">${message}</div>
+            <div style="display:flex;gap:12px;justify-content:center;margin-top:16px;">
+                <button class="toast-btn" id="modal-confirm-btn" style="padding:10px 28px;border-radius:30px;border:none;background:var(--accent-color,#7c5cbf);color:#fff;font-size:15px;font-weight:600;cursor:pointer;">查看记录</button>
+                <button class="toast-btn" id="modal-cancel-btn" style="padding:10px 28px;border-radius:30px;border:1px solid rgba(255,255,255,0.1);background:transparent;color:rgba(255,255,255,0.7);font-size:15px;font-weight:400;cursor:pointer;">关闭</button>
             </div>
-        `;
-        document.body.appendChild(modal);
+        </div>
+    `;
+    document.body.appendChild(modal);
 
-        modal.querySelector('#modal-confirm-btn').addEventListener('click', () => {
-            document.body.removeChild(modal);
-            if (onConfirm) onConfirm();
-        });
-        modal.querySelector('#modal-cancel-btn').addEventListener('click', () => {
-            document.body.removeChild(modal);
-            if (onCancel) onCancel();
-        });
-    }
+    modal.querySelector('#modal-confirm-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        if (onConfirm) onConfirm();
+    });
+    modal.querySelector('#modal-cancel-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        if (onCancel) onCancel();
+    });
+}
 
     // ============================================================
     // 音乐列表存储（自动修复 id）
@@ -1793,48 +1795,47 @@ window.__isCompanionActive = function() {
     }
 
     // 显示中断原因Toast（重写以支持更新记录）
-    function showInterruptReasonToast(record, onSave) {
-        const toast = document.createElement('div');
-        toast.className = 'companion-toast open';
-        toast.id = 'companion-toast-temp';
-        toast.innerHTML = `
-            <div class="toast-box">
-                <div class="toast-title">⏸️ 睡眠中断</div>
-                <div class="toast-body">
-                    <div>开始时间：${formatTime(record.startTime)}</div>
-                    <div>持续时间：${formatDuration(record.duration)}</div>
-                    <div style="margin-top:12px;">
-                        <label style="font-size:13px;color:rgba(255,255,255,0.5);">中断原因（选填）</label>
-                        <input type="text" id="interrupt-reason-input" placeholder="例如：被电话吵醒..." maxlength="100">
-                    </div>
-                </div>
-                <button class="toast-btn" id="toast-confirm-btn">确认保存</button>
-                <div style="margin-top:8px;">
-                    <button class="toast-btn" id="toast-skip-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.1);padding:6px 16px;font-size:13px;">不保存原因</button>
+function showInterruptReasonToast(record, onSave) {
+    const toast = document.createElement('div');
+    toast.className = 'companion-toast open';
+    toast.id = 'companion-toast-temp';
+    toast.innerHTML = `
+        <div class="toast-box">
+            <div class="toast-title">⏸️ 睡眠中断</div>
+            <div class="toast-body">
+                <div>开始时间：${formatTime(record.startTime)}</div>
+                <div>持续时间：${formatDuration(record.duration)}</div>
+                <div style="margin-top:12px;">
+                    <label style="font-size:13px;color:rgba(255,255,255,0.5);">终止原因（选填）</label>
+                    <input type="text" id="interrupt-reason-input" placeholder="例如：被电话吵醒..." maxlength="100">
                 </div>
             </div>
-        `;
-        document.body.appendChild(toast);
+            <button class="toast-btn" id="toast-confirm-btn">确认保存</button>
+            <div style="margin-top:8px;">
+                <button class="toast-btn" id="toast-skip-btn" style="background:transparent;border:1px solid rgba(255,255,255,0.1);padding:6px 16px;font-size:13px;">不保存原因</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(toast);
 
-        const confirmBtn = toast.querySelector('#toast-confirm-btn');
-        const skipBtn = toast.querySelector('#toast-skip-btn');
-        const input = toast.querySelector('#interrupt-reason-input');
+    const confirmBtn = toast.querySelector('#toast-confirm-btn');
+    const skipBtn = toast.querySelector('#toast-skip-btn');
+    const input = toast.querySelector('#interrupt-reason-input');
 
-        const doSave = (reason) => {
-            // 更新已有的记录（找到最近的一条 interrupted 记录）
-            const records = _getRecords();
-            const idx = records.findIndex(r => r.mode === 'interrupted');
-            if (idx !== -1) {
-                records[idx].interruptReason = reason || '';
-                _saveRecords(records);
-            }
-            document.body.removeChild(toast);
-            if (onSave) onSave();
-        };
+    const doSave = (reason) => {
+        const records = _getRecords();
+        const idx = records.findIndex(r => r.mode === 'interrupted');
+        if (idx !== -1) {
+            records[idx].terminateReason = reason || '';
+            _saveRecords(records);
+        }
+        document.body.removeChild(toast);
+        if (onSave) onSave();
+    };
 
-        confirmBtn.addEventListener('click', () => doSave(input.value.trim()));
-        skipBtn.addEventListener('click', () => doSave(''));
-    }
+    confirmBtn.addEventListener('click', () => doSave(input.value.trim()));
+    skipBtn.addEventListener('click', () => doSave(''));
+}
 
     // 显示完成Toast（原有）
     function showCompletionToast(record, onSave) {
@@ -2407,8 +2408,8 @@ function showCompanionDayDetail(dateStr) {
         let html = '';
         dayRecords.forEach((rec, index) => {
             const recordNum = index + 1;
-            const statusText = rec.mode === 'completed' ? '✓ 完成' :
-                               rec.mode === 'interrupted' ? '⏸ 中断' : '⚠ 系统中断';
+            const statusText = rec.mode === 'completed' ? '✓ 顺利完成' :
+                   rec.mode === 'interrupted' ? '⏸ 选择终止' : '⚠ 系统中断';
             html += `
                 <div class="companion-record-entry" data-id="${rec.id}" style="padding:12px 16px;margin-bottom:8px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:background 0.2s;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -2453,11 +2454,20 @@ function showCompanionRecordDetail(recordId) {
     const contentEl = document.getElementById('companion-record-detail-content');
     if (!contentEl) return;
 
-    const modeText = record.mode === 'completed' ? '完成' :
-                     record.mode === 'interrupted' ? '中断' : '系统中断';
+    const modeText = record.mode === 'completed' ? '顺利完成' :
+                     record.mode === 'interrupted' ? '选择终止' : '系统中断';
     const startTimeFormatted = window.formatDateTime(record.startTime);
     const endTimeFormatted = window.formatDateTime(record.endTime);
     const durationFormatted = window.formatDuration(record.duration);
+
+    let extraHTML = '';
+    if (record.mode === 'completed' && record.reflection) {
+        extraHTML += `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">感想记录</span><span>${record.reflection}</span></div>`;
+    } else if (record.mode === 'interrupted' && record.terminateReason) {
+        extraHTML += `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">终止原因</span><span>${record.terminateReason}</span></div>`;
+    } else if (record.mode === 'system_interrupt' && record.reflection) {
+        extraHTML += `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">感想记录</span><span>${record.reflection}</span></div>`;
+    }
 
     contentEl.innerHTML = `
         <div style="background:var(--secondary-bg);padding:16px;border-radius:12px;border:1px solid var(--border-color);">
@@ -2477,7 +2487,7 @@ function showCompanionRecordDetail(recordId) {
                 <span style="font-weight:600;color:var(--text-primary);">睡眠时长</span>
                 <span>${durationFormatted}</span>
             </div>
-            ${record.interruptReason ? `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">中断原因</span><span>${record.interruptReason}</span></div>` : ''}
+            ${extraHTML}
         </div>
     `;
 
