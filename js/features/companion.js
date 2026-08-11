@@ -2507,7 +2507,7 @@ function showCompanionRecordDetail(recordId) {
         showToast('详情模块未加载', 'error');
         return;
     }
-    // 设置标题
+    // 标题
     const titleEl = document.getElementById('companion-record-detail-title');
     if (titleEl) {
         const dateStr = record.date;
@@ -2518,42 +2518,133 @@ function showCompanionRecordDetail(recordId) {
     const contentEl = document.getElementById('companion-record-detail-content');
     if (!contentEl) return;
 
-    // ★ 确定字段信息
-    let fieldLabel = '';
-    let fieldValue = '';
-    let fieldKey = '';
+    // ★ 判断记录类型及字段
+    const isSystemInterrupt = (record.mode === 'system_interrupt');
+    const isCompleted = (record.mode === 'completed');
+    const isInterrupted = (record.mode === 'interrupted');
+    
+    // 状态显示文字
+    let modeText = isCompleted ? '顺利完成' :
+                   isInterrupted ? '选择终止' : '系统中断';
 
-    if (record.mode === 'completed') {
+    // ★ 确定可编辑字段（感想或终止原因）
+    let fieldLabel = '';
+    let fieldKey = '';
+    let fieldValue = '';
+    if (isCompleted) {
         fieldLabel = '感想记录';
         fieldKey = 'reflection';
         fieldValue = record.reflection || '';
-    } else if (record.mode === 'interrupted') {
+    } else if (isInterrupted) {
         fieldLabel = '终止原因';
         fieldKey = 'terminateReason';
         fieldValue = record.terminateReason || '';
-    } else if (record.mode === 'system_interrupt') {
+    } else if (isSystemInterrupt) {
+        // ★ 系统中断的感想字段默认显示“暂无记录”，允许编辑
         fieldLabel = '感想记录';
         fieldKey = 'reflection';
         fieldValue = record.reflection || '';
-    } else {
-        fieldLabel = '记录详情';
-        fieldKey = '';
-        fieldValue = '';
     }
 
-    const modeText = record.mode === 'completed' ? '顺利完成' :
-                     record.mode === 'interrupted' ? '选择终止' : '系统中断';
+    // ★ 开始/结束时间显示
     const startTimeFormatted = window.formatDateTime(record.startTime);
-    const endTimeFormatted = window.formatDateTime(record.endTime);
-    const durationFormatted = window.formatDuration(record.duration);
+    let endTimeDisplay = window.formatDateTime(record.endTime);
+    // 若 endTime 为空（理论上不会），显示当前时间
+    if (!record.endTime) {
+        endTimeDisplay = '--:--';
+    }
 
-    // ★ 构建内容：显示区（点击可编辑） + 隐藏的编辑区
+    // ★ 是否允许编辑结束时间（仅系统中断且未被改为已完成）
+    const allowEditEndTime = isSystemInterrupt && !record._convertedToCompleted; // 用一个标记防止切换后仍可编辑
+    // 但更好的做法是：一旦 mode 不是 system_interrupt，就不允许编辑时间
+    const canEditEndTime = (record.mode === 'system_interrupt'); // 只有系统中断可编辑
+
+    // ★ 构建 HTML
     let extraHTML = '';
+
+    // ---- 结束时间行（系统中断时显示可编辑） ----
+    let endTimeHTML = '';
+    if (canEditEndTime) {
+        // 显示当前结束时间，并附上编辑按钮
+        const endTimeDisplayId = 'endtime-display-' + recordId;
+        const endTimeEditId = 'endtime-edit-' + recordId;
+        const endTimeConfirmId = 'endtime-confirm-' + recordId;
+        // 初始显示值（从记录中取）
+        const currentEndTime = record.endTime || new Date().toISOString();
+        const localValue = currentEndTime.substring(0, 16); // datetime-local 格式
+
+        endTimeHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">结束时间</span>
+                <span id="${endTimeDisplayId}" style="cursor:pointer;color:var(--accent-color);text-decoration:underline dotted;" 
+                      onclick="document.getElementById('${endTimeEditId}').style.display='inline-flex'; this.style.display='none';">
+                    ${endTimeDisplay}
+                </span>
+                <span id="${endTimeEditId}" style="display:none;align-items:center;gap:6px;">
+                    <input type="datetime-local" id="${endTimeEditId}-input" value="${localValue}" 
+                           style="padding:4px 6px;border:1px solid var(--border-color);border-radius:6px;background:var(--primary-bg);color:var(--text-primary);font-size:13px;">
+                    <button id="${endTimeConfirmId}" style="padding:4px 10px;border:none;border-radius:6px;background:var(--accent-color);color:#fff;cursor:pointer;font-size:12px;">✓</button>
+                    <button onclick="document.getElementById('${endTimeEditId}').style.display='none';document.getElementById('${endTimeDisplayId}').style.display='inline';" 
+                            style="padding:4px 8px;border:none;border-radius:6px;background:var(--border-color);color:var(--text-secondary);cursor:pointer;font-size:12px;">✕</button>
+                </span>
+            </div>
+        `;
+        // 在下方添加时长行（动态更新）
+        extraHTML += endTimeHTML;
+    } else {
+        // 非系统中断，只显示结束时间
+        extraHTML += `
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">结束时间</span>
+                <span>${endTimeDisplay}</span>
+            </div>
+        `;
+    }
+
+    // ---- 状态行（系统中断时显示切换箭头） ----
+    let statusHTML = '';
+    if (canEditEndTime) {
+        // 显示状态 + 小箭头
+        const arrowId = 'status-arrow-' + recordId;
+        statusHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">状态</span>
+                <span style="display:flex;align-items:center;gap:6px;">
+                    <span>${modeText}</span>
+                    <span id="${arrowId}" style="cursor:pointer;color:var(--accent-color);font-size:14px;transition:transform 0.2s;" 
+                          title="切换为「顺利完成」" onclick="confirmConvertToCompleted('${recordId}')">→</span>
+                </span>
+            </div>
+        `;
+    } else {
+        // 正常显示状态
+        statusHTML = `
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">状态</span>
+                <span>${modeText}</span>
+            </div>
+        `;
+    }
+    extraHTML = statusHTML + extraHTML;
+
+    // ---- 时长行（显示动态计算） ----
+    // 时长将通过 JS 在渲染时计算并更新
+    let durationDisplay = window.formatDuration(record.duration);
+    const durationId = 'duration-display-' + recordId;
+    extraHTML += `
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-weight:600;color:var(--text-primary);">睡眠时长</span>
+            <span id="${durationId}">${durationDisplay}</span>
+        </div>
+    `;
+
+    // ---- 感想/终止原因字段（可编辑，与之前相同） ----
+    let fieldHTML = '';
     if (fieldKey) {
         const displayId = 'field-display-' + recordId;
         const editId = 'field-edit-' + recordId;
         const displayText = fieldValue || '暂无记录';
-        extraHTML = `
+        fieldHTML = `
             <div style="margin-top:14px; border-top: 1px solid var(--border-color); padding-top:12px;">
                 <div style="font-weight:600; color:var(--text-primary); margin-bottom:6px;">${fieldLabel}</div>
                 <div id="${displayId}" style="font-size:13px; color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer; background:var(--primary-bg); min-height:24px; transition:background 0.15s;" 
@@ -2565,38 +2656,76 @@ function showCompanionRecordDetail(recordId) {
             </div>
         `;
     }
+    extraHTML += fieldHTML;
 
-    // ★ 主内容
+    // ---- 填充主内容 ----
     contentEl.innerHTML = `
         <div style="background:var(--secondary-bg);padding:16px;border-radius:12px;border:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                <span style="font-weight:600;color:var(--text-primary);">状态</span>
-                <span>${modeText}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
                 <span style="font-weight:600;color:var(--text-primary);">开始时间</span>
                 <span>${startTimeFormatted}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                <span style="font-weight:600;color:var(--text-primary);">结束时间</span>
-                <span>${endTimeFormatted}</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                <span style="font-weight:600;color:var(--text-primary);">睡眠时长</span>
-                <span>${durationFormatted}</span>
             </div>
             ${extraHTML}
         </div>
     `;
 
-    // ★ 底部按钮：删除左、保存右，无关闭按钮
+    // ★ 为系统中断记录绑定结束时间更新事件（在 DOM 渲染后）
+    if (canEditEndTime) {
+        const confirmBtn = document.getElementById('endtime-confirm-' + recordId);
+        if (confirmBtn) {
+            confirmBtn.onclick = function() {
+                const input = document.getElementById('endtime-edit-' + recordId + '-input');
+                if (!input) return;
+                const newEndTime = input.value;
+                if (!newEndTime) {
+                    showToast('请选择有效时间', 'warning');
+                    return;
+                }
+                // 转换为 ISO 字符串
+                const endDate = new Date(newEndTime);
+                if (isNaN(endDate.getTime())) {
+                    showToast('时间格式无效', 'error');
+                    return;
+                }
+                const endISO = endDate.toISOString();
+                // 从 localStorage 读取完整记录
+                let allRecords = [];
+                try {
+                    const data = localStorage.getItem('companion_records');
+                    allRecords = data ? JSON.parse(data) : [];
+                } catch (e) { allRecords = []; }
+                const idx = allRecords.findIndex(r => r.id === recordId);
+                if (idx === -1) {
+                    showToast('记录不存在', 'error');
+                    return;
+                }
+                // 更新结束时间和时长
+                const startDate = new Date(allRecords[idx].startTime);
+                const newDuration = Math.max(0, endDate - startDate);
+                allRecords[idx].endTime = endISO;
+                allRecords[idx].duration = newDuration;
+                // 写回存储
+                try {
+                    localStorage.setItem('companion_records', JSON.stringify(allRecords));
+                    window._companionRecords = allRecords;
+                } catch (e) {
+                    showToast('保存失败', 'error');
+                    return;
+                }
+                showToast('结束时间已更新', 'success');
+                // 刷新详情
+                showCompanionRecordDetail(recordId);
+            };
+        }
+    }
+
+    // ★ 底部按钮：删除左，保存右（仅当有可编辑字段且非系统中断或已被转换）
     const footer = modal.querySelector('.modal-buttons');
     if (!footer) return;
 
-    // 清空原有按钮
     footer.innerHTML = '';
 
-    // 1. 删除按钮（左）
+    // 删除按钮（左）
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'modal-btn modal-btn-danger';
     deleteBtn.textContent = '删除记录';
@@ -2629,18 +2758,19 @@ function showCompanionRecordDetail(recordId) {
     };
     footer.appendChild(deleteBtn);
 
-    // 2. 保存按钮（右）— 仅当有可编辑字段时显示
+    // 保存按钮（右）— 仅当有可编辑字段（感想/终止原因）且当前记录不是系统中断（系统中断的感想也保存，但时间修改已用独立按钮）
+    // 但是系统中断的感想也应该保存，所以这里保留保存按钮用于感想编辑
     if (fieldKey) {
         const saveBtn = document.createElement('button');
         saveBtn.className = 'modal-btn modal-btn-primary';
         saveBtn.textContent = '保存';
-        saveBtn.style.marginLeft = 'auto';  // 推到右侧
+        saveBtn.style.marginLeft = 'auto';
         saveBtn.onclick = function() {
             const editId = 'field-edit-' + recordId;
             const textarea = document.getElementById(editId);
             if (textarea) {
                 const newValue = textarea.value.trim();
-                // ★ 从 localStorage 读取完整记录列表
+                // 从 localStorage 读取完整记录
                 let allRecords = [];
                 try {
                     const data = localStorage.getItem('companion_records');
@@ -2649,7 +2779,6 @@ function showCompanionRecordDetail(recordId) {
                 const idx = allRecords.findIndex(r => r.id === recordId);
                 if (idx !== -1) {
                     allRecords[idx][fieldKey] = newValue;
-                    // 写回 localStorage
                     try {
                         localStorage.setItem('companion_records', JSON.stringify(allRecords));
                         window._companionRecords = allRecords;
@@ -2658,7 +2787,6 @@ function showCompanionRecordDetail(recordId) {
                         return;
                     }
                     showToast('已保存 ✓', 'success');
-                    // ★ 重新渲染详情（退出编辑状态，显示最新内容）
                     showCompanionRecordDetail(recordId);
                 } else {
                     showToast('记录不存在，无法保存', 'error');
@@ -2668,98 +2796,50 @@ function showCompanionRecordDetail(recordId) {
         footer.appendChild(saveBtn);
     }
 
-    // 3. 不添加关闭按钮，右上角已有关闭按钮
-    // 但确保右上角的关闭按钮（id="close-companion-record-detail-modal"）已正确绑定关闭事件（已在 HTML 中绑定）
+    // ★ 处理右上角关闭按钮（不保存，直接关闭）
+    // 已经由 HTML 中的 id="close-companion-record-detail-modal" 绑定，无需额外处理
 
     // 显示模态框
     showModal(modal);
 }
 
-function bindCompanionCalendarEvents() {
-    const tabCalendar = document.getElementById('comp-records-tab-calendar');
-    const tabStats = document.getElementById('comp-records-tab-stats');
-    const panelCalendar = document.getElementById('comp-records-calendar-panel');
-    const panelStats = document.getElementById('comp-records-stats-panel');
-
-    if (tabCalendar && tabStats && panelCalendar && panelStats) {
-        tabCalendar.addEventListener('click', function() {
-            tabCalendar.classList.add('active');
-            tabStats.classList.remove('active');
-            panelCalendar.style.display = 'block';
-            panelStats.style.display = 'none';
-            renderCompanionCalendar();
-        });
-        tabStats.addEventListener('click', function() {
-            tabStats.classList.add('active');
-            tabCalendar.classList.remove('active');
-            panelStats.style.display = 'block';
-            panelCalendar.style.display = 'none';
-            renderCompanionStats();
-        });
+// ★ 辅助函数：系统中断转为顺利完成
+window.confirmConvertToCompleted = function(recordId) {
+    if (!confirm('确定要将该记录状态改为「顺利完成」吗？\n更改后将无法再编辑结束时间。')) {
+        return;
     }
-
-    const prevBtn = document.getElementById('comp-records-prev-month');
-    const nextBtn = document.getElementById('comp-records-next-month');
-    if (prevBtn) {
-        prevBtn.addEventListener('click', function() {
-            _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() - 1);
-            updateCompanionDateSelectors();
-            renderCompanionCalendar();
-            if (panelStats && panelStats.style.display !== 'none') {
-                renderCompanionStats();
-            }
-        });
+    // 从 localStorage 读取完整记录
+    let allRecords = [];
+    try {
+        const data = localStorage.getItem('companion_records');
+        allRecords = data ? JSON.parse(data) : [];
+    } catch (e) { allRecords = []; }
+    const idx = allRecords.findIndex(r => r.id === recordId);
+    if (idx === -1) {
+        showToast('记录不存在', 'error');
+        return;
     }
-    if (nextBtn) {
-        nextBtn.addEventListener('click', function() {
-            _compRecordsCurrentDate.setMonth(_compRecordsCurrentDate.getMonth() + 1);
-            updateCompanionDateSelectors();
-            renderCompanionCalendar();
-            if (panelStats && panelStats.style.display !== 'none') {
-                renderCompanionStats();
-            }
-        });
+    const record = allRecords[idx];
+    if (record.mode !== 'system_interrupt') {
+        showToast('该记录不是系统中断状态，无法转换', 'warning');
+        return;
     }
-
-    populateCompanionYearMonthSelectors();
-
-    const goBtn = document.getElementById('comp-records-go-to-date');
-    if (goBtn) {
-        goBtn.addEventListener('click', function() {
-            const yearSelect = document.getElementById('comp-records-year-select');
-            const monthSelect = document.getElementById('comp-records-month-select');
-            if (yearSelect && monthSelect) {
-                const year = parseInt(yearSelect.value);
-                const month = parseInt(monthSelect.value);
-                _compRecordsCurrentDate = new Date(year, month, 1);
-                updateCompanionDateSelectors();
-                renderCompanionCalendar();
-                if (panelStats && panelStats.style.display !== 'none') {
-                    renderCompanionStats();
-                }
-            }
-        });
+    // 修改 mode 和 status
+    record.mode = 'completed';
+    record.status = '完成陪伴';
+    // 清除系统中断标志
+    record.isSystemInterrupt = false;
+    // 将 interruptReason 清空（可选）
+    record.interruptReason = '';
+    // 保存
+    try {
+        localStorage.setItem('companion_records', JSON.stringify(allRecords));
+        window._companionRecords = allRecords;
+    } catch (e) {
+        showToast('保存失败', 'error');
+        return;
     }
-
-    const closeBtns = document.querySelectorAll('#close-companion-records, #close-companion-records-btn');
-    closeBtns.forEach(btn => {
-        if (btn) {
-            btn.addEventListener('click', function() {
-                hideModal(document.getElementById('companion-records-modal'));
-            });
-        }
-    });
-
-    document.getElementById('close-companion-day-modal')?.addEventListener('click', function() {
-        hideModal(document.getElementById('companion-day-modal'));
-    });
-    document.getElementById('close-companion-day-modal-btn')?.addEventListener('click', function() {
-        hideModal(document.getElementById('companion-day-modal'));
-    });
-    document.getElementById('close-companion-record-detail-modal')?.addEventListener('click', function() {
-        hideModal(document.getElementById('companion-record-detail-modal'));
-    });
-    document.getElementById('close-companion-record-detail-modal-btn')?.addEventListener('click', function() {
-        hideModal(document.getElementById('companion-record-detail-modal'));
-    });
-}
+    showToast('已切换为「顺利完成」', 'success');
+    // 刷新详情
+    showCompanionRecordDetail(recordId);
+};
