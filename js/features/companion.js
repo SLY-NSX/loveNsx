@@ -2518,7 +2518,7 @@ function showCompanionRecordDetail(recordId) {
     const contentEl = document.getElementById('companion-record-detail-content');
     if (!contentEl) return;
 
-    // ★ 定义当前字段名和值
+    // ★ 确定字段信息
     let fieldLabel = '';
     let fieldValue = '';
     let fieldKey = '';
@@ -2547,7 +2547,7 @@ function showCompanionRecordDetail(recordId) {
     const endTimeFormatted = window.formatDateTime(record.endTime);
     const durationFormatted = window.formatDuration(record.duration);
 
-    // ★ 构建内容：显示字段标题、显示区（点击可编辑）、隐藏的编辑区
+    // ★ 构建内容：显示区（点击可编辑） + 隐藏的编辑区
     let extraHTML = '';
     if (fieldKey) {
         const displayId = 'field-display-' + recordId;
@@ -2566,8 +2566,7 @@ function showCompanionRecordDetail(recordId) {
         `;
     }
 
-    // ★ 底部按钮：改为“保存”和“删除”（右上角“关闭”按钮已存在）
-    // 注意：我们将按钮放在 modal-buttons 中，并增加保存按钮
+    // ★ 主内容
     contentEl.innerHTML = `
         <div style="background:var(--secondary-bg);padding:16px;border-radius:12px;border:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
@@ -2590,43 +2589,14 @@ function showCompanionRecordDetail(recordId) {
         </div>
     `;
 
-    // ★ 处理保存逻辑
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'modal-btn modal-btn-primary';
-    saveBtn.textContent = '保存';
-    saveBtn.style.marginRight = 'auto';
-    saveBtn.onclick = function() {
-        // 如果存在可编辑字段，读取 textarea 的值并更新记录
-        if (fieldKey) {
-            const editId = 'field-edit-' + recordId;
-            const textarea = document.getElementById(editId);
-            if (textarea) {
-                const newValue = textarea.value.trim();
-                // 更新记录
-                const allRecords = _getRecords();
-                const idx = allRecords.findIndex(r => r.id === recordId);
-                if (idx !== -1) {
-                    allRecords[idx][fieldKey] = newValue;
-                    _saveRecords(allRecords);
-                    // 刷新显示
-                    showToast('已保存 ✓', 'success');
-                    // 重新打开详情（刷新界面）
-                    hideModal(modal);
-                    setTimeout(() => {
-                        showCompanionRecordDetail(recordId);
-                    }, 200);
-                } else {
-                    showToast('记录不存在，无法保存', 'error');
-                }
-            }
-        } else {
-            showToast('无可编辑字段', 'info');
-        }
-    };
+    // ★ 底部按钮：删除左、保存右，无关闭按钮
+    const footer = modal.querySelector('.modal-buttons');
+    if (!footer) return;
 
-    // ★ 处理删除按钮（已有删除功能，但需要保留）
-    // 我们保留原有的删除按钮逻辑，但为了避免重复，找到已有删除按钮并重新绑定
-    // 由于 contentEl 被重写，之前的删除按钮事件丢失，我们重新创建删除按钮
+    // 清空原有按钮
+    footer.innerHTML = '';
+
+    // 1. 删除按钮（左）
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'modal-btn modal-btn-danger';
     deleteBtn.textContent = '删除记录';
@@ -2657,27 +2627,49 @@ function showCompanionRecordDetail(recordId) {
             }
         }
     };
+    footer.appendChild(deleteBtn);
 
-    // ★ 将保存和删除按钮插入到 modal-buttons 中（保留已有的关闭按钮）
-    const footer = modal.querySelector('.modal-buttons');
-    if (footer) {
-        // 清空原有按钮，重新添加
-        footer.innerHTML = '';
-        // 添加保存按钮（有字段时才显示）
-        if (fieldKey) {
-            footer.appendChild(saveBtn);
-        }
-        // 添加删除按钮
-        footer.appendChild(deleteBtn);
-        // 添加关闭按钮（右上已有，但这里也可以放一个）
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'modal-btn modal-btn-secondary';
-        closeBtn.textContent = '关闭';
-        closeBtn.onclick = function() {
-            hideModal(modal);
+    // 2. 保存按钮（右）— 仅当有可编辑字段时显示
+    if (fieldKey) {
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'modal-btn modal-btn-primary';
+        saveBtn.textContent = '保存';
+        saveBtn.style.marginLeft = 'auto';  // 推到右侧
+        saveBtn.onclick = function() {
+            const editId = 'field-edit-' + recordId;
+            const textarea = document.getElementById(editId);
+            if (textarea) {
+                const newValue = textarea.value.trim();
+                // ★ 从 localStorage 读取完整记录列表
+                let allRecords = [];
+                try {
+                    const data = localStorage.getItem('companion_records');
+                    allRecords = data ? JSON.parse(data) : [];
+                } catch (e) { allRecords = []; }
+                const idx = allRecords.findIndex(r => r.id === recordId);
+                if (idx !== -1) {
+                    allRecords[idx][fieldKey] = newValue;
+                    // 写回 localStorage
+                    try {
+                        localStorage.setItem('companion_records', JSON.stringify(allRecords));
+                        window._companionRecords = allRecords;
+                    } catch (e) {
+                        showToast('保存失败，请检查存储空间', 'error');
+                        return;
+                    }
+                    showToast('已保存 ✓', 'success');
+                    // ★ 重新渲染详情（退出编辑状态，显示最新内容）
+                    showCompanionRecordDetail(recordId);
+                } else {
+                    showToast('记录不存在，无法保存', 'error');
+                }
+            }
         };
-        footer.appendChild(closeBtn);
+        footer.appendChild(saveBtn);
     }
+
+    // 3. 不添加关闭按钮，右上角已有关闭按钮
+    // 但确保右上角的关闭按钮（id="close-companion-record-detail-modal"）已正确绑定关闭事件（已在 HTML 中绑定）
 
     // 显示模态框
     showModal(modal);
