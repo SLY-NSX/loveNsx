@@ -1837,34 +1837,25 @@ function saveRecordAndCleanup(record) {
     window.restoreCompanionAccident = function (accidentData) {
         if (!accidentData) return;
 
-        let durationMs = 0;
-        let startTime = null;
-        let endTime = new Date();
-
-        if (accidentData.state === STATE.SLEEPING && accidentData.startTime) {
-            startTime = new Date(accidentData.startTime);
-            const lastAlive = accidentData.lastAliveTime || accidentData.startTime;
-            durationMs = Math.max(0, lastAlive - accidentData.startTime);
-        } else if (accidentData.state === STATE.COUNTDOWN || accidentData.state === STATE.READY_TO_START) {
+        // 只有状态为 SLEEPING 且已有 startTime 才生成记录
+        if (accidentData.state !== 'sleeping' || !accidentData.startTime) {
             clearAccident();
             resetSession();
             showToast('陪伴尚未正式开始，不生成记录', 'info');
             return;
         }
 
-        const elapsedMinutes = durationMs / (60 * 1000);
-        if (elapsedMinutes < MIN_VALID_MINUTES) {
-            clearAccident();
-            resetSession();
-            showToast(`陪伴时长不足${MIN_VALID_MINUTES}分钟，不生成记录`, 'info');
-            return;
-        }
+        // 计算时长
+        const startTime = new Date(accidentData.startTime);
+        const lastAlive = accidentData.lastAliveTime ? new Date(accidentData.lastAliveTime) : new Date();
+        const durationMs = Math.max(0, lastAlive - startTime);
 
+        // ★★★ 步骤1：立即生成并保存记录（不依赖用户确认） ★★★
         const record = {
             id: 'comp_sys_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-            date: startTime ? startTime.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            startTime: startTime ? startTime.toISOString() : new Date().toISOString(),
-            endTime: endTime.toISOString(),
+            date: startTime.toISOString().split('T')[0],
+            startTime: startTime.toISOString(),
+            endTime: lastAlive.toISOString(),
             duration: durationMs,
             mode: 'system_interrupt',
             soundType: accidentData.musicTitle || '未知',
@@ -1874,19 +1865,48 @@ function saveRecordAndCleanup(record) {
         };
 
         try {
-            if (typeof window.saveCompanionRecord === 'function') {
-                window.saveCompanionRecord(record);
-            } else {
-                const key = 'companion_records';
-                let records = JSON.parse(localStorage.getItem(key) || '[]');
-                records.push(record);
-                localStorage.setItem(key, JSON.stringify(records));
-            }
-            showToast('检测到未完成的陪伴，已自动补录系统中断记录', 'warning');
+            // 直接保存到 localStorage
+            const key = 'companion_records';
+            let records = [];
+            try {
+                const existingData = localStorage.getItem(key);
+                if (existingData) {
+                    records = JSON.parse(existingData);
+                }
+            } catch (e) {}
+            if (!Array.isArray(records)) records = [];
+            records.push(record);
+            records.sort(function (a, b) {
+                const dateA = a.startTime || a.date || '';
+                const dateB = b.startTime || b.date || '';
+                return dateB.localeCompare(dateA);
+            });
+            localStorage.setItem(key, JSON.stringify(records));
+            // 更新内存
+            window._companionRecords = records;
+            console.log('[companion] 系统中断记录已自动保存');
         } catch (e) {
             console.error('[companion] 补录失败:', e);
+            clearAccident();
+            resetSession();
+            return;
         }
 
+        // ★★★ 步骤2：弹出确认框（仅用于引导用户查看） ★★★
+        const userConfirmed = confirm('检测到未完成的陪伴，已自动补录系统中断记录。\n是否立即查看陪伴记录？');
+
+        if (userConfirmed) {
+            // 用户选择查看 → 打开陪伴记录月历
+            if (typeof showCompanionRecords === 'function') {
+                showCompanionRecords();
+            } else {
+                showToast('已补录系统中断记录，请到陪伴记录中查看', 'info');
+            }
+        } else {
+            showToast('已补录系统中断记录', 'info');
+        }
+
+        // ★★★ 步骤3：无论用户选什么，清除遗言 ★★★
         clearAccident();
         resetSession();
         currentUI = 'idle';
@@ -1942,9 +1962,26 @@ function saveRecordAndCleanup(record) {
     }
 
     // 页面卸载时清理
+    // 页面卸载时清理（修改版）
     window.addEventListener('beforeunload', function () {
-        if (session.state === STATE.SLEEPING || session.state === STATE.COUNTDOWN || session.state === STATE.READY_TO_START) {
-            backupAccident();
+        // ★★★ 无条件保存遗言（和通话一样） ★★★
+        // 只要当前不是空闲状态，就保存遗言
+        if (session.state !== STATE.IDLE && session.state !== STATE.ENDED) {
+            try {
+                const data = {
+                    state: session.state,
+                    musicTitle: session.musicTitle,
+                    musicUrl: session.musicUrl,
+                    selectedMusicId: session.selectedMusicId,
+                    startTime: session.startTime,
+                    lastAliveTime: session.lastAliveTime || Date.now(),
+                    elapsed: session.elapsed || 0,
+                    countdownRemain: session.countdownRemain || 0,
+                    countdownMinutes: session.countdownMinutes || 5,
+                    timestamp: Date.now(),
+                };
+                localStorage.setItem(ACCIDENT_KEY, JSON.stringify(data));
+            } catch (e) {}
         }
         stopMusic();
         stopAlarm();
