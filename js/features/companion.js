@@ -231,6 +231,8 @@ window.__isCompanionActive = function() {
         record.status = '系统中断';
         record.interruptReason = '';  
         record.isSystemInterrupt = true;
+        record.reflection = '';
+        record.terminateReason = '';
         _saveRecords(records);
 
         // 弹窗询问是否查看记录
@@ -2505,14 +2507,39 @@ function showCompanionRecordDetail(recordId) {
         showToast('详情模块未加载', 'error');
         return;
     }
+    // 设置标题
     const titleEl = document.getElementById('companion-record-detail-title');
     if (titleEl) {
         const dateStr = record.date;
         const parts = dateStr.split('-');
         titleEl.textContent = parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
     }
+
     const contentEl = document.getElementById('companion-record-detail-content');
     if (!contentEl) return;
+
+    // ★ 定义当前字段名和值
+    let fieldLabel = '';
+    let fieldValue = '';
+    let fieldKey = '';
+
+    if (record.mode === 'completed') {
+        fieldLabel = '感想记录';
+        fieldKey = 'reflection';
+        fieldValue = record.reflection || '';
+    } else if (record.mode === 'interrupted') {
+        fieldLabel = '终止原因';
+        fieldKey = 'terminateReason';
+        fieldValue = record.terminateReason || '';
+    } else if (record.mode === 'system_interrupt') {
+        fieldLabel = '感想记录';
+        fieldKey = 'reflection';
+        fieldValue = record.reflection || '';
+    } else {
+        fieldLabel = '记录详情';
+        fieldKey = '';
+        fieldValue = '';
+    }
 
     const modeText = record.mode === 'completed' ? '顺利完成' :
                      record.mode === 'interrupted' ? '选择终止' : '系统中断';
@@ -2520,15 +2547,27 @@ function showCompanionRecordDetail(recordId) {
     const endTimeFormatted = window.formatDateTime(record.endTime);
     const durationFormatted = window.formatDuration(record.duration);
 
+    // ★ 构建内容：显示字段标题、显示区（点击可编辑）、隐藏的编辑区
     let extraHTML = '';
-    if (record.mode === 'completed' && record.reflection) {
-        extraHTML += `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">感想记录</span><span>${record.reflection}</span></div>`;
-    } else if (record.mode === 'interrupted' && record.terminateReason) {
-        extraHTML += `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">终止原因</span><span>${record.terminateReason}</span></div>`;
-    } else if (record.mode === 'system_interrupt' && record.reflection) {
-        extraHTML += `<div style="display:flex;justify-content:space-between;margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;"><span style="font-weight:600;color:var(--text-primary);">感想记录</span><span>${record.reflection}</span></div>`;
+    if (fieldKey) {
+        const displayId = 'field-display-' + recordId;
+        const editId = 'field-edit-' + recordId;
+        const displayText = fieldValue || '暂无记录';
+        extraHTML = `
+            <div style="margin-top:14px; border-top: 1px solid var(--border-color); padding-top:12px;">
+                <div style="font-weight:600; color:var(--text-primary); margin-bottom:6px;">${fieldLabel}</div>
+                <div id="${displayId}" style="font-size:13px; color:var(--text-secondary); padding:6px 8px; border-radius:6px; cursor:pointer; background:var(--primary-bg); min-height:24px; transition:background 0.15s;" 
+                     onclick="document.getElementById('${editId}').style.display='block'; this.style.display='none'; document.getElementById('${editId}').focus();">
+                    ${displayText}
+                </div>
+                <textarea id="${editId}" style="display:none; width:100%; padding:8px 10px; border-radius:8px; border:1px solid var(--accent-color); background:var(--primary-bg); color:var(--text-primary); font-family:var(--font-family); font-size:13px; resize:vertical; min-height:60px; box-sizing:border-box; margin-top:4px;" 
+                          rows="3" placeholder="点击输入…">${fieldValue}</textarea>
+            </div>
+        `;
     }
 
+    // ★ 底部按钮：改为“保存”和“删除”（右上角“关闭”按钮已存在）
+    // 注意：我们将按钮放在 modal-buttons 中，并增加保存按钮
     contentEl.innerHTML = `
         <div style="background:var(--secondary-bg);padding:16px;border-radius:12px;border:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
@@ -2551,30 +2590,96 @@ function showCompanionRecordDetail(recordId) {
         </div>
     `;
 
-    const deleteBtn = document.getElementById('delete-companion-record-btn');
-    if (deleteBtn) {
-        deleteBtn.onclick = function() {
-            if (confirm('确定要删除这条陪伴记录吗？此操作不可恢复！')) {
-                const allRecords = window._companionRecords || [];
-                const index = allRecords.findIndex(r => r.id === recordId);
-                if (index > -1) {
-                    allRecords.splice(index, 1);
-                    try {
-                        localStorage.setItem('companion_records', JSON.stringify(allRecords));
-                        window._companionRecords = allRecords;
-                    } catch (e) {}
+    // ★ 处理保存逻辑
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'modal-btn modal-btn-primary';
+    saveBtn.textContent = '保存';
+    saveBtn.style.marginRight = 'auto';
+    saveBtn.onclick = function() {
+        // 如果存在可编辑字段，读取 textarea 的值并更新记录
+        if (fieldKey) {
+            const editId = 'field-edit-' + recordId;
+            const textarea = document.getElementById(editId);
+            if (textarea) {
+                const newValue = textarea.value.trim();
+                // 更新记录
+                const allRecords = _getRecords();
+                const idx = allRecords.findIndex(r => r.id === recordId);
+                if (idx !== -1) {
+                    allRecords[idx][fieldKey] = newValue;
+                    _saveRecords(allRecords);
+                    // 刷新显示
+                    showToast('已保存 ✓', 'success');
+                    // 重新打开详情（刷新界面）
                     hideModal(modal);
-                    hideModal(document.getElementById('companion-day-modal'));
-                    renderCompanionCalendar();
-                    const panelStats = document.getElementById('comp-records-stats-panel');
-                    if (panelStats && panelStats.style.display !== 'none') {
-                        renderCompanionStats();
-                    }
-                    showToast('记录已删除', 'success');
+                    setTimeout(() => {
+                        showCompanionRecordDetail(recordId);
+                    }, 200);
+                } else {
+                    showToast('记录不存在，无法保存', 'error');
                 }
             }
+        } else {
+            showToast('无可编辑字段', 'info');
+        }
+    };
+
+    // ★ 处理删除按钮（已有删除功能，但需要保留）
+    // 我们保留原有的删除按钮逻辑，但为了避免重复，找到已有删除按钮并重新绑定
+    // 由于 contentEl 被重写，之前的删除按钮事件丢失，我们重新创建删除按钮
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'modal-btn modal-btn-danger';
+    deleteBtn.textContent = '删除记录';
+    deleteBtn.style.background = '#e74c3c';
+    deleteBtn.style.color = '#fff';
+    deleteBtn.style.border = 'none';
+    deleteBtn.style.padding = '8px 16px';
+    deleteBtn.style.borderRadius = '6px';
+    deleteBtn.style.cursor = 'pointer';
+    deleteBtn.onclick = function() {
+        if (confirm('确定要删除这条陪伴记录吗？此操作不可恢复！')) {
+            const allRecords = window._companionRecords || [];
+            const index = allRecords.findIndex(r => r.id === recordId);
+            if (index > -1) {
+                allRecords.splice(index, 1);
+                try {
+                    localStorage.setItem('companion_records', JSON.stringify(allRecords));
+                    window._companionRecords = allRecords;
+                } catch (e) {}
+                hideModal(modal);
+                hideModal(document.getElementById('companion-day-modal'));
+                renderCompanionCalendar();
+                const panelStats = document.getElementById('comp-records-stats-panel');
+                if (panelStats && panelStats.style.display !== 'none') {
+                    renderCompanionStats();
+                }
+                showToast('记录已删除', 'success');
+            }
+        }
+    };
+
+    // ★ 将保存和删除按钮插入到 modal-buttons 中（保留已有的关闭按钮）
+    const footer = modal.querySelector('.modal-buttons');
+    if (footer) {
+        // 清空原有按钮，重新添加
+        footer.innerHTML = '';
+        // 添加保存按钮（有字段时才显示）
+        if (fieldKey) {
+            footer.appendChild(saveBtn);
+        }
+        // 添加删除按钮
+        footer.appendChild(deleteBtn);
+        // 添加关闭按钮（右上已有，但这里也可以放一个）
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'modal-btn modal-btn-secondary';
+        closeBtn.textContent = '关闭';
+        closeBtn.onclick = function() {
+            hideModal(modal);
         };
+        footer.appendChild(closeBtn);
     }
+
+    // 显示模态框
     showModal(modal);
 }
 
