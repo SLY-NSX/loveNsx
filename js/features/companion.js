@@ -2305,6 +2305,25 @@ function showCompanionRecords() {
     const tabStat = document.getElementById('comp-records-tab-stats');
     if (tabCal) tabCal.classList.add('active');
     if (tabStat) tabStat.classList.remove('active');
+
+    // ★ 修复右上角关闭键
+    const closeTop = document.getElementById('close-companion-records');
+    if (closeTop) {
+        closeTop.replaceWith(closeTop.cloneNode(true));
+        const newCloseTop = document.getElementById('close-companion-records');
+        if (newCloseTop) {
+            newCloseTop.addEventListener('click', function() {
+                hideModal(modal);
+            });
+        }
+    }
+
+    // ★ 隐藏右下角关闭按钮
+    const closeBottom = document.getElementById('close-companion-records-btn');
+    if (closeBottom) {
+        closeBottom.style.display = 'none';
+    }
+
     showModal(modal);
 }
 
@@ -2471,7 +2490,7 @@ function showCompanionDayDetail(dateStr) {
         dayRecords.forEach((rec, index) => {
             const recordNum = index + 1;
             const statusText = rec.mode === 'completed' ? '✓ 顺利完成' :
-                   rec.mode === 'interrupted' ? '⏸ 选择终止' : '⚠ 系统中断';
+                               rec.mode === 'interrupted' ? '⏸ 选择终止' : '⚠ 系统中断';
             html += `
                 <div class="companion-record-entry" data-id="${rec.id}" style="padding:12px 16px;margin-bottom:8px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:background 0.2s;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -2492,6 +2511,25 @@ function showCompanionDayDetail(dateStr) {
             });
         });
     }
+
+    // ★ 修复右上角关闭键
+    const closeTop = document.getElementById('close-companion-day-modal');
+    if (closeTop) {
+        closeTop.replaceWith(closeTop.cloneNode(true));
+        const newCloseTop = document.getElementById('close-companion-day-modal');
+        if (newCloseTop) {
+            newCloseTop.addEventListener('click', function() {
+                hideModal(modal);
+            });
+        }
+    }
+
+    // ★ 隐藏右下角关闭按钮
+    const closeBottom = document.getElementById('close-companion-day-modal-btn');
+    if (closeBottom) {
+        closeBottom.style.display = 'none';
+    }
+
     showModal(modal);
 }
 
