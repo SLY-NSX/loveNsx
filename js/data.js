@@ -842,93 +842,173 @@ document.addEventListener('DOMContentLoaded', function() {
         const origExport = window.exportAllData;
         if (typeof origExport === 'function') {
             window.exportAllData = function () {
-                // 先加载陪伴记录
-                const store = getStorage();
-                const saveExport = function (records) {
-                    // 调用原始导出，但我们需要注入数据
-                    // 由于原始导出可能直接生成JSON，我们用自定义方式
-                    // 简单做法：重新实现一个包含陪伴记录的导出
-                    const allData = {
-                        companionRecords: records || [],
-                        _exportedAt: new Date().toISOString(),
-                        _version: '1.0'
-                    };
-                    // 尝试获取其他数据
-                    if (typeof messages !== 'undefined' && Array.isArray(messages)) {
-                        allData.messages = messages.map(function (m) {
-                            return Object.assign({}, m, {
-                                timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
-                            });
-                        });
-                    }
-                    if (typeof settings !== 'undefined') {
-                        allData.settings = settings;
-                    }
-                    // 导出
-                    const json = JSON.stringify(allData, null, 2);
-                    const blob = new Blob([json], { type: 'application/json' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'backup_full_with_companion_' + new Date().toISOString().split('T')[0] + '.json';
-                    a.click();
-                    URL.revokeObjectURL(url);
+                // 收集所有陪伴数据
+                var companionData = {
+                    records: [],
+                    musicList: [],
+                    session: null,
+                    accident: null
                 };
 
-                if (store.isAsync) {
-                    store.get(COMPANION_STORAGE_KEY).then(function (data) {
-                        saveExport(Array.isArray(data) ? data : []);
-                    }).catch(function () {
-                        saveExport([]);
+                // 从 localStorage 读取陪伴数据
+                try {
+                    var recordsRaw = localStorage.getItem('companion_records');
+                    if (recordsRaw) companionData.records = JSON.parse(recordsRaw);
+                } catch (e) {}
+
+                try {
+                    var musicRaw = localStorage.getItem('companion_music_list');
+                    if (musicRaw) companionData.musicList = JSON.parse(musicRaw);
+                } catch (e) {}
+
+                try {
+                    var sessionRaw = localStorage.getItem('companion_session');
+                    if (sessionRaw) companionData.session = JSON.parse(sessionRaw);
+                } catch (e) {}
+
+                try {
+                    companionData.accident = localStorage.getItem('companionAccident') || null;
+                } catch (e) {}
+
+                // 构建导出数据
+                var allData = {
+                    companion: companionData,
+                    _exportedAt: new Date().toISOString(),
+                    _version: '2.0'
+                };
+
+                // 获取聊天记录
+                if (typeof messages !== 'undefined' && Array.isArray(messages)) {
+                    allData.messages = messages.map(function (m) {
+                        return Object.assign({}, m, {
+                            timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
+                        });
                     });
-                } else {
-                    const data = store.get(COMPANION_STORAGE_KEY);
-                    saveExport(Array.isArray(data) ? data : []);
+                }
+
+                // 获取设置
+                if (typeof settings !== 'undefined') {
+                    allData.settings = settings;
+                }
+
+                // 导出 JSON 文件
+                var json = JSON.stringify(allData, null, 2);
+                var blob = new Blob([json], { type: 'application/json' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'backup_full_' + new Date().toISOString().split('T')[0] + '.json';
+                a.click();
+                URL.revokeObjectURL(url);
+
+                if (typeof showNotification === 'function') {
+                    showNotification('全量备份导出成功 ✓', 'success');
                 }
             };
-            console.log('[data.js] 全量备份已增强，包含陪伴记录');
+            console.log('[data.js] 全量备份已增强，包含陪伴记录、音乐列表、会话状态');
         }
 
         // 增强导入
         const origImport = window.importAllData;
         if (typeof origImport === 'function') {
             window.importAllData = function (file) {
-                const reader = new FileReader();
+                var reader = new FileReader();
                 reader.onload = function (e) {
                     try {
-                        const data = JSON.parse(e.target.result);
-                        if (data.companionRecords && Array.isArray(data.companionRecords)) {
+                        var data = JSON.parse(e.target.result);
+
+                        // ---- 导入陪伴数据 ----
+                        if (data.companion) {
+                            var comp = data.companion;
+
                             // 导入陪伴记录
-                            const store = getStorage();
-                            const saveImport = function () {
-                                store.set(COMPANION_STORAGE_KEY, data.companionRecords).then(function () {
-                                    showNotification('陪伴记录导入成功', 'success');
-                                }).catch(function () {
-                                    showNotification('陪伴记录导入失败', 'error');
+                            if (comp.records && Array.isArray(comp.records)) {
+                                try {
+                                    localStorage.setItem('companion_records', JSON.stringify(comp.records));
+                                    // 更新内存中的记录
+                                    if (typeof window._companionRecords !== 'undefined') {
+                                        window._companionRecords = comp.records;
+                                    }
+                                    if (typeof loadCompanionRecordsData === 'function') {
+                                        loadCompanionRecordsData();
+                                    }
+                                } catch (e) {
+                                    console.warn('[data.js] 导入陪伴记录失败:', e);
+                                }
+                            }
+
+                            // 导入音乐列表
+                            if (comp.musicList && Array.isArray(comp.musicList)) {
+                                try {
+                                    localStorage.setItem('companion_music_list', JSON.stringify(comp.musicList));
+                                } catch (e) {
+                                    console.warn('[data.js] 导入音乐列表失败:', e);
+                                }
+                            }
+
+                            // 导入会话状态
+                            if (comp.session) {
+                                try {
+                                    localStorage.setItem('companion_session', JSON.stringify(comp.session));
+                                } catch (e) {
+                                    console.warn('[data.js] 导入会话状态失败:', e);
+                                }
+                            }
+
+                            // 导入遗言
+                            if (comp.accident !== undefined && comp.accident !== null) {
+                                try {
+                                    localStorage.setItem('companionAccident', comp.accident);
+                                } catch (e) {
+                                    console.warn('[data.js] 导入遗言失败:', e);
+                                }
+                            }
+
+                            if (typeof showNotification === 'function') {
+                                showNotification('陪伴数据导入成功 ✓', 'success');
+                            }
+                        }
+
+                        // ---- 导入聊天记录（兼容旧版） ----
+                        if (data.messages && Array.isArray(data.messages) && typeof messages !== 'undefined') {
+                            try {
+                                messages = data.messages.map(function (m) {
+                                    return Object.assign({}, m, {
+                                        timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+                                    });
                                 });
-                            };
-                            if (store.isAsync) {
-                                saveImport();
-                            } else {
-                                store.set(COMPANION_STORAGE_KEY, data.companionRecords);
-                                showNotification('陪伴记录导入成功', 'success');
+                                if (typeof renderMessages === 'function') renderMessages();
+                                if (typeof throttledSaveData === 'function') throttledSaveData();
+                            } catch (e) {
+                                console.warn('[data.js] 导入聊天记录失败:', e);
                             }
                         }
-                        // 如果有原始数据，调用原始导入
-                        if (origImport) {
-                            // 但原始导入可能会覆盖，我们跳过重复导入，只处理我们的部分
-                            // 由于无法完美合并，我们只导入陪伴记录，其他数据提示用户单独导入
-                            if (!data.companionRecords) {
-                                showNotification('未检测到陪伴记录，请使用原始导入功能', 'warning');
+
+                        // ---- 导入设置（兼容旧版） ----
+                        if (data.settings && typeof settings !== 'undefined') {
+                            try {
+                                Object.assign(settings, data.settings);
+                                if (typeof updateUI === 'function') updateUI();
+                                if (typeof throttledSaveData === 'function') throttledSaveData();
+                            } catch (e) {
+                                console.warn('[data.js] 导入设置失败:', e);
                             }
                         }
+
+                        if (typeof showNotification === 'function') {
+                            showNotification('全量导入完成', 'success');
+                        }
+
                     } catch (err) {
-                        showNotification('文件解析失败', 'error');
+                        console.error('[data.js] 导入失败:', err);
+                        if (typeof showNotification === 'function') {
+                            showNotification('文件解析失败，请检查文件格式', 'error');
+                        }
                     }
                 };
                 reader.readAsText(file);
             };
-            console.log('[data.js] 全量恢复已增强，支持陪伴记录');
+            console.log('[data.js] 全量恢复已增强，支持所有陪伴数据');
         }
     })();
 
