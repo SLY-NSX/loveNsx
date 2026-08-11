@@ -219,27 +219,36 @@ window.__isCompanionActive = function() {
     }
 
     // 检查并恢复意外中断的进行中记录
-    function checkAndRecoverOngoingRecord() {
+function checkAndRecoverOngoingRecord() {
+    console.log('[companion] 开始检查 ongoing 记录...');
+    try {
         const records = _getRecords();
         const ongoing = records.filter(r => r.mode === 'ongoing');
-        if (ongoing.length === 0) return;
+        console.log('[companion] 找到 ongoing 记录数:', ongoing.length);
+        if (ongoing.length === 0) {
+            console.log('[companion] 没有未完成的记录，跳过恢复');
+            return;
+        }
 
         const record = ongoing[0];
+        console.log('[companion] 准备恢复记录:', record.id);
         const now = new Date();
         record.endTime = now.toISOString();
         record.mode = 'system_interrupt';
         record.status = '系统中断';
-        record.interruptReason = '';  
+        record.interruptReason = '';
         record.isSystemInterrupt = true;
         record.reflection = '';
         record.terminateReason = '';
         _saveRecords(records);
+        console.log('[companion] 记录已保存为系统中断');
 
-        // 弹窗询问是否查看记录
+        // ★ 弹窗询问
         showModalWithConfirm(
             '🌙 陪伴中断',
             `开始于 ${formatDateTime(record.startTime)}，已中断。是否立即查看陪伴记录？`,
             () => {
+                console.log('[companion] 用户选择查看记录');
                 if (typeof showCompanionRecords === 'function') {
                     showCompanionRecords();
                 } else {
@@ -247,10 +256,15 @@ window.__isCompanionActive = function() {
                 }
             },
             () => {
+                console.log('[companion] 用户关闭弹窗');
                 showToast('已补录系统中断记录', 'info');
             }
         );
+    } catch (e) {
+        console.error('[companion] 恢复 ongoing 记录时出错:', e);
+        showToast('检测到未完成的陪伴，但恢复失败，请手动检查存储', 'error');
     }
+}
 
     // 自定义模态框（替代 confirm）
 function showModalWithConfirm(title, message, onConfirm, onCancel) {
@@ -2064,22 +2078,29 @@ function showInterruptReasonToast(record, onSave) {
     // ============================================================
     // 初始化
     // ============================================================
-    function initCompanionFeature() {
-        console.log('[companion] 陪伴功能已加载（实时记录版）');
-        window.showCompanionPicker = showCompanionPicker;
-        window.openCompanion = showCompanionPicker;
+function initCompanionFeature() {
+    console.log('[companion] 陪伴功能已加载（实时记录版）');
+    window.showCompanionPicker = showCompanionPicker;
+    window.openCompanion = showCompanionPicker;
 
-        loadMusicList();
-        stopMusic();
-        stopAlarm();
-        bindCompanionCalendarEvents();
+    loadMusicList();
+    stopMusic();
+    stopAlarm();
+    bindCompanionCalendarEvents();
 
-        // ★ 监听开屏动画结束事件
-        window.addEventListener('welcomeAnimationEnded', function onWelcomeEnded() {
-            window.removeEventListener('welcomeAnimationEnded', onWelcomeEnded); // 只执行一次
-            checkAndRecoverOngoingRecord();
-        });
-    }
+    // ★ 监听开屏动画结束事件（只触发一次）
+    window.addEventListener('welcomeAnimationEnded', function onWelcomeEnded() {
+        console.log('[companion] 收到开屏动画结束事件');
+        window.removeEventListener('welcomeAnimationEnded', onWelcomeEnded);
+        checkAndRecoverOngoingRecord();
+    });
+
+    // ★ 备用：如果事件未触发，5秒后也检查一次（安全兜底）
+    setTimeout(function() {
+        console.log('[companion] 5秒兜底检查 ongoing 记录');
+        checkAndRecoverOngoingRecord();
+    }, 5000);
+}
 
     // 页面卸载时清理
     window.addEventListener('beforeunload', function () {
