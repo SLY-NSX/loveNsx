@@ -11260,21 +11260,18 @@ body.with-background .time-separator span {
 }
 
 /* 陪伴记录 - 日详情卡片左侧色条 */
-#companion-day-modal .modal-content {
+#companion-day-modal .modal-content,
+#companion-record-detail-modal .modal-content {
     border-left: 4px solid var(--accent-color) !important;
     border-radius: var(--radius) !important;
-    padding-left: 20px !important; /* 给内容留出呼吸空间 */
+    /* ✅ 去掉阴影和渐变，只保留左侧色条 */
 }
 
-/* 陪伴记录 - 单条记录详情卡片左侧色条 */
+/* 陪伴记录 - 日详情卡片左侧色条（简洁版） */
+#companion-day-modal .modal-content,
 #companion-record-detail-modal .modal-content {
     border-left: 4px solid var(--accent-color) !important;
     border-radius: var(--radius) !important;
     padding-left: 20px !important;
-}
-
-#companion-day-modal .modal-content,
-#companion-record-detail-modal .modal-content {
-    background: linear-gradient(135deg, var(--secondary-bg) 90%, rgba(var(--accent-color-rgb), 0.04) 100%);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.08);
+    /* 不添加阴影和渐变，避免黑影 */
 }
