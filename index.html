@@ -2276,6 +2276,43 @@
     </div>
 </div>
 <!-- ===== 结束 ===== -->
+
+<!-- ===== 陪伴记录 - 日详情模态框（一级卡片） ===== -->
+<div class="modal" id="companion-day-modal">
+    <div class="modal-content" style="max-height:90vh;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span id="companion-day-title" style="font-size:18px; font-weight:600;"></span>
+            <button class="view-switch-btn" id="close-companion-day-modal" style="font-size:12px; padding:4px 12px;">
+                <i class="fas fa-times"></i> 关闭
+            </button>
+        </div>
+        <div id="companion-day-records-list" style="max-height:60vh; overflow-y:auto;">
+            <!-- 动态渲染 -->
+        </div>
+        <div class="modal-buttons" style="margin-top:12px;">
+            <button class="modal-btn modal-btn-secondary" id="close-companion-day-modal-btn">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== 陪伴记录 - 单条记录详情模态框（二级卡片） ===== -->
+<div class="modal" id="companion-record-detail-modal">
+    <div class="modal-content" style="max-height:90vh;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span id="companion-record-detail-title" style="font-size:18px; font-weight:600;"></span>
+            <button class="view-switch-btn" id="close-companion-record-detail-modal" style="font-size:12px; padding:4px 12px;">
+                <i class="fas fa-times"></i> 关闭
+            </button>
+        </div>
+        <div id="companion-record-detail-content" style="max-height:55vh; overflow-y:auto;">
+            <!-- 动态渲染 -->
+        </div>
+        <div class="modal-buttons" style="margin-top:12px; display:flex; justify-content:space-between;">
+            <button class="modal-btn modal-btn-danger" id="delete-companion-record-btn" style="background:#e74c3c; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer;">删除记录</button>
+            <button class="modal-btn modal-btn-secondary" id="close-companion-record-detail-modal-btn">关闭</button>
+        </div>
+    </div>
+</div>
     
     <div class="modal" id="wheel-modal">
         <div class="modal-content">
