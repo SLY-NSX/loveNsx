@@ -11847,25 +11847,29 @@ html[data-theme="dark"] #comp-records-title-icon {
     margin-bottom: 16px !important;
 }
 
-/* ---- 陪伴记录 - 月份控制栏（背景与日历一致，垂直居中） ---- */
+/* ---- 陪伴记录 - 月份控制栏圆角方框（无下边距） ---- */
 .comp-date-control-wrap {
-    background: var(--secondary-bg) !important;
-    border-radius: 0 !important;
-    padding: 8px 0 !important;
+    background: var(--accent-color) !important;
+    border-radius: 12px 12px 0 0 !important;  /* 上方圆角，下方直角 */
+    padding: 8px 16px !important;
+    margin-bottom: 0 !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
-    margin-bottom: 0 !important;
-    color: var(--text-primary) !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    color: var(--message-sent-text, #fff) !important;
 }
-/* 内部文字颜色 */
+
+/* 方框内所有文字颜色 */
 .comp-date-control-wrap .calendar-nav-btn,
 .comp-date-control-wrap #comp-records-month-label,
 .comp-date-control-wrap #comp-records-current-btn,
 .comp-date-control-wrap #comp-records-jump-btn {
-    color: var(--text-primary) !important;
-    opacity: 1 !important;
+    color: var(--message-sent-text, #fff) !important;
+    opacity: 0.95 !important;
 }
+
 /* 左右箭头 */
 .comp-date-control-wrap .calendar-nav-btn {
     background: transparent !important;
@@ -11874,24 +11878,45 @@ html[data-theme="dark"] #comp-records-title-icon {
     padding: 4px 8px !important;
     cursor: pointer !important;
 }
+
 /* 月份标签 */
 .comp-date-control-wrap #comp-records-month-label {
     font-size: 15px !important;
     font-weight: 600 !important;
 }
+
 /* 当前/跳转按钮 */
 .comp-date-control-wrap #comp-records-current-btn,
 .comp-date-control-wrap #comp-records-jump-btn {
-    border: 1px solid var(--border-color) !important;
-    background: var(--secondary-bg) !important;
-    color: var(--text-primary) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    color: var(--message-sent-text, #fff) !important;
     padding: 4px 12px !important;
     border-radius: 6px !important;
     font-size: 12px !important;
     cursor: pointer !important;
     transition: background 0.2s !important;
+    white-space: nowrap !important;
 }
 .comp-date-control-wrap #comp-records-current-btn:hover,
 .comp-date-control-wrap #comp-records-jump-btn:hover {
-    background: var(--primary-bg) !important;
+    background: rgba(255, 255, 255, 0.28) !important;
 }
+
+/* ---- 内容区域（月历/统计面板）与月份控制栏无缝衔接 ---- */
+#comp-records-calendar-panel,
+#comp-records-stats-panel {
+    padding: 16px 20px 20px !important;
+    background: var(--secondary-bg) !important;
+    border-radius: 0 0 var(--radius) var(--radius) !important;  /* 下方圆角，上方直角 */
+    margin-top: 0 !important;
+}
+
+/* 月份控制栏与日历面板的衔接容器 */
+#companion-records-modal .modal-content {
+    padding: 0 !important;
+    background: var(--secondary-bg) !important;
+    border-radius: var(--radius) !important;
+    overflow: hidden !important;
+}
+
