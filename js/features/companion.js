@@ -2722,8 +2722,9 @@ function showCompanionDayDetail(dateStr) {
         let html = '';
         dayRecords.forEach((rec, index) => {
             const recordNum = index + 1;
-            const statusText = rec.mode === 'completed' ? '✓ 顺利完成' :
-                               rec.mode === 'interrupted' ? '⏸ 选择终止' : '⚠ 系统中断';
+            const statusText = rec.mode === 'completed' ? '✅ 顺利完成' :
+                   rec.mode === 'interrupted' ? '⏸️ 选择终止' : '⚠️ 系统中断';
+
             html += `
                 <div class="companion-record-entry" data-id="${rec.id}" style="padding:12px 16px;margin-bottom:8px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:background 0.2s;">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -2766,6 +2767,86 @@ function showCompanionDayDetail(dateStr) {
     showModal(modal);
 }
 
+// ============================================================
+// ★ 评级计算函数
+// ============================================================
+function calculateRating(startTimeISO, durationMs) {
+    // 只对已完成记录评级
+    const startDate = new Date(startTimeISO);
+    const hours = startDate.getHours();
+    const minutes = startDate.getMinutes();
+    const totalMinutes = hours * 60 + minutes;
+    
+    let stars = 3; // 初始3星
+    
+    // 1. 入睡时间评级
+    // (a) 7:00 ~ 21:00（不含）：不加不减
+    // (b) 21:00 ~ 23:00（不含）：+2星
+    // (c) 23:00 ~ 23:30（不含）：+1星
+    // (d) 23:30 ~ 00:00（不含）：不加不减
+    // (e) 00:00 ~ 00:30（不含）：-1星
+    // (f) 00:30 ~ 01:00（不含）：-2星
+    // (g) 01:00 ~ 07:00（不含）：-3星
+    
+    // 转换为分钟数（0:00 = 0, 23:59 = 1439）
+    const timeInMinutes = totalMinutes;
+    
+    // 7:00 = 420, 21:00 = 1260, 23:00 = 1380, 23:30 = 1410
+    // 0:00 = 0, 0:30 = 30, 1:00 = 60
+    
+    if (timeInMinutes >= 1260 && timeInMinutes < 1380) {
+        // 21:00 ~ 23:00（不含）
+        stars += 2;
+    } else if (timeInMinutes >= 1380 && timeInMinutes < 1410) {
+        // 23:00 ~ 23:30（不含）
+        stars += 1;
+    } else if (timeInMinutes >= 1410 && timeInMinutes < 1440) {
+        // 23:30 ~ 00:00（不含）：不加不减
+        // 什么都不做
+    } else if (timeInMinutes >= 0 && timeInMinutes < 30) {
+        // 00:00 ~ 00:30（不含）
+        stars -= 1;
+    } else if (timeInMinutes >= 30 && timeInMinutes < 60) {
+        // 00:30 ~ 01:00（不含）
+        stars -= 2;
+    } else if (timeInMinutes >= 60 && timeInMinutes < 420) {
+        // 01:00 ~ 07:00（不含）
+        stars -= 3;
+    }
+    // 其他时间（7:00 ~ 21:00）不加不减
+    
+    // 2. 睡眠时长评级
+    const durationSeconds = durationMs / 1000;
+    
+    if (durationSeconds <= 20) {
+        stars -= 3;
+    } else if (durationSeconds > 20 && durationSeconds <= 30) {
+        stars -= 2;
+    } else if (durationSeconds > 30 && durationSeconds <= 40) {
+        stars -= 1;
+    } else if (durationSeconds > 40 && durationSeconds <= 50) {
+        // 不加不减
+    } else if (durationSeconds > 50 && durationSeconds <= 60) {
+        stars += 1;
+    } else if (durationSeconds > 60) {
+        stars += 2;
+    }
+    
+    // 限制范围 0~7
+    stars = Math.max(0, Math.min(7, stars));
+    
+    return stars;
+}
+
+// 生成星级显示HTML
+function renderStars(rating) {
+    if (rating === null || rating === undefined) return '';
+    if (rating === 0) return '<span style="font-size:16px;color:var(--accent-color);">0颗⭐</span>';
+    const fullStars = '★'.repeat(rating);
+    const emptyStars = '☆'.repeat(7 - rating);
+    return `<span style="font-size:16px;color:var(--accent-color);letter-spacing:1px;">${fullStars}${emptyStars}</span>`;
+}
+
 function showCompanionRecordDetail(recordId) {
     const records = getFilteredRecords();
     const record = records.find(r => r.id === recordId);
@@ -2793,8 +2874,8 @@ function showCompanionRecordDetail(recordId) {
     const isCompleted = (record.mode === 'completed');
     const isInterrupted = (record.mode === 'interrupted');
     
-    let modeText = isCompleted ? '顺利完成' :
-                   isInterrupted ? '选择终止' : '系统中断';
+    let modeText = isCompleted ? '✅ 顺利完成' :
+                   isInterrupted ? '⏸️ 选择终止' : '⚠️ 系统中断';
 
     // 可编辑字段
     let fieldLabel = '';
@@ -2817,6 +2898,18 @@ function showCompanionRecordDetail(recordId) {
     const startTimeFormatted = window.formatDateTime(record.startTime);
     let endTimeDisplay = record.endTime ? window.formatDateTime(record.endTime) : '--:--';
     const canEditEndTime = (record.mode === 'system_interrupt');
+
+    // ★ 评级计算（仅对顺利完成显示）
+    let ratingHTML = '';
+    if (isCompleted) {
+        const stars = calculateRating(record.startTime, record.duration);
+        ratingHTML = `
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="font-weight:600;color:var(--text-primary);">评价</span>
+                <span>${renderStars(stars)}</span>
+            </div>
+        `;
+    }
 
     // ★ 构建最终 HTML
     let htmlParts = [];
@@ -2856,7 +2949,6 @@ function showCompanionRecordDetail(recordId) {
     if (canEditEndTime) {
         const currentEndTime = record.endTime || new Date().toISOString();
         const localValue = currentEndTime.substring(0, 16);
-        // 计算开始时间的本地值，用于 min 限制
         const startLocal = record.startTime ? new Date(record.startTime).toISOString().substring(0, 16) : '';
         htmlParts.push(`
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -2883,7 +2975,7 @@ function showCompanionRecordDetail(recordId) {
         `);
     }
 
-    // 4. 睡眠时长（动态）
+    // 4. 睡眠时长
     const durationId = 'duration-display-' + recordId;
     htmlParts.push(`
         <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
@@ -2892,7 +2984,12 @@ function showCompanionRecordDetail(recordId) {
         </div>
     `);
 
-    // 5. 感想/终止原因（可编辑）
+    // 5. ★ 评级（仅顺利完成显示）
+    if (isCompleted) {
+        htmlParts.push(ratingHTML);
+    }
+
+    // 6. 感想/终止原因（可编辑）
     if (fieldKey) {
         const displayId = 'field-display-' + recordId;
         const editId = 'field-edit-' + recordId;
@@ -2934,7 +3031,6 @@ function showCompanionRecordDetail(recordId) {
                     showToast('时间格式无效', 'error');
                     return;
                 }
-                // 限制不能早于开始时间
                 const startDate = new Date(record.startTime);
                 if (endDate < startDate) {
                     showToast('结束时间不能早于开始时间', 'warning');
@@ -2972,7 +3068,6 @@ function showCompanionRecordDetail(recordId) {
     if (footer) {
         footer.innerHTML = '';
 
-        // 删除按钮（左）
         const deleteBtn = document.createElement('button');
         deleteBtn.className = 'modal-btn modal-btn-danger';
         deleteBtn.textContent = '删除记录';
@@ -3005,7 +3100,6 @@ function showCompanionRecordDetail(recordId) {
         };
         footer.appendChild(deleteBtn);
 
-        // 保存按钮（右）— 仅当有可编辑字段
         if (fieldKey) {
             const saveBtn = document.createElement('button');
             saveBtn.className = 'modal-btn modal-btn-primary';
@@ -3042,10 +3136,9 @@ function showCompanionRecordDetail(recordId) {
         }
     }
 
-    // ★ 修复右上角关闭键失灵：重新绑定事件
+    // ★ 修复右上角关闭键
     const closeBtn = document.getElementById('close-companion-record-detail-modal');
     if (closeBtn) {
-        // 移除旧监听，添加新监听（避免重复绑定）
         closeBtn.replaceWith(closeBtn.cloneNode(true));
         const newCloseBtn = document.getElementById('close-companion-record-detail-modal');
         if (newCloseBtn) {
@@ -3055,7 +3148,6 @@ function showCompanionRecordDetail(recordId) {
         }
     }
 
-    // 显示模态框
     showModal(modal);
 }
 
