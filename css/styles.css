@@ -11672,3 +11672,93 @@ html[data-theme="dark"] #comp-records-title-icon {
     background: var(--secondary-bg);
     border-radius: 0 0 var(--radius) var(--radius) !important;
 }
+
+/* ===== 陪伴记录 - 标题栏覆盖全宽 ===== */
+#companion-records-modal .modal-content {
+    padding: 0 !important;
+    border-radius: var(--radius) !important;
+    overflow: hidden !important;
+    background: transparent !important; /* 让标题栏和内容区域各自决定背景 */
+}
+
+/* 标题栏背景色由内联样式控制 */
+#comp-records-header-row {
+    border-radius: 0 !important;
+    margin: 0 !important;
+}
+
+/* 标题文字颜色 */
+#comp-records-header-row .modal-title span {
+    color: var(--message-sent-text) !important;
+}
+
+/* 月亮图标：随昼夜模式切换 */
+#comp-records-title-icon {
+    color: var(--message-sent-text) !important;
+}
+html[data-theme="light"] #comp-records-title-icon {
+    color: #ffffff !important;
+}
+html[data-theme="dark"] #comp-records-title-icon {
+    color: #1a1a1a !important;
+}
+
+/* 标签页按钮 */
+#comp-records-tab-calendar,
+#comp-records-tab-stats {
+    background: transparent !important;
+    transition: all 0.25s ease !important;
+    position: relative !important;
+}
+
+#comp-records-tab-calendar:not(.active),
+#comp-records-tab-stats:not(.active) {
+    color: rgba(255, 255, 255, 0.65) !important;
+}
+#comp-records-tab-calendar:not(.active):hover,
+#comp-records-tab-stats:not(.active):hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+#comp-records-tab-calendar.active,
+#comp-records-tab-stats.active {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+#comp-records-tab-calendar.active::after,
+#comp-records-tab-stats.active::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 24px;
+    height: 2.5px;
+    background: #ffffff;
+    border-radius: 2px;
+}
+
+/* 关闭按钮悬停 */
+#close-companion-records:hover {
+    background: rgba(255, 255, 255, 0.28) !important;
+    color: #ffffff !important;
+}
+
+/* ---- 内容区域（月历/统计面板）与标题栏无缝衔接 ---- */
+#comp-records-calendar-panel,
+#comp-records-stats-panel {
+    padding: 20px !important;
+    background: var(--secondary-bg) !important;
+    border-radius: 0 !important;
+}
+
+/* 确保统计面板也应用相同样式 */
+#comp-records-stats-panel {
+    padding: 20px !important;
+}
+
+/* 调整月份控制栏的间距，使其与内容区域更协调 */
+.comp-date-control-wrap {
+    margin-bottom: 16px !important;
+}
