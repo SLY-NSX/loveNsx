@@ -2787,26 +2787,14 @@ function renderCompanionCalendar() {
                          year === new Date().getFullYear() &&
                          month === new Date().getMonth());
         const recordsOfDay = dayMap[d] || [];
-        const totalDuration = recordsOfDay.reduce((sum, r) => sum + (r.duration || 0), 0);
-        const totalMinutes = Math.floor(totalDuration / 60000);
-        const totalHours = Math.floor(totalMinutes / 60);
-        const displayTime = totalHours > 0 ? totalHours + 'h' + (totalMinutes % 60) + 'm' : totalMinutes + 'm';
 
+        // ★ 简化圆点：1条绿色，≥2条橙色，不再显示时长
         let dotHTML = '';
         if (hasRecord) {
-            const hasComplete = recordsOfDay.some(r => r.mode === 'completed');
-            const hasInterrupt = recordsOfDay.some(r => r.mode === 'interrupted' || r.mode === 'system_interrupt');
-            let dotColor = 'var(--accent-color)';
-            if (hasComplete && hasInterrupt) {
-                dotColor = 'var(--accent-color)';
-            } else if (hasComplete) {
-                dotColor = '#4CAF50';
-            } else if (hasInterrupt) {
-                dotColor = '#FF9800';
-            }
-            dotHTML = `<div style="display:flex;gap:2px;justify-content:center;margin-top:2px;">
+            const count = recordsOfDay.length;
+            const dotColor = count === 1 ? '#4CAF50' : '#FF9800';
+            dotHTML = `<div style="display:flex;justify-content:center;margin-top:2px;">
                 <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${dotColor};"></span>
-                <span style="font-size:9px;color:var(--text-secondary);opacity:0.7;">${displayTime}</span>
             </div>`;
         }
 
