@@ -11417,3 +11417,39 @@ body.with-background .time-separator span {
     /* 确保不被任何父级 flex 拉伸 */
     place-self: flex-start !important; /* 兼容 grid */
 }
+
+/* ---- 陪伴记录 - 标签页激活状态跟随主题色 ---- */
+#companion-records-modal .stats-nav-btn.active {
+    background: var(--accent-color) !important;
+    color: var(--message-sent-text, #fff) !important;
+    box-shadow: 0 2px 8px rgba(var(--accent-color-rgb), 0.3) !important;
+}
+
+/* ---- 陪伴记录 - 月份控制栏圆角方框 ---- */
+.comp-date-control-wrap {
+    background: var(--accent-color) !important;
+    border-radius: 12px !important;
+    padding: 4px 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 14px !important;
+    color: var(--message-sent-text, #fff) !important;
+}
+/* 方框内的文字颜色（日期、箭头、按钮） */
+.comp-date-control-wrap .calendar-nav-btn,
+.comp-date-control-wrap #comp-records-month-label,
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    color: var(--message-sent-text, #fff) !important;
+}
+/* 按钮边框改为半透明白色 */
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    background: rgba(255, 255, 255, 0.15) !important;
+}
+.comp-date-control-wrap #comp-records-current-btn:hover,
+.comp-date-control-wrap #comp-records-jump-btn:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
