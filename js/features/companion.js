@@ -1113,31 +1113,33 @@ function showModalWithConfirm(record) {
         overlay.style.opacity = '1';
     }
 
-    function hideOverlay() {
-        const overlay = document.getElementById('companion-overlay');
-        if (currentUI === 'ready_to_start' || currentUI === 'sleeping') {
-            window.__setCompanionActive(false);
-        }
-        if (overlay) {
-            overlay.style.opacity = '0';
-            setTimeout(() => {
-                overlay.style.display = 'none';
-                overlay.style.opacity = '1';
-            }, 400);
-            if (window._companionIdleTimer) {
-                clearTimeout(window._companionIdleTimer);
-                window._companionIdleTimer = null;
-            }
-            if (overlay._resetIdleTimer) {
-                overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
-                overlay.removeEventListener('click', overlay._resetIdleTimer);
-                delete overlay._resetIdleTimer;
-            }
-            overlay.classList.remove('idle-dim');
-        }
-        const fc = document.getElementById('companion-floating-control');
-        if (fc) fc.style.display = 'none';
+function hideOverlay() {
+    const overlay = document.getElementById('companion-overlay');
+    if (currentUI === 'ready_to_start' || currentUI === 'sleeping') {
+        window.__setCompanionActive(false);
     }
+    if (overlay) {
+        overlay.style.opacity = '0';
+        setTimeout(() => {
+            overlay.style.display = 'none';
+            overlay.style.opacity = '1';
+        }, 400);
+        // 清理定时器
+        if (window._companionIdleTimer) {
+            clearTimeout(window._companionIdleTimer);
+            window._companionIdleTimer = null;
+        }
+        if (overlay._resetIdleTimer) {
+            overlay.removeEventListener('touchstart', overlay._resetIdleTimer);
+            overlay.removeEventListener('click', overlay._resetIdleTimer);
+            delete overlay._resetIdleTimer;
+        }
+        overlay.classList.remove('idle-dim');
+    }
+    // ★ 直接移除悬浮窗（而非隐藏）
+    const fc = document.getElementById('companion-floating-control');
+    if (fc) fc.remove();
+}
 
     // ============================================================
     // 渲染 - 设置界面
@@ -2135,9 +2137,9 @@ function resetSession() {
     session.lastAliveTime = null;
     session.isEnding = false;
     session.countdownRemain = 0;
-    // ★ 强制隐藏悬浮窗
+    // ★ 直接移除悬浮窗（彻底清除）
     const fc = document.getElementById('companion-floating-control');
-    if (fc) fc.style.display = 'none';
+    if (fc) fc.remove();
 }
 
     // ============================================================
