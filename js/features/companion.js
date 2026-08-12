@@ -2377,34 +2377,45 @@ function bindCompanionCalendarEvents() {
 function bindStatsModeDropdown() {
     const modeBtn = document.getElementById('comp-stats-mode-btn');
     const dropdown = document.getElementById('comp-stats-mode-dropdown');
-    const options = dropdown ? dropdown.querySelectorAll('.stats-mode-option') : [];
     const modeLabel = document.getElementById('comp-stats-mode-label');
 
-    if (!modeBtn || !dropdown) return;
+    if (!modeBtn || !dropdown || !modeLabel) return;
+
+    // 移除旧监听（防止重复绑定）
+    const newModeBtn = modeBtn.cloneNode(true);
+    modeBtn.parentNode.replaceChild(newModeBtn, modeBtn);
+    const newDropdown = dropdown.cloneNode(true);
+    dropdown.parentNode.replaceChild(newDropdown, dropdown);
+
+    // 重新获取
+    const freshModeBtn = document.getElementById('comp-stats-mode-btn');
+    const freshDropdown = document.getElementById('comp-stats-mode-dropdown');
+    const freshOptions = freshDropdown.querySelectorAll('.stats-mode-option');
+    const freshLabel = document.getElementById('comp-stats-mode-label');
 
     // 切换下拉显示
-    modeBtn.addEventListener('click', function(e) {
+    freshModeBtn.addEventListener('click', function(e) {
         e.stopPropagation();
-        const isOpen = dropdown.style.display === 'block';
-        dropdown.style.display = isOpen ? 'none' : 'block';
+        const isOpen = freshDropdown.style.display === 'block';
+        freshDropdown.style.display = isOpen ? 'none' : 'block';
     });
 
     // 选择选项
-    options.forEach(opt => {
+    freshOptions.forEach(opt => {
         opt.addEventListener('click', function(e) {
             e.stopPropagation();
             const mode = this.dataset.mode;
             const label = this.textContent.trim();
-            modeLabel.textContent = label;
-            dropdown.style.display = 'none';
-            // 重新渲染统计
+            freshLabel.textContent = label;
+            freshDropdown.style.display = 'none';
+            // ★ 重新渲染统计（确保刷新）
             renderCompanionStats();
         });
     });
 
     // 点击页面其他区域关闭下拉
     document.addEventListener('click', function() {
-        if (dropdown) dropdown.style.display = 'none';
+        if (freshDropdown) freshDropdown.style.display = 'none';
     });
 }
 
