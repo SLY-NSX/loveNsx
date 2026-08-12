@@ -11846,3 +11846,39 @@ html[data-theme="dark"] #comp-records-title-icon {
 .comp-date-control-wrap {
     margin-bottom: 16px !important;
 }
+
+/* ---- 陪伴记录 - 月份控制栏（取消背景色） ---- */
+.comp-date-control-wrap {
+    background: transparent !important;
+    border-radius: 0 !important;
+    padding: 4px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 14px !important;
+    color: var(--text-primary) !important;
+}
+/* 方框内的文字颜色（日期、箭头、按钮） */
+.comp-date-control-wrap .calendar-nav-btn,
+.comp-date-control-wrap #comp-records-month-label,
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    color: var(--text-primary) !important;
+    opacity: 1 !important;
+}
+/* 当前/跳转按钮恢复普通样式 */
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    border-color: var(--border-color) !important;
+    background: var(--secondary-bg) !important;
+    color: var(--text-primary) !important;
+}
+.comp-date-control-wrap #comp-records-current-btn:hover,
+.comp-date-control-wrap #comp-records-jump-btn:hover {
+    background: var(--primary-bg) !important;
+}
+/* 左右箭头（无背景） */
+.comp-date-control-wrap .calendar-nav-btn {
+    background: transparent !important;
+    border: none !important;
+}
