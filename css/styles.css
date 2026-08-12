@@ -11920,3 +11920,32 @@ html[data-theme="dark"] #comp-records-title-icon {
     overflow: hidden !important;
 }
 
+/* ---- 陪伴记录 - 月份控制栏（无下边距，与日历无缝衔接） ---- */
+.comp-date-control-wrap {
+    background: var(--accent-color) !important;
+    border-radius: 12px 12px 0 0 !important;  /* 只保留上圆角，底部平直 */
+    padding: 8px 16px !important;
+    margin-bottom: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    color: var(--message-sent-text, #fff) !important;
+}
+
+/* 内容区域（月历/统计面板）顶部不留白 */
+#comp-records-calendar-panel,
+#comp-records-stats-panel {
+    padding: 0 20px 20px !important;   /* 顶部内边距为0 */
+    background: var(--secondary-bg) !important;
+    border-radius: 0 0 var(--radius) var(--radius) !important;
+    margin-top: 0 !important;
+}
+
+/* 如果日历面板内部有额外边距，统一清零 */
+#comp-records-calendar-panel .calendar-weekdays,
+#comp-records-calendar-panel .calendar-grid {
+    padding-top: 0 !important;
+}
+
