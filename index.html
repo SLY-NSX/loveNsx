@@ -2218,23 +2218,24 @@
 <!-- ===== 陪伴记录模态框 ===== -->
 <div class="modal" id="companion-records-modal">
     <div class="modal-content">
-        <!-- 头部 -->
-        <div class="mood-header-actions">
+        <!-- 标题 -->
+        <div style="margin-bottom:10px;">
             <div class="modal-title" style="margin-bottom:0; border:none; padding:0;">
                 <i class="fas fa-moon"></i><span>陪伴记录</span>
             </div>
-            <button class="view-switch-btn" id="close-companion-records">
-                <i class="fas fa-times"></i> 关闭
-            </button>
         </div>
-
-        <!-- 标签栏 -->
-        <div class="stats-tab-bar" style="display:flex;gap:6px;margin:8px 0 12px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
-            <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar">
-                <i class="fas fa-calendar-alt"></i> 日历
-            </button>
-            <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats">
-                <i class="fas fa-chart-bar"></i> 统计
+        <!-- 标签栏 + 关闭按钮同一行 -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div class="stats-tab-bar" style="display:flex;gap:6px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
+                <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar">
+                    <i class="fas fa-calendar-alt"></i> 日历
+                </button>
+                <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats">
+                    <i class="fas fa-chart-bar"></i> 统计
+                </button>
+            </div>
+            <button class="view-switch-btn" id="close-companion-records" style="font-size:12px; padding:4px 12px;">
+                <i class="fas fa-times"></i> 关闭
             </button>
         </div>
 
@@ -2271,7 +2272,6 @@
         </div>
 
         <!-- 统计面板 -->
-        <!-- 统计面板 -->
         <div id="comp-records-stats-panel" style="display:none;">
             <div style="padding:4px 0;">
                 <!-- 替换原月份标题为下拉胶囊 -->
@@ -2292,7 +2292,7 @@
                 </div>
         
                 <!-- 入睡时间 -->
-                <div style="margin-bottom:16px;">
+                <div style="margin-bottom:20px;">
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
                         <span>🌙 入睡时间</span>
                         <span id="comp-stats-avg-bedtime" style="font-weight:600;color:var(--text-primary);">平均: --:--</span>
@@ -2301,7 +2301,7 @@
                 </div>
         
                 <!-- 睡眠时长 -->
-                <div>
+                <div style="margin-bottom:4px;">
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
                         <span>⏱ 睡眠时长</span>
                         <span id="comp-stats-avg-duration" style="font-weight:600;color:var(--text-primary);">平均: -- 分钟</span>
@@ -2323,6 +2323,7 @@
     </div>
 </div>
 <!-- ===== 结束 ===== -->
+
 
 <!-- ===== 陪伴记录 - 日详情模态框（一级卡片） ===== -->
 <div class="modal" id="companion-day-modal">
