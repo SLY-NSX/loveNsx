@@ -11417,3 +11417,65 @@ body.with-background .time-separator span {
     /* 确保不被任何父级 flex 拉伸 */
     place-self: flex-start !important; /* 兼容 grid */
 }
+
+/* 统计页模式切换胶囊 */
+#comp-stats-mode-btn {
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+#comp-stats-mode-btn:hover {
+    background: var(--accent-color);
+    color: #fff;
+    border-color: var(--accent-color);
+}
+#comp-stats-mode-dropdown .stats-mode-option:hover {
+    background: var(--accent-color);
+    color: #fff;
+}
+
+/* 统计页间距调整 */
+#comp-stats-summary {
+    margin-bottom: 20px;
+}
+#comp-stats-bedtime-bars,
+#comp-stats-duration-bars {
+    margin-top: 10px;
+    margin-bottom: 12px;
+}
+#comp-stats-bedtime-bars + div,
+#comp-stats-duration-bars + div {
+    margin-top: 6px;
+}
+
+/* 统计页模式切换胶囊 */
+#comp-stats-mode-btn {
+    background: var(--secondary-bg);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+#comp-stats-mode-btn:hover {
+    background: var(--accent-color);
+    color: #fff;
+    border-color: var(--accent-color);
+}
+#comp-stats-mode-dropdown .stats-mode-option:hover {
+    background: var(--accent-color);
+    color: #fff;
+}
+
+/* 统计页间距调整 */
+#comp-stats-summary {
+    margin-bottom: 20px;
+}
+#comp-stats-bedtime-bars,
+#comp-stats-duration-bars {
+    margin-top: 10px;
+    margin-bottom: 12px;
+}
+#comp-stats-bedtime-bars + div,
+#comp-stats-duration-bars + div {
+    margin-top: 6px;
+}
