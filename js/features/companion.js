@@ -2122,17 +2122,20 @@ function showCompletionToast(record, onSave) {
     // ============================================================
     // 重置会话
     // ============================================================
-    function resetSession() {
-        stopTimer();
-        clearInterval(session.countdownInterval);
-        session.countdownInterval = null;
-        session.state = STATE.IDLE;
-        session.startTime = null;
-        session.elapsed = 0;
-        session.lastAliveTime = null;
-        session.isEnding = false;
-        session.countdownRemain = 0;
-    }
+function resetSession() {
+    stopTimer();
+    clearInterval(session.countdownInterval);
+    session.countdownInterval = null;
+    session.state = STATE.IDLE;
+    session.startTime = null;
+    session.elapsed = 0;
+    session.lastAliveTime = null;
+    session.isEnding = false;
+    session.countdownRemain = 0;
+    // ★ 强制隐藏悬浮窗
+    const fc = document.getElementById('companion-floating-control');
+    if (fc) fc.style.display = 'none';
+}
 
     // ============================================================
     // 对外入口
