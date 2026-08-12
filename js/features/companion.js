@@ -1578,25 +1578,30 @@ function showModalWithConfirm(record) {
     // 悬浮音乐控制
     // ============================================================
 function addFloatingControl() {
+    // ★ 只有在睡眠状态才显示悬浮窗，否则强制隐藏
+    if (session.state !== STATE.SLEEPING) {
+        const fc = document.getElementById('companion-floating-control');
+        if (fc) fc.style.display = 'none';
+        return;
+    }
+
     let fc = document.getElementById('companion-floating-control');
 
+    // 如果已存在，确保在 body 中，并重置显示状态
     if (fc) {
-        // 确保在 body 中
         if (fc.parentNode !== document.body) {
             document.body.appendChild(fc);
         }
-        // 只需显示它，样式由 CSS 负责
-        fc.style.display = ''; // 清空内联，让 CSS 接管
         fc.classList.remove('dim');
         fc.style.opacity = '1';
+        fc.style.display = 'flex';
         updateFloatingControlUI();
         return;
     }
 
-    // 创建新元素，只设置基本内容和少量内联（仅用于初始可见）
+    // 创建新元素
     fc = document.createElement('div');
     fc.id = 'companion-floating-control';
-    // 不写 style，完全由 CSS 控制
     fc.innerHTML = `
         <span class="fc-title" id="fc-title">无音乐</span>
         <div class="fc-volume-wrap">
@@ -1632,13 +1637,15 @@ function addFloatingControl() {
 
     updateFloatingControlUI();
 
-    // 自动变暗（使用 CSS class）
+    // 自动变暗逻辑
     let idleTimer = null;
     function resetIdleTimer() {
         if (idleTimer) clearTimeout(idleTimer);
         fc.classList.remove('dim');
+        fc.style.opacity = '1';
         idleTimer = setTimeout(() => {
             fc.classList.add('dim');
+            fc.style.opacity = '0.55';
         }, 10000);
     }
 
@@ -1647,6 +1654,7 @@ function addFloatingControl() {
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => {
             fc.classList.add('dim');
+            fc.style.opacity = '0.55';
         }, 10000);
     });
     fc.addEventListener('touchstart', resetIdleTimer);
