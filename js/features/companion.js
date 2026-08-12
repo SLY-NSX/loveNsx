@@ -2462,18 +2462,18 @@ function renderCompanionStats() {
 
     // ---- ★ 入睡时间横轴（按固定颜色顺序） ----
     barsBedtime.innerHTML = '';
-    barsBedtime.style.cssText = 'display:flex;gap:2px;height:12px;border-radius:4px;overflow:hidden;';
+    barsBedtime.style.cssText = 'display:flex;height:12px;border-radius:4px;overflow:hidden;';
     
     if (bedtimeValues.length > 0) {
         // 定义区间：7个区间，固定顺序
         const bedtimeRanges = [
-            { label: '21:00-23:00', min: 21*60, max: 23*60, color: '#FF6B81' },      // 水红色
-            { label: '23:00-23:30', min: 23*60, max: 23*60+30, color: '#C9A0DC' },   // 紫粉色
-            { label: '23:30-00:00', min: 23*60+30, max: 24*60, color: '#A67CBF' },  // 紫色
-            { label: '00:00-00:30', min: 0, max: 30, color: '#7B68EE' },            // 蓝紫色
-            { label: '00:30-01:00', min: 30, max: 60, color: '#4A6FA5' },           // 深蓝色
-            { label: '01:00-07:00', min: 60, max: 7*60, color: '#B0B0B0' },         // 灰色
-            { label: '07:00-21:00', min: 7*60, max: 21*60, color: 'transparent' }  // 白色（透明）
+            { label: '21:00-23:00', min: 21*60, max: 23*60, color: '#FF6B81' },
+            { label: '23:00-23:30', min: 23*60, max: 23*60+30, color: '#C9A0DC' },
+            { label: '23:30-00:00', min: 23*60+30, max: 24*60, color: '#A67CBF' },
+            { label: '00:00-00:30', min: 0, max: 30, color: '#7B68EE' },
+            { label: '00:30-01:00', min: 30, max: 60, color: '#4A6FA5' },
+            { label: '01:00-07:00', min: 60, max: 7*60, color: '#666666' },   // ← 深灰色
+            { label: '07:00-21:00', min: 7*60, max: 21*60, color: '#E8DDD0' } // ← 浅米色
         ];
 
         // 统计每个区间的记录数
@@ -2500,12 +2500,6 @@ function renderCompanionStats() {
             barsBedtime.appendChild(bar);
         });
 
-        // 如果所有记录都在白色区间（transparent），显示白色背景
-        const hasTransparent = rangeCounts.some((c, i) => c > 0 && bedtimeRanges[i].color === 'transparent');
-        if (barsBedtime.children.length === 0 || (barsBedtime.children.length === 1 && hasTransparent)) {
-            barsBedtime.style.background = 'var(--primary-bg)';
-            barsBedtime.style.border = '1px solid var(--border-color)';
-        }
     } else {
         const emptyBar = document.createElement('div');
         emptyBar.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
@@ -2515,18 +2509,19 @@ function renderCompanionStats() {
 
     // ---- ★ 睡眠时长横轴（按固定颜色顺序） ----
     barsDuration.innerHTML = '';
-    barsDuration.style.cssText = 'display:flex;gap:2px;height:12px;border-radius:4px;overflow:hidden;';
+    barsDuration.style.cssText = 'display:flex;height:12px;border-radius:4px;overflow:hidden;';
     
     if (durationValues.length > 0) {
         // 定义区间：6个区间，固定顺序（单位：秒）
         const durationRanges = [
-            { label: '>1分钟', min: 60, max: Infinity, color: '#FF6B81' },        // 水红色
-            { label: '50s-1min', min: 50, max: 60, color: '#C9A0DC' },             // 粉紫色
-            { label: '40s-50s', min: 40, max: 50, color: '#A67CBF' },              // 紫色
-            { label: '30s-40s', min: 30, max: 40, color: '#7B68EE' },              // 蓝紫色
-            { label: '20s-30s', min: 20, max: 30, color: '#4A6FA5' },              // 深蓝色
-            { label: '≤20s', min: 0, max: 20, color: '#B0B0B0' }                  // 灰色
+            { label: '>1分钟', min: 60, max: Infinity, color: '#FF6B81' },
+            { label: '50s-1min', min: 50, max: 60, color: '#C9A0DC' },
+            { label: '40s-50s', min: 40, max: 50, color: '#A67CBF' },
+            { label: '30s-40s', min: 30, max: 40, color: '#7B68EE' },
+            { label: '20s-30s', min: 20, max: 30, color: '#4A6FA5' },
+            { label: '≤20s', min: 0, max: 20, color: '#666666' }   // ← 深灰色
         ];
+
 
         // 将时长转换为秒
         const durationSeconds = durationValues.map(min => min * 60);
