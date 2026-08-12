@@ -11403,3 +11403,17 @@ body.with-background .time-separator span {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
     transition: opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
 }
+
+/* ===== 强制修复陪伴悬浮窗被拉伸 ===== */
+#companion-floating-control {
+    align-self: flex-start !important;
+    height: auto !important;
+    width: auto !important;
+    flex-shrink: 0 !important;
+    flex-grow: 0 !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    box-sizing: border-box !important;
+    /* 确保不被任何父级 flex 拉伸 */
+    place-self: flex-start !important; /* 兼容 grid */
+}
