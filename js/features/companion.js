@@ -2841,10 +2841,8 @@ function calculateRating(startTimeISO, durationMs) {
 // 生成星级显示HTML
 function renderStars(rating) {
     if (rating === null || rating === undefined) return '';
-    if (rating === 0) return '<span style="font-size:16px;color:var(--accent-color);">0颗⭐</span>';
-    const fullStars = '★'.repeat(rating);
-    const emptyStars = '☆'.repeat(7 - rating);
-    return `<span style="font-size:16px;color:var(--accent-color);letter-spacing:1px;">${fullStars}${emptyStars}</span>`;
+    if (rating === 0) return '<span style="font-size:16px;color:var(--accent-color);">0颗★</span>';
+    return `<span style="font-size:16px;color:var(--accent-color);letter-spacing:1px;">${'★'.repeat(rating)}</span>`;
 }
 
 function showCompanionRecordDetail(recordId) {
