@@ -1580,8 +1580,13 @@ function showModalWithConfirm(record) {
 function addFloatingControl() {
     let fc = document.getElementById('companion-floating-control');
 
+    // 如果已存在，强制重置所有样式
     if (fc) {
-        // 强制重置样式，确保不受外部干扰
+        // 从任何父级移动到 body
+        if (fc.parentNode !== document.body) {
+            document.body.appendChild(fc);
+        }
+        // 使用 cssText 一次性覆盖所有样式，注意顺序和 !important
         fc.style.cssText = `
             position: fixed !important;
             bottom: 20px !important;
@@ -1604,15 +1609,24 @@ function addFloatingControl() {
             height: auto !important;
             min-width: 0 !important;
             min-height: 0 !important;
+            max-width: none !important;
+            max-height: none !important;
             flex-shrink: 0 !important;
+            flex-grow: 0 !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+            pointer-events: auto !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
         `;
-        if (fc.parentNode !== document.body) {
-            document.body.appendChild(fc);
-        }
+        // 恢复 dim 类（如果有）
+        fc.classList.remove('dim');
+        fc.style.opacity = '1';
         updateFloatingControlUI();
         return;
     }
 
+    // 创建新元素
     fc = document.createElement('div');
     fc.id = 'companion-floating-control';
     fc.style.cssText = `
@@ -1637,19 +1651,28 @@ function addFloatingControl() {
         height: auto !important;
         min-width: 0 !important;
         min-height: 0 !important;
+        max-width: none !important;
+        max-height: none !important;
         flex-shrink: 0 !important;
+        flex-grow: 0 !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        pointer-events: auto !important;
+        user-select: none !important;
+        -webkit-user-select: none !important;
     `;
     fc.innerHTML = `
         <span class="fc-title" id="fc-title" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">无音乐</span>
         <div class="fc-volume-wrap" style="display:flex;align-items:center;gap:6px;">
-            <input type="range" min="0" max="150" value="${session.volumePercent || 20}" class="fc-volume-slider" id="fc-volume-slider" style="width:60px;height:4px;-webkit-appearance:none;background:rgba(255,255,255,0.2);border-radius:2px;outline:none;">
+            <input type="range" min="0" max="150" value="${session.volumePercent || 20}" class="fc-volume-slider" id="fc-volume-slider" style="width:60px;height:4px;-webkit-appearance:none;background:rgba(255,255,255,0.2);border-radius:2px;outline:none;flex-shrink:0;">
             <span class="fc-volume-label" id="fc-volume-label" style="font-size:10px;color:rgba(255,255,255,0.7);min-width:30px;text-align:center;">${session.volumePercent || 20}%</span>
         </div>
-        <button class="fc-btn" id="fc-play-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;"><i class="fas fa-play"></i></button>
-        <button class="fc-btn" id="fc-select-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;"><i class="fas fa-list"></i></button>
+        <button class="fc-btn" id="fc-play-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;flex-shrink:0;"><i class="fas fa-play"></i></button>
+        <button class="fc-btn" id="fc-select-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;flex-shrink:0;"><i class="fas fa-list"></i></button>
     `;
     document.body.appendChild(fc);
 
+    // 事件绑定
     document.getElementById('fc-play-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleMusicPlay();
@@ -1673,6 +1696,7 @@ function addFloatingControl() {
 
     updateFloatingControlUI();
 
+    // 自动变暗功能
     let idleTimer = null;
     function resetIdleTimer() {
         if (idleTimer) clearTimeout(idleTimer);
