@@ -11949,3 +11949,48 @@ html[data-theme="dark"] #comp-records-title-icon {
     padding-top: 0 !important;
 }
 
+/* ---- 陪伴记录 - 月份控制栏（透明背景，无下边距） ---- */
+.comp-date-control-wrap {
+    background: transparent !important;
+    border-radius: 12px !important;
+    padding: 8px 16px !important;
+    margin-bottom: 0 !important;   /* 取消下边距，与日历无缝 */
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    flex-wrap: nowrap !important;
+    color: var(--text-primary) !important;
+}
+
+/* 内部文字颜色 */
+.comp-date-control-wrap .calendar-nav-btn,
+.comp-date-control-wrap #comp-records-month-label,
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    color: var(--text-primary) !important;
+}
+
+/* 当前/跳转按钮 */
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    background: var(--secondary-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    padding: 4px 12px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    cursor: pointer !important;
+}
+.comp-date-control-wrap #comp-records-current-btn:hover,
+.comp-date-control-wrap #comp-records-jump-btn:hover {
+    background: var(--primary-bg) !important;
+}
+
+/* 日历面板顶部不留白，与月份控制栏无缝 */
+#comp-records-calendar-panel,
+#comp-records-stats-panel {
+    padding: 0 20px 20px !important;
+    background: var(--secondary-bg) !important;
+    border-radius: 0 0 var(--radius) var(--radius) !important;
+}
