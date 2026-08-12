@@ -2162,25 +2162,54 @@
 <!-- ===== 陪伴菜单模态框 ===== -->
 <div class="modal" id="companion-menu-modal">
     <div class="modal-content">
-        <div class="modal-title">
-            <i class="fas fa-moon"></i><span>陪伴</span>
-        </div>
-        <div class="decision-menu-grid">
-            <!-- 睡眠 -->
-            <div class="decision-option-card" id="companion-sleep-option" onclick="if(typeof showCompanionPicker==='function'){showCompanionPicker();}" style="cursor:pointer;">
-                <i class="fas fa-moon" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
-                <h3>🌙 睡眠</h3>
-                <p>选择白噪音，进入睡眠陪伴</p>
+        <!-- 主菜单面板 -->
+        <div id="companion-main-menu">
+            <div class="modal-title">
+                <i class="fas fa-moon"></i><span>陪伴</span>
             </div>
-            <!-- 日常（占位） -->
-            <div class="decision-option-card" id="companion-daily-option" onclick="if(typeof showNotification==='function'){showNotification('功能开发中，敬请期待 ✦','info',3000);}else if(typeof showToast==='function'){showToast('功能开发中，敬请期待 ✦','info');}" style="cursor:pointer;">
-                <i class="fas fa-sun" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
-                <h3>☀️ 日常</h3>
-                <p>日常陪伴功能开发中</p>
+            <div class="decision-menu-grid">
+                <!-- 开启陪伴 -->
+                <div class="decision-option-card" id="companion-open-option" style="cursor:pointer;" onclick="showCompanionSubMenu()">
+                    <i class="fas fa-play" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
+                    <h3>开启陪伴</h3>
+                    <p>选择陪伴模式</p>
+                </div>
+                <!-- 陪伴记录 -->
+                <div class="decision-option-card" id="companion-records-option" style="cursor:pointer;" onclick="if(typeof showCompanionRecords==='function'){showCompanionRecords(); hideModal(document.getElementById('companion-menu-modal'));}">
+                    <i class="fas fa-list" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
+                    <h3>陪伴记录</h3>
+                    <p>查看历史陪伴记录</p>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-secondary" id="close-companion-menu">关闭</button>
             </div>
         </div>
-        <div class="modal-buttons">
-            <button class="modal-btn modal-btn-secondary" id="close-companion-menu">关闭</button>
+
+        <!-- 子菜单面板（开启陪伴的子选项） -->
+        <div id="companion-sub-menu" style="display:none;">
+            <div class="modal-title" style="display:flex; align-items:center; gap:10px;">
+                <i class="fas fa-arrow-left" style="cursor:pointer;" onclick="hideCompanionSubMenu()"></i>
+                <span>选择陪伴模式</span>
+            </div>
+            <div class="decision-menu-grid">
+                <!-- 睡眠 -->
+                <div class="decision-option-card" id="companion-sleep-option" style="cursor:pointer;" onclick="if(typeof showCompanionPicker==='function'){showCompanionPicker(); hideModal(document.getElementById('companion-menu-modal'));}">
+                    <i class="fas fa-moon" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
+                    <h3>🌙 睡眠</h3>
+                    <p>选择白噪音，进入睡眠陪伴</p>
+                </div>
+                <!-- 日常（占位） -->
+                <div class="decision-option-card" id="companion-daily-option" style="cursor:pointer;" onclick="if(typeof showNotification==='function'){showNotification('功能开发中，敬请期待 ✦','info',3000);}else if(typeof showToast==='function'){showToast('功能开发中，敬请期待 ✦','info');}">
+                    <i class="fas fa-sun" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
+                    <h3>☀️ 日常</h3>
+                    <p>日常陪伴功能开发中</p>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-secondary" onclick="hideCompanionSubMenu()">返回</button>
+                <button class="modal-btn modal-btn-secondary" onclick="hideCompanionSubMenu(); hideModal(document.getElementById('companion-menu-modal'));">关闭</button>
+            </div>
         </div>
     </div>
 </div>
