@@ -2220,25 +2220,23 @@
     <div class="modal-content">
 
 
-<!-- 头部 + 标签栏（标题栏背景覆盖全宽） -->
-<div id="comp-records-header-row" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;background:var(--accent-color);margin:0;gap:14px;flex-wrap:nowrap;">
-    <!-- 左侧：标题 -->
-    <div class="modal-title" style="margin:0; border:none; padding:0; display:flex; align-items:center; gap:10px; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-        <i class="fas fa-moon" id="comp-records-title-icon" style="font-size:20px; flex-shrink:0;"></i>
-        <span style="font-size:22px; font-weight:700; flex-shrink:0; color:var(--message-sent-text);">陪伴记录</span>
+<!-- 头部 + 标签栏（标题栏背景覆盖全宽，布局不拥挤） -->
+<div id="comp-records-header-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--accent-color);margin:0;gap:10px;flex-wrap:nowrap;">
+    <div class="modal-title" style="margin:0; border:none; padding:0; font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        <i class="fas fa-moon" id="comp-records-title-icon" style="font-size:17px; flex-shrink:0;"></i>
+        <span style="flex-shrink:0; color:var(--message-sent-text);">陪伴记录</span>
     </div>
-    <!-- 右侧：标签切换 + 关闭 -->
-    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-        <div style="display:flex;gap:4px;background:rgba(255,255,255,0.15);border-radius:8px;padding:4px;">
-            <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar" style="padding:6px 14px;border:none;border-radius:6px;background:transparent;color:rgba(255,255,255,0.7);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-family);transition:all 0.25s ease;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;position:relative;">
-                <i class="fas fa-calendar-alt" style="font-size:12px;"></i> 日历
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <div style="display:flex;gap:4px;background:rgba(255,255,255,0.15);border-radius:10px;padding:3px;">
+            <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar" style="flex:1;padding:5px 10px;border:none;border-radius:8px;background:transparent;color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:all 0.2s ease;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;position:relative;">
+                <i class="fas fa-calendar-alt" style="font-size:11px;"></i> 日历
             </button>
-            <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats" style="padding:6px 14px;border:none;border-radius:6px;background:transparent;color:rgba(255,255,255,0.7);font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font-family);transition:all 0.25s ease;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;position:relative;">
-                <i class="fas fa-chart-bar" style="font-size:12px;"></i> 统计
+            <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats" style="flex:1;padding:5px 10px;border:none;border-radius:8px;background:transparent;color:rgba(255,255,255,0.7);font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:all 0.2s ease;display:flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;position:relative;">
+                <i class="fas fa-chart-bar" style="font-size:11px;"></i> 统计
             </button>
         </div>
-        <button class="view-switch-btn" id="close-companion-records" style="background:rgba(255,255,255,0.15);border:none;padding:6px 14px;border-radius:6px;font-size:13px;color:rgba(255,255,255,0.8);cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:5px;white-space:nowrap;">
-            <i class="fas fa-times" style="font-size:13px;"></i>
+        <button class="view-switch-btn" id="close-companion-records" style="background:rgba(255,255,255,0.15);border:none;padding:4px 10px;border-radius:6px;font-size:11px;color:rgba(255,255,255,0.8);cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+            <i class="fas fa-times" style="font-size:11px;"></i>
         </button>
     </div>
 </div>
