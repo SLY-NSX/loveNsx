@@ -1579,37 +1579,40 @@ function showModalWithConfirm(record) {
     // ============================================================
 function addFloatingControl() {
     let fc = document.getElementById('companion-floating-control');
-    
-    // 如果已存在，强制显示并移到 body
+
     if (fc) {
-        // 如果父节点不是 body，则移动到 body
+        // 强制重置样式，确保不受外部干扰
+        fc.style.cssText = `
+            position: fixed !important;
+            bottom: 20px !important;
+            right: 20px !important;
+            z-index: 99999 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            background: rgba(0,0,0,0.6) !important;
+            backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(255,255,255,0.08) !important;
+            border-radius: 24px !important;
+            padding: 6px 12px 6px 16px !important;
+            color: #fff !important;
+            font-size: 12px !important;
+            cursor: pointer !important;
+            transition: opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+            width: auto !important;
+            height: auto !important;
+            min-width: 0 !important;
+            min-height: 0 !important;
+            flex-shrink: 0 !important;
+        `;
         if (fc.parentNode !== document.body) {
             document.body.appendChild(fc);
         }
-        // 强制显示，覆盖所有样式
-        fc.style.display = 'flex';
-        fc.style.position = 'fixed';
-        fc.style.top = 'auto';
-        fc.style.bottom = '20px';
-        fc.style.right = '20px';
-        fc.style.zIndex = '99999';
-        fc.style.background = 'rgba(0,0,0,0.6)';
-        fc.style.backdropFilter = 'blur(12px)';
-        fc.style.border = '1px solid rgba(255,255,255,0.08)';
-        fc.style.borderRadius = '24px';
-        fc.style.padding = '6px 12px 6px 16px';
-        fc.style.color = '#fff';
-        fc.style.fontSize = '12px';
-        fc.style.cursor = 'pointer';
-        fc.style.alignItems = 'center';
-        fc.style.gap = '8px';
-        // 确保其他样式不被覆盖
-        fc.style.setProperty('display', 'flex', 'important');
         updateFloatingControlUI();
         return;
     }
 
-    // 创建新的悬浮窗
     fc = document.createElement('div');
     fc.id = 'companion-floating-control';
     fc.style.cssText = `
@@ -1617,7 +1620,7 @@ function addFloatingControl() {
         bottom: 20px !important;
         right: 20px !important;
         z-index: 99999 !important;
-        display: flex !important;
+        display: inline-flex !important;
         align-items: center !important;
         gap: 8px !important;
         background: rgba(0,0,0,0.6) !important;
@@ -1630,19 +1633,23 @@ function addFloatingControl() {
         cursor: pointer !important;
         transition: opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
         box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
+        width: auto !important;
+        height: auto !important;
+        min-width: 0 !important;
+        min-height: 0 !important;
+        flex-shrink: 0 !important;
     `;
     fc.innerHTML = `
         <span class="fc-title" id="fc-title" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">无音乐</span>
         <div class="fc-volume-wrap" style="display:flex;align-items:center;gap:6px;">
-            <input type="range" min="0" max="150" value="20" class="fc-volume-slider" id="fc-volume-slider" style="width:60px;height:4px;-webkit-appearance:none;background:rgba(255,255,255,0.2);border-radius:2px;outline:none;">
-            <span class="fc-volume-label" id="fc-volume-label" style="font-size:10px;color:rgba(255,255,255,0.7);min-width:30px;text-align:center;">20%</span>
+            <input type="range" min="0" max="150" value="${session.volumePercent || 20}" class="fc-volume-slider" id="fc-volume-slider" style="width:60px;height:4px;-webkit-appearance:none;background:rgba(255,255,255,0.2);border-radius:2px;outline:none;">
+            <span class="fc-volume-label" id="fc-volume-label" style="font-size:10px;color:rgba(255,255,255,0.7);min-width:30px;text-align:center;">${session.volumePercent || 20}%</span>
         </div>
         <button class="fc-btn" id="fc-play-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;"><i class="fas fa-play"></i></button>
         <button class="fc-btn" id="fc-select-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;"><i class="fas fa-list"></i></button>
     `;
     document.body.appendChild(fc);
 
-    // 事件绑定
     document.getElementById('fc-play-btn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         toggleMusicPlay();
@@ -1662,14 +1669,10 @@ function addFloatingControl() {
             applyVolume();
             if (volLabel) volLabel.textContent = val + '%';
         });
-        // 初始化音量显示
-        volSlider.value = session.volumePercent || 20;
-        if (volLabel) volLabel.textContent = (session.volumePercent || 20) + '%';
     }
 
     updateFloatingControlUI();
 
-    // 自动变暗功能
     let idleTimer = null;
     function resetIdleTimer() {
         if (idleTimer) clearTimeout(idleTimer);
