@@ -1829,6 +1829,9 @@ function addFloatingControl() {
     // 结束会话（修改）
     // ============================================================
     function endSession(mode) {
+    // ★ 强制隐藏悬浮窗
+        const fc = document.getElementById('companion-floating-control');
+        if (fc) fc.style.display = 'none';
         if (session.isEnding) return;
         if (session.state !== STATE.SLEEPING) return;
 
