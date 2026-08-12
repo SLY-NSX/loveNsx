@@ -11449,21 +11449,29 @@ body.with-background .time-separator span {
     margin-top: 6px;
 }
 
-/* 统计页模式切换胶囊 */
+/* 统计页模式切换胶囊（默认使用主题色） */
 #comp-stats-mode-btn {
-    background: var(--secondary-bg);
-    color: var(--text-primary);
-    border-color: var(--border-color);
-    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    background: var(--accent-color);
+    color: var(--message-sent-text, #fff);
+    border-color: var(--accent-color);
+    padding: 4px 14px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: opacity 0.2s ease, transform 0.15s ease;
 }
 #comp-stats-mode-btn:hover {
-    background: var(--accent-color);
-    color: #fff;
-    border-color: var(--accent-color);
+    opacity: 0.82;
+    transform: scale(1.02);
 }
-#comp-stats-mode-dropdown .stats-mode-option:hover {
-    background: var(--accent-color);
-    color: #fff;
+#comp-stats-mode-btn:active {
+    transform: scale(0.96);
+}
+#comp-stats-mode-btn i {
+    font-size: 10px;
 }
 
 /* 统计页间距调整 */
