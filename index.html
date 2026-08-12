@@ -2159,29 +2159,31 @@
         </div>
     </div>
 
-    <!-- ===== 陪伴菜单模态框 ===== -->
-    <div class="modal" id="companion-menu-modal">
-        <div class="modal-content">
-            <div class="modal-title">
-                <i class="fas fa-moon"></i><span>陪伴</span>
+<!-- ===== 陪伴菜单模态框 ===== -->
+<div class="modal" id="companion-menu-modal">
+    <div class="modal-content">
+        <div class="modal-title">
+            <i class="fas fa-moon"></i><span>陪伴</span>
+        </div>
+        <div class="decision-menu-grid">
+            <!-- 睡眠 -->
+            <div class="decision-option-card" id="companion-sleep-option" onclick="if(typeof showCompanionPicker==='function'){showCompanionPicker();}" style="cursor:pointer;">
+                <i class="fas fa-moon" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
+                <h3>🌙 睡眠</h3>
+                <p>选择白噪音，进入睡眠陪伴</p>
             </div>
-            <div class="decision-menu-grid">
-                <div class="decision-option-card" id="companion-start-option">
-                    <i class="fas fa-play" style="color:var(--accent-color);"></i>
-                    <h3>开启陪伴</h3>
-                    <p>选择白噪音，进入睡眠陪伴</p>
-                </div>
-                <div class="decision-option-card" id="companion-records-option">
-                    <i class="fas fa-list" style="color:var(--accent-color);"></i>
-                    <h3>陪伴记录</h3>
-                    <p>查看历史陪伴记录</p>
-                </div>
-            </div>
-            <div class="modal-buttons">
-                <button class="modal-btn modal-btn-secondary" id="close-companion-menu">关闭</button>
+            <!-- 日常（占位） -->
+            <div class="decision-option-card" id="companion-daily-option" onclick="if(typeof showNotification==='function'){showNotification('功能开发中，敬请期待 ✦','info',3000);}else if(typeof showToast==='function'){showToast('功能开发中，敬请期待 ✦','info');}" style="cursor:pointer;">
+                <i class="fas fa-sun" style="color:var(--accent-color);font-size:40px;display:block;margin:0 auto 15px;"></i>
+                <h3>☀️ 日常</h3>
+                <p>日常陪伴功能开发中</p>
             </div>
         </div>
+        <div class="modal-buttons">
+            <button class="modal-btn modal-btn-secondary" id="close-companion-menu">关闭</button>
+        </div>
     </div>
+</div>
     <!-- ===== 结束 ===== -->
 
 <!-- ===== 陪伴记录模态框 ===== -->
