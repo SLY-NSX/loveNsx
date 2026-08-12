@@ -11453,3 +11453,64 @@ body.with-background .time-separator span {
 .comp-date-control-wrap #comp-records-jump-btn:hover {
     background: rgba(255, 255, 255, 0.3) !important;
 }
+
+/* ---- 陪伴记录 - 标题加大加粗 ---- */
+#companion-records-modal .modal-title {
+    font-size: 22px !important;
+    font-weight: 700 !important;
+}
+#companion-records-modal .modal-title i {
+    font-size: 20px !important;
+}
+
+/* ---- 陪伴记录 - 月份控制栏（不固定白色，随主题色） ---- */
+.comp-date-control-wrap {
+    background: var(--accent-color) !important;
+    border-radius: 12px !important;
+    padding: 6px 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 18px !important;
+    color: var(--message-sent-text, #fff) !important;
+}
+/* 方框内的文字颜色 —— 使用更柔和的白色（在浅色主题下会偏灰，深色主题下保持可见） */
+.comp-date-control-wrap .calendar-nav-btn,
+.comp-date-control-wrap #comp-records-month-label,
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    color: var(--message-sent-text, #fff) !important;
+    opacity: 0.9 !important;
+}
+/* 深色模式下降低一点对比度，更柔和 */
+html[data-theme="dark"] .comp-date-control-wrap .calendar-nav-btn,
+html[data-theme="dark"] .comp-date-control-wrap #comp-records-month-label,
+html[data-theme="dark"] .comp-date-control-wrap #comp-records-current-btn,
+html[data-theme="dark"] .comp-date-control-wrap #comp-records-jump-btn {
+    opacity: 0.85 !important;
+}
+.comp-date-control-wrap #comp-records-current-btn,
+.comp-date-control-wrap #comp-records-jump-btn {
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+.comp-date-control-wrap #comp-records-current-btn:hover,
+.comp-date-control-wrap #comp-records-jump-btn:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* ---- 陪伴记录 - 整体间距优化 ---- */
+/* 标题行（含标签页切换）与日期行之间的间距 */
+#companion-records-modal .mood-header-actions,
+#companion-records-modal > div:first-child {
+    margin-bottom: 6px !important;
+}
+/* 日期行与内容区域之间的间距（在 .comp-date-control-wrap 的 margin-bottom 基础上再补一点） */
+#companion-records-modal .comp-date-control-wrap {
+    margin-bottom: 16px !important;
+}
+/* 内容区域顶部留白 */
+#comp-records-calendar-panel,
+#comp-records-stats-panel {
+    padding-top: 4px !important;
+}
