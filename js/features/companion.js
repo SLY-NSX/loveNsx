@@ -2499,15 +2499,14 @@ function renderCompanionStats() {
             { label: '23:30-00:00', min: 23*60+30, max: 24*60, color: '#A67CBF' },
             { label: '00:00-00:30', min: 0, max: 30, color: '#7B68EE' },
             { label: '00:30-01:00', min: 30, max: 60, color: '#4A6FA5' },
-            { label: '01:00-07:00', min: 60, max: 7*60, color: '#666666' },   // ← 深灰色
-            { label: '07:00-21:00', min: 7*60, max: 21*60, color: '#E8DDD0' } // ← 浅米色
+            { label: '01:00-07:00', min: 60, max: 7*60, color: '#666666' },
+            { label: '07:00-21:00', min: 7*60, max: 21*60, color: '#E8DDD0' }
         ];
 
         // 统计每个区间的记录数
         const rangeCounts = bedtimeRanges.map(range => {
             let count = 0;
             bedtimeValues.forEach(val => {
-                // 处理跨天：00:00-07:00 的区间在 0-420 分钟
                 if (val >= range.min && val < range.max) {
                     count++;
                 }
@@ -2534,28 +2533,27 @@ function renderCompanionStats() {
         barsBedtime.appendChild(emptyBar);
     }
 
-    // ---- ★ 睡眠时长横轴（按固定颜色顺序） ----
+    // ---- ★ 睡眠时长横轴（按固定颜色顺序，新规则） ----
     barsDuration.innerHTML = '';
     barsDuration.style.cssText = 'display:flex;height:12px;border-radius:4px;overflow:hidden;';
     
     if (durationValues.length > 0) {
-        // 定义区间：6个区间，固定顺序（单位：秒）
+        // 定义区间：6个区间，固定顺序（单位：小时）
         const durationRanges = [
-            { label: '>1分钟', min: 60, max: Infinity, color: '#FF6B81' },
-            { label: '50s-1min', min: 50, max: 60, color: '#C9A0DC' },
-            { label: '40s-50s', min: 40, max: 50, color: '#A67CBF' },
-            { label: '30s-40s', min: 30, max: 40, color: '#7B68EE' },
-            { label: '20s-30s', min: 20, max: 30, color: '#4A6FA5' },
-            { label: '≤20s', min: 0, max: 20, color: '#666666' }   // ← 深灰色
+            { label: '≥8h', min: 8, max: Infinity, color: '#FF6B81' },
+            { label: '7.5h-8h', min: 7.5, max: 8, color: '#C9A0DC' },
+            { label: '7h-7.5h', min: 7, max: 7.5, color: '#A67CBF' },
+            { label: '6.5h-7h', min: 6.5, max: 7, color: '#7B68EE' },
+            { label: '6h-6.5h', min: 6, max: 6.5, color: '#4A6FA5' },
+            { label: '<6h', min: 0, max: 6, color: '#666666' }
         ];
 
-
-        // 将时长转换为秒
-        const durationSeconds = durationValues.map(min => min * 60);
+        // 将时长转换为小时
+        const durationHours = durationValues.map(min => min / 60);
         // 统计每个区间的记录数
         const rangeCounts = durationRanges.map(range => {
             let count = 0;
-            durationSeconds.forEach(val => {
+            durationHours.forEach(val => {
                 if (val >= range.min && val < range.max) {
                     count++;
                 }
@@ -2563,7 +2561,7 @@ function renderCompanionStats() {
             return count;
         });
 
-        const total = durationSeconds.length;
+        const total = durationHours.length;
         rangeCounts.forEach((count, index) => {
             if (count === 0) return;
             const ratio = count / total;
@@ -2937,20 +2935,8 @@ function calculateRating(startTimeISO, durationMs) {
     
     let stars = 3; // 初始3星
     
-    // 1. 入睡时间评级
-    // (a) 7:00 ~ 21:00（不含）：不加不减
-    // (b) 21:00 ~ 23:00（不含）：+2星
-    // (c) 23:00 ~ 23:30（不含）：+1星
-    // (d) 23:30 ~ 00:00（不含）：不加不减
-    // (e) 00:00 ~ 00:30（不含）：-1星
-    // (f) 00:30 ~ 01:00（不含）：-2星
-    // (g) 01:00 ~ 07:00（不含）：-3星
-    
-    // 转换为分钟数（0:00 = 0, 23:59 = 1439）
+    // 1. 入睡时间评级（保持不变）
     const timeInMinutes = totalMinutes;
-    
-    // 7:00 = 420, 21:00 = 1260, 23:00 = 1380, 23:30 = 1410
-    // 0:00 = 0, 0:30 = 30, 1:00 = 60
     
     if (timeInMinutes >= 1260 && timeInMinutes < 1380) {
         // 21:00 ~ 23:00（不含）
@@ -2960,7 +2946,6 @@ function calculateRating(startTimeISO, durationMs) {
         stars += 1;
     } else if (timeInMinutes >= 1410 && timeInMinutes < 1440) {
         // 23:30 ~ 00:00（不含）：不加不减
-        // 什么都不做
     } else if (timeInMinutes >= 0 && timeInMinutes < 30) {
         // 00:00 ~ 00:30（不含）
         stars -= 1;
@@ -2972,22 +2957,22 @@ function calculateRating(startTimeISO, durationMs) {
         stars -= 3;
     }
     // 其他时间（7:00 ~ 21:00）不加不减
+
+    // 2. 睡眠时长评级（单位：小时）
+    const durationHours = durationMs / (1000 * 60 * 60);
     
-    // 2. 睡眠时长评级
-    const durationSeconds = durationMs / 1000;
-    
-    if (durationSeconds <= 20) {
-        stars -= 3;
-    } else if (durationSeconds > 20 && durationSeconds <= 30) {
-        stars -= 2;
-    } else if (durationSeconds > 30 && durationSeconds <= 40) {
-        stars -= 1;
-    } else if (durationSeconds > 40 && durationSeconds <= 50) {
-        // 不加不减
-    } else if (durationSeconds > 50 && durationSeconds <= 60) {
-        stars += 1;
-    } else if (durationSeconds > 60) {
+    if (durationHours >= 8) {
         stars += 2;
+    } else if (durationHours >= 7.5 && durationHours < 8) {
+        stars += 1;
+    } else if (durationHours >= 7 && durationHours < 7.5) {
+        // 不加不减
+    } else if (durationHours >= 6.5 && durationHours < 7) {
+        stars -= 1;
+    } else if (durationHours >= 6 && durationHours < 6.5) {
+        stars -= 2;
+    } else if (durationHours < 6) {
+        stars -= 3;
     }
     
     // 限制范围 0~7
