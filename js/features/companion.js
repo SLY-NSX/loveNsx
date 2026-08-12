@@ -2218,6 +2218,21 @@ function initCompanionFeature() {
     });
 
     window.initCompanionFeature = initCompanionFeature;
+    // 显示子菜单（开启陪伴的子选项）
+    window.showCompanionSubMenu = function() {
+        const mainMenu = document.getElementById('companion-main-menu');
+        const subMenu = document.getElementById('companion-sub-menu');
+        if (mainMenu) mainMenu.style.display = 'none';
+        if (subMenu) subMenu.style.display = 'block';
+    };
+
+    // 隐藏子菜单（返回主菜单）
+    window.hideCompanionSubMenu = function() {
+        const mainMenu = document.getElementById('companion-main-menu');
+        const subMenu = document.getElementById('companion-sub-menu');
+        if (mainMenu) mainMenu.style.display = 'block';
+        if (subMenu) subMenu.style.display = 'none';
+    };
     window.showToast = showToast;
     window.formatTime = formatTime;
     window.formatDuration = formatDuration;
