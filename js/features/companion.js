@@ -1580,95 +1580,31 @@ function showModalWithConfirm(record) {
 function addFloatingControl() {
     let fc = document.getElementById('companion-floating-control');
 
-    // 如果已存在，强制重置所有样式
     if (fc) {
-        // 从任何父级移动到 body
+        // 确保在 body 中
         if (fc.parentNode !== document.body) {
             document.body.appendChild(fc);
         }
-        // 使用 cssText 一次性覆盖所有样式，注意顺序和 !important
-        fc.style.cssText = `
-            position: fixed !important;
-            bottom: 20px !important;
-            right: 20px !important;
-            z-index: 99999 !important;
-            display: inline-flex !important;
-            align-items: center !important;
-            gap: 8px !important;
-            background: rgba(0,0,0,0.6) !important;
-            backdrop-filter: blur(12px) !important;
-            border: 1px solid rgba(255,255,255,0.08) !important;
-            border-radius: 24px !important;
-            padding: 6px 12px 6px 16px !important;
-            color: #fff !important;
-            font-size: 12px !important;
-            cursor: pointer !important;
-            transition: opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-            width: auto !important;
-            height: auto !important;
-            min-width: 0 !important;
-            min-height: 0 !important;
-            max-width: none !important;
-            max-height: none !important;
-            flex-shrink: 0 !important;
-            flex-grow: 0 !important;
-            box-sizing: border-box !important;
-            overflow: visible !important;
-            pointer-events: auto !important;
-            user-select: none !important;
-            -webkit-user-select: none !important;
-        `;
-        // 恢复 dim 类（如果有）
+        // 只需显示它，样式由 CSS 负责
+        fc.style.display = ''; // 清空内联，让 CSS 接管
         fc.classList.remove('dim');
         fc.style.opacity = '1';
         updateFloatingControlUI();
         return;
     }
 
-    // 创建新元素
+    // 创建新元素，只设置基本内容和少量内联（仅用于初始可见）
     fc = document.createElement('div');
     fc.id = 'companion-floating-control';
-    fc.style.cssText = `
-        position: fixed !important;
-        bottom: 20px !important;
-        right: 20px !important;
-        z-index: 99999 !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        gap: 8px !important;
-        background: rgba(0,0,0,0.6) !important;
-        backdrop-filter: blur(12px) !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        border-radius: 24px !important;
-        padding: 6px 12px 6px 16px !important;
-        color: #fff !important;
-        font-size: 12px !important;
-        cursor: pointer !important;
-        transition: opacity 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease !important;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-        width: auto !important;
-        height: auto !important;
-        min-width: 0 !important;
-        min-height: 0 !important;
-        max-width: none !important;
-        max-height: none !important;
-        flex-shrink: 0 !important;
-        flex-grow: 0 !important;
-        box-sizing: border-box !important;
-        overflow: visible !important;
-        pointer-events: auto !important;
-        user-select: none !important;
-        -webkit-user-select: none !important;
-    `;
+    // 不写 style，完全由 CSS 控制
     fc.innerHTML = `
-        <span class="fc-title" id="fc-title" style="max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">无音乐</span>
-        <div class="fc-volume-wrap" style="display:flex;align-items:center;gap:6px;">
-            <input type="range" min="0" max="150" value="${session.volumePercent || 20}" class="fc-volume-slider" id="fc-volume-slider" style="width:60px;height:4px;-webkit-appearance:none;background:rgba(255,255,255,0.2);border-radius:2px;outline:none;flex-shrink:0;">
-            <span class="fc-volume-label" id="fc-volume-label" style="font-size:10px;color:rgba(255,255,255,0.7);min-width:30px;text-align:center;">${session.volumePercent || 20}%</span>
+        <span class="fc-title" id="fc-title">无音乐</span>
+        <div class="fc-volume-wrap">
+            <input type="range" min="0" max="150" value="${session.volumePercent || 20}" class="fc-volume-slider" id="fc-volume-slider">
+            <span class="fc-volume-label" id="fc-volume-label">${session.volumePercent || 20}%</span>
         </div>
-        <button class="fc-btn" id="fc-play-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;flex-shrink:0;"><i class="fas fa-play"></i></button>
-        <button class="fc-btn" id="fc-select-btn" style="background:none;border:none;color:#fff;cursor:pointer;font-size:14px;padding:4px;opacity:0.7;transition:opacity 0.2s;flex-shrink:0;"><i class="fas fa-list"></i></button>
+        <button class="fc-btn" id="fc-play-btn"><i class="fas fa-play"></i></button>
+        <button class="fc-btn" id="fc-select-btn"><i class="fas fa-list"></i></button>
     `;
     document.body.appendChild(fc);
 
@@ -1696,15 +1632,13 @@ function addFloatingControl() {
 
     updateFloatingControlUI();
 
-    // 自动变暗功能
+    // 自动变暗（使用 CSS class）
     let idleTimer = null;
     function resetIdleTimer() {
         if (idleTimer) clearTimeout(idleTimer);
         fc.classList.remove('dim');
-        fc.style.opacity = '1';
         idleTimer = setTimeout(() => {
             fc.classList.add('dim');
-            fc.style.opacity = '0.55';
         }, 10000);
     }
 
@@ -1713,7 +1647,6 @@ function addFloatingControl() {
         if (idleTimer) clearTimeout(idleTimer);
         idleTimer = setTimeout(() => {
             fc.classList.add('dim');
-            fc.style.opacity = '0.55';
         }, 10000);
     });
     fc.addEventListener('touchstart', resetIdleTimer);
@@ -1724,7 +1657,6 @@ function addFloatingControl() {
 
     resetIdleTimer();
 }
-
     function updateFloatingControlUI() {
         const fc = document.getElementById('companion-floating-control');
         if (!fc) return;
