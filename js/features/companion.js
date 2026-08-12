@@ -2433,7 +2433,6 @@ function getFilteredRecords() {
 }
 
 function renderCompanionStats() {
-    console.log('renderCompanionStats 当前模式:', currentMode);
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
 
@@ -2450,7 +2449,7 @@ function renderCompanionStats() {
 
     if (!summaryEl || !barsBedtime || !barsDuration) return;
 
-    // 日常模式占位
+    // ★ 日常模式占位
     if (currentMode === '日常') {
         summaryEl.textContent = '日常功能开发中 ✦';
         if (avgBedtimeEl) avgBedtimeEl.textContent = '';
@@ -2469,7 +2468,7 @@ function renderCompanionStats() {
         return;
     }
 
-    // 睡眠模式
+    // ★ 睡眠模式
     const allRecords = window._companionRecords || [];
     const completedRecords = allRecords.filter(r => r.mode === 'completed');
     const monthRecords = completedRecords.filter(r => {
@@ -2556,7 +2555,7 @@ function renderCompanionStats() {
         }
     }
 
-    // ---- ★ 入睡时间横轴（按固定颜色顺序） ----
+    // ---- ★ 入睡时间横轴 ----
     barsBedtime.innerHTML = '';
     barsBedtime.style.cssText = 'display:flex;height:12px;border-radius:4px;overflow:hidden;';
     
@@ -2591,7 +2590,6 @@ function renderCompanionStats() {
             bar.title = `${bedtimeRanges[index].label}: ${count}次`;
             barsBedtime.appendChild(bar);
         });
-
     } else {
         const emptyBar = document.createElement('div');
         emptyBar.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
@@ -2599,7 +2597,7 @@ function renderCompanionStats() {
         barsBedtime.appendChild(emptyBar);
     }
 
-    // ---- ★ 睡眠时长横轴（按固定颜色顺序） ----
+    // ---- ★ 睡眠时长横轴 ----
     barsDuration.innerHTML = '';
     barsDuration.style.cssText = 'display:flex;height:12px;border-radius:4px;overflow:hidden;';
     
