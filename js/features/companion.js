@@ -2364,8 +2364,10 @@ function renderCompanionStats() {
     const label = document.getElementById('comp-stats-month-label');
     if (label) label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
 
-    const records = getFilteredRecords();
-    const monthRecords = records.filter(r => {
+    // ★ 只统计"顺利完成"的记录（mode === 'completed'）
+    const allRecords = window._companionRecords || [];
+    const completedRecords = allRecords.filter(r => r.mode === 'completed');
+    const monthRecords = completedRecords.filter(r => {
         if (!r.date) return false;
         const d = new Date(r.date + 'T00:00:00');
         return d.getFullYear() === year && d.getMonth() === month;
@@ -2380,25 +2382,30 @@ function renderCompanionStats() {
 
     if (!summaryEl || !barsBedtime || !barsDuration) return;
 
+    // 无记录时的空状态
     if (monthRecords.length === 0) {
         summaryEl.textContent = '陪伴 0 天 · 0 次';
         if (avgBedtimeEl) avgBedtimeEl.textContent = '平均: --:--';
         if (avgDurationEl) avgDurationEl.textContent = '平均: --';
+        
         barsBedtime.innerHTML = '';
         const emptyBar1 = document.createElement('div');
-        emptyBar1.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar1.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar1.textContent = '无记录';
         barsBedtime.appendChild(emptyBar1);
+        
         barsDuration.innerHTML = '';
         const emptyBar2 = document.createElement('div');
-        emptyBar2.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar2.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar2.textContent = '无记录';
         barsDuration.appendChild(emptyBar2);
+        
         if (emptyEl) emptyEl.style.display = 'none';
         return;
     }
     if (emptyEl) emptyEl.style.display = 'none';
 
+    // 按日期分组统计天数
     const dayMap = {};
     monthRecords.forEach(r => {
         const day = new Date(r.date + 'T00:00:00').getDate();
@@ -2408,19 +2415,16 @@ function renderCompanionStats() {
     const days = Object.keys(dayMap).sort((a,b) => a-b);
     summaryEl.textContent = `陪伴 ${days.length} 天 · ${monthRecords.length} 次`;
 
+    // ---- 计算平均值 ----
+    // 平均入睡时间
     const bedtimeValues = [];
-    const durationValues = [];
     monthRecords.forEach(r => {
         if (r.startTime) {
             const d = new Date(r.startTime);
             const totalMinutes = d.getHours() * 60 + d.getMinutes();
             bedtimeValues.push(totalMinutes);
         }
-        if (r.duration) {
-            durationValues.push(r.duration / 60000);
-        }
     });
-
     let avgBedtime = null;
     if (bedtimeValues.length > 0) {
         const sum = bedtimeValues.reduce((a,b) => a+b, 0);
@@ -2436,6 +2440,13 @@ function renderCompanionStats() {
         }
     }
 
+    // 平均睡眠时长（分钟）
+    const durationValues = [];
+    monthRecords.forEach(r => {
+        if (r.duration) {
+            durationValues.push(r.duration / 60000);
+        }
+    });
     let avgDuration = null;
     if (durationValues.length > 0) {
         const sum = durationValues.reduce((a,b) => a+b, 0);
@@ -2449,58 +2460,107 @@ function renderCompanionStats() {
         }
     }
 
+    // ---- ★ 入睡时间横轴（按固定颜色顺序） ----
     barsBedtime.innerHTML = '';
+    barsBedtime.style.cssText = 'display:flex;gap:2px;height:12px;border-radius:4px;overflow:hidden;';
+    
     if (bedtimeValues.length > 0) {
-        const sorted = days.map(day => {
-            const recs = dayMap[day];
-            const first = recs[0];
-            if (first && first.startTime) {
-                const d = new Date(first.startTime);
-                return d.getHours() * 60 + d.getMinutes();
-            }
-            return null;
-        }).filter(v => v !== null);
-        const minVal = Math.min(...sorted);
-        const maxVal = Math.max(...sorted);
-        const range = maxVal - minVal || 1;
-        sorted.forEach(val => {
-            const ratio = (val - minVal) / range;
-            const hue = 240 - ratio * 60;
-            const color = `hsl(${Math.round(hue)}, 70%, 55%)`;
+        // 定义区间：7个区间，固定顺序
+        const bedtimeRanges = [
+            { label: '21:00-23:00', min: 21*60, max: 23*60, color: '#FF6B81' },      // 水红色
+            { label: '23:00-23:30', min: 23*60, max: 23*60+30, color: '#C9A0DC' },   // 紫粉色
+            { label: '23:30-00:00', min: 23*60+30, max: 24*60, color: '#A67CBF' },  // 紫色
+            { label: '00:00-00:30', min: 0, max: 30, color: '#7B68EE' },            // 蓝紫色
+            { label: '00:30-01:00', min: 30, max: 60, color: '#4A6FA5' },           // 深蓝色
+            { label: '01:00-07:00', min: 60, max: 7*60, color: '#B0B0B0' },         // 灰色
+            { label: '07:00-21:00', min: 7*60, max: 21*60, color: 'transparent' }  // 白色（透明）
+        ];
+
+        // 统计每个区间的记录数
+        const rangeCounts = bedtimeRanges.map(range => {
+            let count = 0;
+            bedtimeValues.forEach(val => {
+                // 处理跨天：00:00-07:00 的区间在 0-420 分钟
+                if (val >= range.min && val < range.max) {
+                    count++;
+                }
+            });
+            return count;
+        });
+
+        const total = bedtimeValues.length;
+        // 生成横轴分段
+        rangeCounts.forEach((count, index) => {
+            if (count === 0) return;
+            const ratio = count / total;
             const bar = document.createElement('div');
-            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
-            bar.title = formatTimeFromMinutes(val);
+            const color = bedtimeRanges[index].color;
+            bar.style.cssText = `flex:${ratio};height:100%;background:${color};border-radius:0;`;
+            bar.title = `${bedtimeRanges[index].label}: ${count}次`;
             barsBedtime.appendChild(bar);
         });
+
+        // 如果所有记录都在白色区间（transparent），显示白色背景
+        const hasTransparent = rangeCounts.some((c, i) => c > 0 && bedtimeRanges[i].color === 'transparent');
+        if (barsBedtime.children.length === 0 || (barsBedtime.children.length === 1 && hasTransparent)) {
+            barsBedtime.style.background = 'var(--primary-bg)';
+            barsBedtime.style.border = '1px solid var(--border-color)';
+        }
     } else {
         const emptyBar = document.createElement('div');
-        emptyBar.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar.textContent = '无记录';
         barsBedtime.appendChild(emptyBar);
     }
 
+    // ---- ★ 睡眠时长横轴（按固定颜色顺序） ----
     barsDuration.innerHTML = '';
+    barsDuration.style.cssText = 'display:flex;gap:2px;height:12px;border-radius:4px;overflow:hidden;';
+    
     if (durationValues.length > 0) {
-        const sorted = days.map(day => {
-            const recs = dayMap[day];
-            const total = recs.reduce((sum, r) => sum + (r.duration || 0), 0);
-            return total / 60000;
+        // 定义区间：6个区间，固定顺序（单位：秒）
+        const durationRanges = [
+            { label: '>1分钟', min: 60, max: Infinity, color: '#FF6B81' },        // 水红色
+            { label: '50s-1min', min: 50, max: 60, color: '#C9A0DC' },             // 粉紫色
+            { label: '40s-50s', min: 40, max: 50, color: '#A67CBF' },              // 紫色
+            { label: '30s-40s', min: 30, max: 40, color: '#7B68EE' },              // 蓝紫色
+            { label: '20s-30s', min: 20, max: 30, color: '#4A6FA5' },              // 深蓝色
+            { label: '≤20s', min: 0, max: 20, color: '#B0B0B0' }                  // 灰色
+        ];
+
+        // 将时长转换为秒
+        const durationSeconds = durationValues.map(min => min * 60);
+        // 统计每个区间的记录数
+        const rangeCounts = durationRanges.map(range => {
+            let count = 0;
+            durationSeconds.forEach(val => {
+                if (val >= range.min && val < range.max) {
+                    count++;
+                }
+            });
+            return count;
         });
-        const minVal = Math.min(...sorted);
-        const maxVal = Math.max(...sorted);
-        const range = maxVal - minVal || 1;
-        sorted.forEach(val => {
-            const ratio = (val - minVal) / range;
-            const hue = 120 - ratio * 60;
-            const color = `hsl(${Math.round(hue)}, 70%, 55%)`;
+
+        const total = durationSeconds.length;
+        rangeCounts.forEach((count, index) => {
+            if (count === 0) return;
+            const ratio = count / total;
             const bar = document.createElement('div');
-            bar.style.cssText = `flex:1;min-width:12px;height:20px;border-radius:4px;background:${color};opacity:0.9;transition:0.2s;`;
-            bar.title = Math.round(val) + '分钟';
+            const color = durationRanges[index].color;
+            bar.style.cssText = `flex:${ratio};height:100%;background:${color};border-radius:0;`;
+            bar.title = `${durationRanges[index].label}: ${count}次`;
             barsDuration.appendChild(bar);
         });
+
+        if (barsDuration.children.length === 0) {
+            const emptyBar = document.createElement('div');
+            emptyBar.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+            emptyBar.textContent = '无记录';
+            barsDuration.appendChild(emptyBar);
+        }
     } else {
         const emptyBar = document.createElement('div');
-        emptyBar.style.cssText = `width:100%;height:20px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
         emptyBar.textContent = '无记录';
         barsDuration.appendChild(emptyBar);
     }
