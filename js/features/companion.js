@@ -2266,6 +2266,7 @@ function bindCompanionCalendarEvents() {
             panelCalendar.style.display = 'none';
             renderCompanionStats();
         });
+        bindStatsModeDropdown();
     }
 
     // ---- 月份导航（左右箭头） ----
@@ -2372,6 +2373,41 @@ function bindCompanionCalendarEvents() {
     if (closeDetailBottom) closeDetailBottom.style.display = 'none';
 }
 
+// 绑定统计页胶囊下拉事件
+function bindStatsModeDropdown() {
+    const modeBtn = document.getElementById('comp-stats-mode-btn');
+    const dropdown = document.getElementById('comp-stats-mode-dropdown');
+    const options = dropdown ? dropdown.querySelectorAll('.stats-mode-option') : [];
+    const modeLabel = document.getElementById('comp-stats-mode-label');
+
+    if (!modeBtn || !dropdown) return;
+
+    // 切换下拉显示
+    modeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const isOpen = dropdown.style.display === 'block';
+        dropdown.style.display = isOpen ? 'none' : 'block';
+    });
+
+    // 选择选项
+    options.forEach(opt => {
+        opt.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const mode = this.dataset.mode;
+            const label = this.textContent.trim();
+            modeLabel.textContent = label;
+            dropdown.style.display = 'none';
+            // 重新渲染统计
+            renderCompanionStats();
+        });
+    });
+
+    // 点击页面其他区域关闭下拉
+    document.addEventListener('click', function() {
+        if (dropdown) dropdown.style.display = 'none';
+    });
+}
+
 // ============================================================
 // 陪伴记录 - 统计视图（全局）
 // ============================================================
@@ -2388,17 +2424,9 @@ function renderCompanionStats() {
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
 
-    const label = document.getElementById('comp-stats-month-label');
-    if (label) label.textContent = year + '年' + String(month + 1).padStart(2, '0') + '月';
-
-    // ★ 只统计"顺利完成"的记录（mode === 'completed'）
-    const allRecords = window._companionRecords || [];
-    const completedRecords = allRecords.filter(r => r.mode === 'completed');
-    const monthRecords = completedRecords.filter(r => {
-        if (!r.date) return false;
-        const d = new Date(r.date + 'T00:00:00');
-        return d.getFullYear() === year && d.getMonth() === month;
-    });
+    // 获取当前模式
+    const modeLabel = document.getElementById('comp-stats-mode-label');
+    const currentMode = modeLabel ? modeLabel.textContent.trim() : '睡眠';
 
     const summaryEl = document.getElementById('comp-stats-summary');
     const avgBedtimeEl = document.getElementById('comp-stats-avg-bedtime');
@@ -2408,6 +2436,34 @@ function renderCompanionStats() {
     const emptyEl = document.getElementById('comp-stats-empty');
 
     if (!summaryEl || !barsBedtime || !barsDuration) return;
+
+    // 日常模式占位
+    if (currentMode === '日常') {
+        summaryEl.textContent = '日常功能开发中 ✦';
+        if (avgBedtimeEl) avgBedtimeEl.textContent = '';
+        if (avgDurationEl) avgDurationEl.textContent = '';
+        barsBedtime.innerHTML = '';
+        const emptyBar = document.createElement('div');
+        emptyBar.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar.textContent = '敬请期待';
+        barsBedtime.appendChild(emptyBar);
+        barsDuration.innerHTML = '';
+        const emptyBar2 = document.createElement('div');
+        emptyBar2.style.cssText = `width:100%;height:12px;border-radius:4px;background:var(--border-color);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text-secondary);opacity:0.5;`;
+        emptyBar2.textContent = '敬请期待';
+        barsDuration.appendChild(emptyBar2);
+        if (emptyEl) emptyEl.style.display = 'none';
+        return;
+    }
+
+    // 睡眠模式
+    const allRecords = window._companionRecords || [];
+    const completedRecords = allRecords.filter(r => r.mode === 'completed');
+    const monthRecords = completedRecords.filter(r => {
+        if (!r.date) return false;
+        const d = new Date(r.date + 'T00:00:00');
+        return d.getFullYear() === year && d.getMonth() === month;
+    });
 
     // 无记录时的空状态
     if (monthRecords.length === 0) {
@@ -2492,22 +2548,19 @@ function renderCompanionStats() {
     barsBedtime.style.cssText = 'display:flex;height:12px;border-radius:4px;overflow:hidden;';
     
     if (bedtimeValues.length > 0) {
-        // 定义区间：7个区间，固定顺序
         const bedtimeRanges = [
             { label: '21:00-23:00', min: 21*60, max: 23*60, color: '#FF6B81' },
             { label: '23:00-23:30', min: 23*60, max: 23*60+30, color: '#C9A0DC' },
             { label: '23:30-00:00', min: 23*60+30, max: 24*60, color: '#A67CBF' },
             { label: '00:00-00:30', min: 0, max: 30, color: '#7B68EE' },
             { label: '00:30-01:00', min: 30, max: 60, color: '#4A6FA5' },
-            { label: '01:00-07:00', min: 60, max: 7*60, color: '#666666' },   // ← 深灰色
-            { label: '07:00-21:00', min: 7*60, max: 21*60, color: '#E8DDD0' } // ← 浅米色
+            { label: '01:00-07:00', min: 60, max: 7*60, color: '#666666' },
+            { label: '07:00-21:00', min: 7*60, max: 21*60, color: '#E8DDD0' }
         ];
 
-        // 统计每个区间的记录数
         const rangeCounts = bedtimeRanges.map(range => {
             let count = 0;
             bedtimeValues.forEach(val => {
-                // 处理跨天：00:00-07:00 的区间在 0-420 分钟
                 if (val >= range.min && val < range.max) {
                     count++;
                 }
@@ -2516,7 +2569,6 @@ function renderCompanionStats() {
         });
 
         const total = bedtimeValues.length;
-        // 生成横轴分段
         rangeCounts.forEach((count, index) => {
             if (count === 0) return;
             const ratio = count / total;
@@ -2539,20 +2591,16 @@ function renderCompanionStats() {
     barsDuration.style.cssText = 'display:flex;height:12px;border-radius:4px;overflow:hidden;';
     
     if (durationValues.length > 0) {
-        // 定义区间：6个区间，固定顺序（单位：秒）
         const durationRanges = [
             { label: '>1分钟', min: 60, max: Infinity, color: '#FF6B81' },
             { label: '50s-1min', min: 50, max: 60, color: '#C9A0DC' },
             { label: '40s-50s', min: 40, max: 50, color: '#A67CBF' },
             { label: '30s-40s', min: 30, max: 40, color: '#7B68EE' },
             { label: '20s-30s', min: 20, max: 30, color: '#4A6FA5' },
-            { label: '≤20s', min: 0, max: 20, color: '#666666' }   // ← 深灰色
+            { label: '≤20s', min: 0, max: 20, color: '#666666' }
         ];
 
-
-        // 将时长转换为秒
         const durationSeconds = durationValues.map(min => min * 60);
-        // 统计每个区间的记录数
         const rangeCounts = durationRanges.map(range => {
             let count = 0;
             durationSeconds.forEach(val => {
@@ -2881,42 +2929,90 @@ function showCompanionDayDetail(dateStr) {
         const parts = dateStr.split('-');
         titleEl.textContent = parts[0] + '年' + parseInt(parts[1]) + '月' + parseInt(parts[2]) + '日';
     }
-    const records = getFilteredRecords();
+    
+    const records = getFilteredRecords(); // 所有非 ongoing 记录
     const dayRecords = records.filter(r => r.date === dateStr);
+    
+    // 分离睡眠和日常记录（目前日常记录为空，但保留结构）
+    const sleepRecords = dayRecords; // 目前所有记录都是睡眠，以后可加入 mode 区分
+    const dailyRecords = []; // 日常占位
+    
     const listEl = document.getElementById('companion-day-records-list');
-    if (!listEl) return;
-
-    if (dayRecords.length === 0) {
-        listEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text-secondary);opacity:0.6;font-size:14px;">当日无记录</div>`;
-    } else {
-        let html = '';
-        dayRecords.forEach((rec, index) => {
-            const recordNum = index + 1;
-            const statusText = rec.mode === 'completed' ? '✅ 顺利完成' :
-                   rec.mode === 'interrupted' ? '⏸️ 选择终止' : '⚠️ 系统中断';
-
-            html += `
-                <div class="companion-record-entry" data-id="${rec.id}" style="padding:12px 16px;margin-bottom:8px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:background 0.2s;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span style="font-weight:600;font-size:15px;">睡眠记录${recordNum}：<span style="font-weight:400;color:var(--text-secondary);">${statusText}</span></span>
-                        <i class="fas fa-chevron-right" style="color:var(--text-secondary);opacity:0.5;"></i>
+    const dailyPlaceholder = document.getElementById('daily-placeholder');
+    
+    // 渲染睡眠列表
+    function renderSleepList() {
+        if (sleepRecords.length === 0) {
+            listEl.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text-secondary);opacity:0.6;font-size:14px;">当日无睡眠记录</div>`;
+        } else {
+            let html = '';
+            sleepRecords.forEach((rec, index) => {
+                const recordNum = index + 1;
+                const statusText = rec.mode === 'completed' ? '✅ 顺利完成' :
+                                  rec.mode === 'interrupted' ? '⏸️ 选择终止' : '⚠️ 系统中断';
+                html += `
+                    <div class="companion-record-entry" data-id="${rec.id}" style="padding:12px 16px;margin-bottom:8px;background:var(--primary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:background 0.2s;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-weight:600;font-size:15px;">睡眠记录${recordNum}：<span style="font-weight:400;color:var(--text-secondary);">${statusText}</span></span>
+                            <i class="fas fa-chevron-right" style="color:var(--text-secondary);opacity:0.5;"></i>
+                        </div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
+                            开始：${window.formatDateTime(rec.startTime)} · 时长：${window.formatDuration(rec.duration)}
+                        </div>
                     </div>
-                    <div style="font-size:12px;color:var(--text-secondary);margin-top:4px;">
-                        开始：${window.formatDateTime(rec.startTime)} · 时长：${window.formatDuration(rec.duration)}
-                    </div>
-                </div>
-            `;
-        });
-        listEl.innerHTML = html;
-        listEl.querySelectorAll('.companion-record-entry').forEach(el => {
-            el.addEventListener('click', function() {
-                const id = this.dataset.id;
-                showCompanionRecordDetail(id);
+                `;
             });
-        });
+            listEl.innerHTML = html;
+            listEl.querySelectorAll('.companion-record-entry').forEach(el => {
+                el.addEventListener('click', function() {
+                    const id = this.dataset.id;
+                    showCompanionRecordDetail(id);
+                });
+            });
+        }
+        listEl.style.display = 'block';
+        dailyPlaceholder.style.display = 'none';
     }
-
-    // ★ 修复右上角关闭键
+    
+    function renderDailyList() {
+        listEl.style.display = 'none';
+        dailyPlaceholder.style.display = 'block';
+    }
+    
+    // 默认显示睡眠
+    renderSleepList();
+    
+    // 标签页切换事件
+    const tabSleep = document.getElementById('day-tab-sleep');
+    const tabDaily = document.getElementById('day-tab-daily');
+    
+    // 移除旧监听避免重复绑定
+    const newTabSleep = tabSleep.cloneNode(true);
+    const newTabDaily = tabDaily.cloneNode(true);
+    tabSleep.parentNode.replaceChild(newTabSleep, tabSleep);
+    tabDaily.parentNode.replaceChild(newTabDaily, tabDaily);
+    
+    newTabSleep.addEventListener('click', function() {
+        newTabSleep.classList.add('active');
+        newTabSleep.style.background = 'var(--accent-color)';
+        newTabSleep.style.color = '#fff';
+        newTabDaily.classList.remove('active');
+        newTabDaily.style.background = 'transparent';
+        newTabDaily.style.color = 'var(--text-secondary)';
+        renderSleepList();
+    });
+    
+    newTabDaily.addEventListener('click', function() {
+        newTabDaily.classList.add('active');
+        newTabDaily.style.background = 'var(--accent-color)';
+        newTabDaily.style.color = '#fff';
+        newTabSleep.classList.remove('active');
+        newTabSleep.style.background = 'transparent';
+        newTabSleep.style.color = 'var(--text-secondary)';
+        renderDailyList();
+    });
+    
+    // 修复右上角关闭键
     const closeTop = document.getElementById('close-companion-day-modal');
     if (closeTop) {
         closeTop.replaceWith(closeTop.cloneNode(true));
@@ -2927,13 +3023,11 @@ function showCompanionDayDetail(dateStr) {
             });
         }
     }
-
-    // ★ 隐藏右下角关闭按钮
+    
+    // 隐藏右下角关闭按钮（已在 CSS 中隐藏，但确保）
     const closeBottom = document.getElementById('close-companion-day-modal-btn');
-    if (closeBottom) {
-        closeBottom.style.display = 'none';
-    }
-
+    if (closeBottom) closeBottom.style.display = 'none';
+    
     showModal(modal);
 }
 
