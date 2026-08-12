@@ -2253,7 +2253,7 @@ function bindCompanionCalendarEvents() {
         });
     }
 
-    // ---- 月份导航 ----
+    // ---- 月份导航（左右箭头） ----
     const prevBtn = document.getElementById('comp-records-prev-month');
     const nextBtn = document.getElementById('comp-records-next-month');
     if (prevBtn) {
@@ -2279,13 +2279,12 @@ function bindCompanionCalendarEvents() {
         });
     }
 
-    // ---- 年份/月份下拉框填充 ----
+    // ---- 年份/月份下拉框填充（保留以备不时之需，但已隐藏） ----
     populateCompanionYearMonthSelectors();
 
-    // ---- 跳转按钮 ----
+    // ---- 跳转按钮（弹窗选择年月） ----
     const jumpBtn = document.getElementById('comp-records-jump-btn');
     if (jumpBtn) {
-        // 移除旧监听避免重复绑定
         jumpBtn.replaceWith(jumpBtn.cloneNode(true));
         const newJumpBtn = document.getElementById('comp-records-jump-btn');
         if (newJumpBtn) {
@@ -2296,7 +2295,24 @@ function bindCompanionCalendarEvents() {
         }
     }
 
-
+    // ---- 当前按钮（回到当前月份） ----
+    const currentBtn = document.getElementById('comp-records-current-btn');
+    if (currentBtn) {
+        currentBtn.replaceWith(currentBtn.cloneNode(true));
+        const newCurrentBtn = document.getElementById('comp-records-current-btn');
+        if (newCurrentBtn) {
+            newCurrentBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                _compRecordsCurrentDate = new Date(); // 设置为当前日期
+                updateCompanionDateSelectors();
+                renderCompanionCalendar();
+                const panelStats = document.getElementById('comp-records-stats-panel');
+                if (panelStats && panelStats.style.display !== 'none') {
+                    renderCompanionStats();
+                }
+            });
+        }
+    }
 
     // ---- 关闭按钮（只保留右上角） ----
     const closeTop = document.getElementById('close-companion-records');
