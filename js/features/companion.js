@@ -2283,24 +2283,20 @@ function bindCompanionCalendarEvents() {
     populateCompanionYearMonthSelectors();
 
     // ---- 跳转按钮 ----
-    const goBtn = document.getElementById('comp-records-go-to-date');
-    if (goBtn) {
-        goBtn.addEventListener('click', function() {
-            const yearSelect = document.getElementById('comp-records-year-select');
-            const monthSelect = document.getElementById('comp-records-month-select');
-            if (yearSelect && monthSelect) {
-                const year = parseInt(yearSelect.value);
-                const month = parseInt(monthSelect.value);
-                _compRecordsCurrentDate = new Date(year, month, 1);
-                updateCompanionDateSelectors();
-                renderCompanionCalendar();
-                const panelStats = document.getElementById('comp-records-stats-panel');
-                if (panelStats && panelStats.style.display !== 'none') {
-                    renderCompanionStats();
-                }
-            }
-        });
+    const jumpBtn = document.getElementById('comp-records-jump-btn');
+    if (jumpBtn) {
+        // 移除旧监听避免重复绑定
+        jumpBtn.replaceWith(jumpBtn.cloneNode(true));
+        const newJumpBtn = document.getElementById('comp-records-jump-btn');
+        if (newJumpBtn) {
+            newJumpBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showCompanionJumpPanel();
+            });
+        }
     }
+
+
 
     // ---- 关闭按钮（只保留右上角） ----
     const closeTop = document.getElementById('close-companion-records');
@@ -2628,6 +2624,94 @@ function loadCompanionRecordsData() {
         }
     } catch (e) {}
     window._companionRecords = [];
+}
+
+// ============================================================
+// 跳转面板（年月选择弹窗）
+// ============================================================
+let jumpPanel = null;
+
+function showCompanionJumpPanel() {
+    if (jumpPanel) {
+        document.body.removeChild(jumpPanel);
+        jumpPanel = null;
+    }
+
+    const currentYear = _compRecordsCurrentDate.getFullYear();
+    const currentMonth = _compRecordsCurrentDate.getMonth();
+
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.4);
+        backdrop-filter: blur(4px);
+        animation: companionToastIn 0.3s ease;
+    `;
+
+    panel.innerHTML = `
+        <div style="background: var(--secondary-bg); border-radius: 20px; padding: 24px; max-width: 300px; width: 85%; box-shadow: 0 10px 40px rgba(0,0,0,0.3); border: 1px solid var(--border-color);">
+            <div style="font-size: 16px; font-weight: 600; margin-bottom: 16px; text-align: center; color: var(--text-primary);">跳转到</div>
+            <div style="display: flex; gap: 12px; align-items: center; justify-content: center; margin-bottom: 20px;">
+                <select id="jump-year-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--primary-bg); color: var(--text-primary); font-size: 14px; flex: 1;">
+                    ${Array.from({length: 21}, (_, i) => {
+                        const y = currentYear - 10 + i;
+                        return `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`;
+                    }).join('')}
+                </select>
+                <span style="font-size: 14px; color: var(--text-secondary);">年</span>
+                <select id="jump-month-select" style="padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--primary-bg); color: var(--text-primary); font-size: 14px; flex: 1;">
+                    ${Array.from({length: 12}, (_, i) => {
+                        return `<option value="${i}" ${i === currentMonth ? 'selected' : ''}>${i+1}月</option>`;
+                    }).join('')}
+                </select>
+            </div>
+            <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                <button id="jump-cancel-btn" style="padding: 8px 16px; border-radius: 10px; border: 1px solid var(--border-color); background: transparent; color: var(--text-secondary); cursor: pointer; font-size: 14px;">取消</button>
+                <button id="jump-confirm-btn" style="padding: 8px 16px; border-radius: 10px; border: none; background: var(--accent-color); color: #fff; cursor: pointer; font-size: 14px;">确定</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(panel);
+    jumpPanel = panel;
+
+    panel.querySelector('#jump-cancel-btn').addEventListener('click', () => {
+        if (jumpPanel) {
+            document.body.removeChild(jumpPanel);
+            jumpPanel = null;
+        }
+    });
+
+    panel.querySelector('#jump-confirm-btn').addEventListener('click', () => {
+        const year = parseInt(panel.querySelector('#jump-year-select').value);
+        const month = parseInt(panel.querySelector('#jump-month-select').value);
+        _compRecordsCurrentDate = new Date(year, month, 1);
+        // 重新渲染日历和统计
+        renderCompanionCalendar();
+        const panelStats = document.getElementById('comp-records-stats-panel');
+        if (panelStats && panelStats.style.display !== 'none') {
+            renderCompanionStats();
+        }
+        // 关闭面板
+        if (jumpPanel) {
+            document.body.removeChild(jumpPanel);
+            jumpPanel = null;
+        }
+    });
+
+    panel.addEventListener('click', (e) => {
+        if (e.target === panel) {
+            if (jumpPanel) {
+                document.body.removeChild(jumpPanel);
+                jumpPanel = null;
+            }
+        }
+    });
 }
 
 function renderCompanionCalendar() {
