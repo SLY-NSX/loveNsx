@@ -2218,24 +2218,23 @@
 <!-- ===== 陪伴记录模态框 ===== -->
 <div class="modal" id="companion-records-modal">
     <div class="modal-content">
-        <!-- 标题 -->
-        <!-- 标题 + 标签页 + 关闭键 同行 -->
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div class="modal-title" style="margin-bottom:0; border:none; padding:0;">
-                    <i class="fas fa-moon"></i><span>陪伴记录</span>
-                </div>
-                <div class="stats-tab-bar" style="display:flex;gap:6px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
-                    <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar">
-                        <i class="fas fa-calendar-alt"></i> 日历
-                    </button>
-                    <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats">
-                        <i class="fas fa-chart-bar"></i> 统计
-                    </button>
-                </div>
+        <!-- 头部 -->
+        <div class="mood-header-actions">
+            <div class="modal-title" style="margin-bottom:0; border:none; padding:0;">
+                <i class="fas fa-moon"></i><span>陪伴记录</span>
             </div>
-            <button class="view-switch-btn" id="close-companion-records" style="font-size:12px; padding:4px 12px;">
+            <button class="view-switch-btn" id="close-companion-records">
                 <i class="fas fa-times"></i> 关闭
+            </button>
+        </div>
+
+        <!-- 标签栏 -->
+        <div class="stats-tab-bar" style="display:flex;gap:6px;margin:8px 0 12px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
+            <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar">
+                <i class="fas fa-calendar-alt"></i> 日历
+            </button>
+            <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats">
+                <i class="fas fa-chart-bar"></i> 统计
             </button>
         </div>
 
@@ -2274,34 +2273,20 @@
         <!-- 统计面板 -->
         <div id="comp-records-stats-panel" style="display:none;">
             <div style="padding:4px 0;">
-                <!-- 替换原月份标题为下拉胶囊 -->
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-                    <div style="position:relative; display:inline-block;">
-                        <button id="comp-stats-mode-btn" style="padding:4px 14px; border-radius:20px; border:1px solid var(--border-color); background:var(--secondary-bg); color:var(--text-primary); cursor:pointer; font-size:13px; display:flex; align-items:center; gap:6px;">
-                            <span id="comp-stats-mode-label">睡眠</span>
-                            <i class="fas fa-chevron-down" style="font-size:10px;"></i>
-                        </button>
-                        <!-- 下拉菜单 -->
-                        <div id="comp-stats-mode-dropdown" style="display:none; position:absolute; top:calc(100% + 4px); left:0; background:var(--secondary-bg); border:1px solid var(--border-color); border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.1); min-width:100px; z-index:10; overflow:hidden;">
-                            <div class="stats-mode-option" data-mode="sleep" style="padding:6px 14px; cursor:pointer; font-size:13px; color:var(--text-primary); transition:background 0.15s;">🌙 睡眠</div>
-                            <div class="stats-mode-option" data-mode="daily" style="padding:6px 14px; cursor:pointer; font-size:13px; color:var(--text-primary); transition:background 0.15s;">☀️ 日常</div>
-                        </div>
-                    </div>
-                    <!-- 右侧可保留空或放置其他信息 -->
-                    <div id="comp-stats-summary" style="font-size:13px;color:var(--text-secondary);">陪伴 0 天 · 0 次</div>
-                </div>
-        
+                <div style="font-size:15px;font-weight:600;margin-bottom:2px;" id="comp-stats-month-label">2026年8月</div>
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;" id="comp-stats-summary">陪伴 0 天 · 0 次</div>
+                
                 <!-- 入睡时间 -->
-                <div style="margin-bottom:20px;">
+                <div style="margin-bottom:16px;">
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
                         <span>🌙 入睡时间</span>
                         <span id="comp-stats-avg-bedtime" style="font-weight:600;color:var(--text-primary);">平均: --:--</span>
                     </div>
                     <div style="display:flex;gap:4px;flex-wrap:wrap;" id="comp-stats-bedtime-bars"></div>
                 </div>
-        
+                
                 <!-- 睡眠时长 -->
-                <div style="margin-bottom:4px;">
+                <div>
                     <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
                         <span>⏱ 睡眠时长</span>
                         <span id="comp-stats-avg-duration" style="font-weight:600;color:var(--text-primary);">平均: -- 分钟</span>
@@ -2324,7 +2309,6 @@
 </div>
 <!-- ===== 结束 ===== -->
 
-
 <!-- ===== 陪伴记录 - 日详情模态框（一级卡片） ===== -->
 <div class="modal" id="companion-day-modal">
     <div class="modal-content" style="max-height:90vh;">
@@ -2334,22 +2318,8 @@
                 <i class="fas fa-times"></i> 关闭
             </button>
         </div>
-        <!-- 标签页切换 -->
-        <div class="stats-tab-bar" style="display:flex;gap:6px;margin-bottom:12px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
-            <button class="stats-nav-btn active" id="day-tab-sleep" data-tab="sleep" style="flex:1;padding:6px 0;font-size:12px;border:none;border-radius:8px;background:var(--accent-color);color:#fff;cursor:pointer;">
-                <i class="fas fa-moon"></i> 睡眠
-            </button>
-            <button class="stats-nav-btn" id="day-tab-daily" data-tab="daily" style="flex:1;padding:6px 0;font-size:12px;border:none;border-radius:8px;background:transparent;color:var(--text-secondary);cursor:pointer;">
-                <i class="fas fa-sun"></i> 日常
-            </button>
-        </div>
         <div id="companion-day-records-list" style="max-height:60vh; overflow-y:auto;">
             <!-- 动态渲染 -->
-        </div>
-        <div id="daily-placeholder" style="display:none; text-align:center; padding:40px 20px; color:var(--text-secondary);">
-            <i class="fas fa-sun" style="font-size:48px; opacity:0.3; display:block; margin-bottom:12px;"></i>
-            <p style="font-size:16px; font-weight:500;">功能开发中</p>
-            <p style="font-size:12px; opacity:0.6; margin-top:6px;">日常陪伴功能敬请期待 ✦</p>
         </div>
         <div class="modal-buttons" style="margin-top:12px;">
             <button class="modal-btn modal-btn-secondary" id="close-companion-day-modal-btn">关闭</button>
