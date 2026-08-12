@@ -2381,42 +2381,43 @@ function bindStatsModeDropdown() {
 
     if (!modeBtn || !dropdown || !modeLabel) return;
 
-    // 移除旧监听（防止重复绑定）
-    const newModeBtn = modeBtn.cloneNode(true);
-    modeBtn.parentNode.replaceChild(newModeBtn, modeBtn);
-    const newDropdown = dropdown.cloneNode(true);
-    dropdown.parentNode.replaceChild(newDropdown, dropdown);
-
-    // 重新获取
-    const freshModeBtn = document.getElementById('comp-stats-mode-btn');
-    const freshDropdown = document.getElementById('comp-stats-mode-dropdown');
-    const freshOptions = freshDropdown.querySelectorAll('.stats-mode-option');
-    const freshLabel = document.getElementById('comp-stats-mode-label');
-
+    // 移除已绑定的监听（可以用标志避免重复绑定）
+    if (modeBtn._listener) {
+        modeBtn.removeEventListener('click', modeBtn._listener);
+    }
     // 切换下拉显示
-    freshModeBtn.addEventListener('click', function(e) {
+    const toggleDropdown = function(e) {
         e.stopPropagation();
-        const isOpen = freshDropdown.style.display === 'block';
-        freshDropdown.style.display = isOpen ? 'none' : 'block';
-    });
+        const isOpen = dropdown.style.display === 'block';
+        dropdown.style.display = isOpen ? 'none' : 'block';
+    };
+    modeBtn.addEventListener('click', toggleDropdown);
+    modeBtn._listener = toggleDropdown;
 
-    // 选择选项
-    freshOptions.forEach(opt => {
-        opt.addEventListener('click', function(e) {
+    // 选项点击
+    const options = dropdown.querySelectorAll('.stats-mode-option');
+    options.forEach(opt => {
+        if (opt._listener) {
+            opt.removeEventListener('click', opt._listener);
+        }
+        const optionClick = function(e) {
             e.stopPropagation();
-            const mode = this.dataset.mode;
             const label = this.textContent.trim();
-            freshLabel.textContent = label;
-            freshDropdown.style.display = 'none';
-            // ★ 重新渲染统计（确保刷新）
+            modeLabel.textContent = label;
+            dropdown.style.display = 'none';
             renderCompanionStats();
-        });
+        };
+        opt.addEventListener('click', optionClick);
+        opt._listener = optionClick;
     });
 
-    // 点击页面其他区域关闭下拉
-    document.addEventListener('click', function() {
-        if (freshDropdown) freshDropdown.style.display = 'none';
-    });
+    // 点击外部关闭
+    if (!window._dropdownCloseListener) {
+        window._dropdownCloseListener = function() {
+            dropdown.style.display = 'none';
+        };
+        document.addEventListener('click', window._dropdownCloseListener);
+    }
 }
 
 // ============================================================
@@ -2432,6 +2433,7 @@ function getFilteredRecords() {
 }
 
 function renderCompanionStats() {
+    console.log('renderCompanionStats 当前模式:', currentMode);
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
 
