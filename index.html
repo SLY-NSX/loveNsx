@@ -2218,26 +2218,27 @@
 <!-- ===== 陪伴记录模态框 ===== -->
 <div class="modal" id="companion-records-modal">
     <div class="modal-content">
-        <!-- 头部 -->
-        <!-- 头部 + 标签栏 合并为一行 -->
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px;flex-wrap:wrap;">
-            <div class="modal-title" style="margin-bottom:0; border:none; padding:0;">
-                <i class="fas fa-moon"></i><span>陪伴记录</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
-                <div style="display:flex;gap:6px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
-                    <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar" style="flex:1;padding:7px 6px;border:none;border-radius:9px;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:all 0.2s ease;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;">
-                        <i class="fas fa-calendar-alt"></i> 日历
-                    </button>
-                    <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats" style="flex:1;padding:7px 6px;border:none;border-radius:9px;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:all 0.2s ease;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;">
-                        <i class="fas fa-chart-bar"></i> 统计
-                    </button>
-                </div>
-                <button class="view-switch-btn" id="close-companion-records" style="background:var(--secondary-bg);border:1px solid var(--border-color);padding:6px 12px;border-radius:20px;font-size:12px;color:var(--text-secondary);cursor:pointer;transition:all 0.3s;display:flex;align-items:center;gap:6px;white-space:nowrap;">
-                    <i class="fas fa-times"></i> 关闭
-                </button>
-            </div>
+
+
+<!-- 头部 + 标签栏 合并为一行 -->
+<div id="comp-records-header-row" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+    <div class="modal-title" style="margin-bottom:0; border:none; padding:0; font-size:22px; font-weight:700;">
+        <i class="fas fa-moon" style="font-size:20px;"></i><span>陪伴记录</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+        <div style="display:flex;gap:6px;background:var(--secondary-bg);border-radius:12px;padding:4px;">
+            <button class="stats-nav-btn active" id="comp-records-tab-calendar" data-tab="calendar" style="flex:1;padding:7px 6px;border:none;border-radius:9px;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:all 0.2s ease;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;">
+                <i class="fas fa-calendar-alt"></i> 日历
+            </button>
+            <button class="stats-nav-btn" id="comp-records-tab-stats" data-tab="stats" style="flex:1;padding:7px 6px;border:none;border-radius:9px;background:transparent;color:var(--text-secondary);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:all 0.2s ease;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;">
+                <i class="fas fa-chart-bar"></i> 统计
+            </button>
         </div>
+        <button class="view-switch-btn" id="close-companion-records" style="background:var(--secondary-bg);border:1px solid var(--border-color);padding:6px 12px;border-radius:20px;font-size:12px;color:var(--text-secondary);cursor:pointer;transition:all 0.3s;display:flex;align-items:center;gap:6px;white-space:nowrap;">
+            <i class="fas fa-times"></i> 关闭
+        </button>
+    </div>
+</div>
 
         <!-- 年份/月份快速跳转 -->
 <div class="comp-date-control-wrap" style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:nowrap;">
