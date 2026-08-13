@@ -136,9 +136,7 @@ function renderCuriosityList(status) {
                         </svg>
                         投递 · ${date}
                     </div>
-                    <div class="env-stamp curiosity-stamp" style="width:28px;height:34px;font-size:16px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;border-radius:4px;box-shadow:none !important;border:1.5px solid rgba(255,255,255,0.3);">
-                        📮
-                    </div>
+                    <span style="font-size:18px;line-height:1;flex-shrink:0;">📮</span>
                 </div>
                 <div class="env-letter-body" style="padding:8px 12px 8px;">
                     ${titleHtml}
