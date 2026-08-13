@@ -114,17 +114,48 @@ function renderCuriosityList(status) {
         const date = new Date(letter.sentTime).toLocaleDateString('zh-CN', {
             month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
-        // 统计题目类型
+        
+        // 统计题目类型（兼容有无 _stats）
         let singleCount = 0, multiCount = 0;
         (letter.questions || []).forEach(q => {
             if (q.type === 'single') singleCount++;
             else if (q.type === 'multiple') multiCount++;
         });
         const qCount = (letter.questions || []).length;
-        // 两行显示：第一行标题加粗，第二行统计信息
-        const titleHtml = `<div style="font-weight:700;font-size:14px;color:var(--text-primary);">${letter.title}</div>`;
+        
+        // 标题和统计
+        const titleHtml = `<div style="font-weight:700;font-size:14px;color:var(--text-primary);">${escapeHtml(letter.title)}</div>`;
         const statsHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">共${qCount}问 · ${singleCount}道单选 · ${multiCount}道多选</div>`;
-        const statusText = status === 'ing' ? '⏳ 等待回复中' : '✅ 已归档';
+        
+        // 状态文字（ing 固定显示“等待中”，archived 显示结果统计或固定占位）
+        let statusText = '';
+        if (status === 'ing') {
+            statusText = '⏳ 等待回复中';
+        } else {
+            // 已归档：显示结果状态
+            if (letter._stats) {
+                const answered = letter._stats.answered || 0;
+                const total = letter._stats.total || qCount;
+                if (answered === total) {
+                    statusText = '✅ 全部回答';
+                } else if (answered > 0) {
+                    statusText = `✅ 已回答 ${answered}/${total}`;
+                } else if (letter._stats.timeout && letter._stats.timeout === total) {
+                    statusText = '⏳ 超时未答';
+                } else {
+                    statusText = '✅ 已归档';
+                }
+            } else {
+                // 兼容旧数据
+                statusText = '✅ 已归档';
+            }
+        }
+        
+        // 红标（未查看）
+        const isNew = letter.isNew || false;
+        const newBadge = isNew 
+            ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff4757;margin-left:6px;flex-shrink:0;box-shadow:0 0 8px rgba(255,71,87,0.5);"></span>` 
+            : '';
 
         return `
             <div class="env-letter-item curiosity-letter-item" onclick="viewCuriosityLetter('${status}','${letter.id}')">
@@ -135,6 +166,7 @@ function renderCuriosityList(status) {
                             <path d="M22 7l-10 7L2 7"/>
                         </svg>
                         投递 · ${date}
+                        ${newBadge}
                     </div>
                     <span style="font-size:18px;line-height:1;flex-shrink:0;">📮</span>
                 </div>
@@ -220,6 +252,7 @@ window.openCuriosityCompose = function() {
 };
 
 // 渲染编辑器内容
+// 渲染编辑器内容
 function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
@@ -264,23 +297,23 @@ function renderComposeEditor() {
             ).join('');
             
             html += `
-                <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:0;padding:14px 20px 12px 4px;cursor:pointer;position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;">
+                <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:0;padding:14px 32px 12px 0px;cursor:pointer;position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;">
                     <!-- 第一行：Q1 + 小圆点 + 类型标签 -->
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
                         <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
                         <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(var(--accent-color-rgb),0.5);flex-shrink:0;"></span>
                         <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
                     </div>
                     <!-- 第二行：题目 -->
-                    <div style="font-size:14px;font-weight:500;color:var(--text-primary);line-height:1.5;padding-left:22px;margin-bottom:4px;">
+                    <div style="font-size:14px;font-weight:500;color:var(--text-primary);line-height:1.5;padding-left:16px;margin-bottom:4px;">
                         ${escapeHtml(q.text)}
                     </div>
                     <!-- 选项列表 -->
-                    <div style="padding-left:22px;margin-top:2px;">
+                    <div style="padding-left:16px;margin-top:2px;">
                         ${optionsHtml}
                     </div>
-                    <!-- 删除按钮（移到更边缘） -->
-                    <button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;top:12px;right:-4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:11px;opacity:0.25;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='0.25'">
+                    <!-- 删除按钮 -->
+                    <button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;top:12px;right:4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:11px;opacity:0.25;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='0.25'">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
@@ -302,16 +335,15 @@ window.editComposeTitle = function() {
 };
 
 window.composeAction = function(action) {
-    if (action === 'edit') {
-        // 点击“编辑”键 → 新建问题
-        openQuestionEditor();
+    if (action === 'submit') {
+        // 投递
+        handleDelivery();
         return;
     }
     
     const messages = {
         'draft': '📝 草稿保存功能开发中，敬请期待 ✦',
-        'confirm': '✅ 确认功能开发中，敬请期待 ✦',
-        'submit': '📬 投递功能开发中，敬请期待 ✦'
+        'confirm': '✅ 确认功能开发中，敬请期待 ✦'
     };
     showNotification(messages[action] || '功能开发中 ✦', 'info', 2500);
 };
@@ -552,3 +584,352 @@ window.deleteQuestion = function(index) {
     renderComposeEditor();
     showNotification('问题已删除', 'success', 1500);
 };
+
+// ============================================================
+// 投递功能 - 完整的后台模拟流程
+// ============================================================
+
+// ---------- 工具函数 ----------
+function randomDelay(minMs, maxMs) {
+    return Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+}
+
+function coinFlip() {
+    return Math.random() < 0.5;
+}
+
+function randomChoice(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// 随机延迟（Promise 版本）
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// ---------- 投递核心流程 ----------
+async function startDeliveryProcess(questionnaire) {
+    const startTime = Date.now();
+    const MAX_DURATION = 5 * 60 * 1000; // 5分钟
+    
+    // 深拷贝问题列表
+    let questions = questionnaire.questions.map(q => ({
+        ...q,
+        _status: 'pending', // pending | answered | skipped | refused | timeout
+        _selectedOptions: [],
+        _askedBack: false,  // 是否反问
+        _processed: false   // 是否已处理（第一遍）
+    }));
+    
+    // ===== 阶段 A：决定是否进入答题 =====
+    let entered = false;
+    let attempts = 0;
+    
+    while (!entered) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > MAX_DURATION) {
+            // 超时，直接返回部分结果
+            return buildResult(questionnaire, questions, 'timeout');
+        }
+        
+        const delay = randomDelay(1000, 60000); // 1秒 ~ 1分钟
+        await sleep(delay);
+        
+        attempts++;
+        if (coinFlip()) {
+            entered = true;
+        }
+    }
+    
+    // ===== 阶段 B：第一遍处理所有问题 =====
+    for (let i = 0; i < questions.length; i++) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > MAX_DURATION) {
+            // 超时，返回当前结果
+            return buildResult(questionnaire, questions, 'timeout');
+        }
+        await processQuestion(questions[i], startTime, MAX_DURATION, true);
+    }
+    
+    // ===== 阶段 C：第二轮处理“暂不回答”的问题 =====
+    const skippedQuestions = questions.filter(q => q._status === 'skipped');
+    for (let i = 0; i < skippedQuestions.length; i++) {
+        const elapsed = Date.now() - startTime;
+        if (elapsed > MAX_DURATION) {
+            return buildResult(questionnaire, questions, 'timeout');
+        }
+        // 第二轮：不判断是否反问
+        await processQuestion(skippedQuestions[i], startTime, MAX_DURATION, false);
+    }
+    
+    // ===== 阶段 D：结果汇总 =====
+    return buildResult(questionnaire, questions, 'completed');
+}
+
+// ---------- 处理单个问题 ----------
+async function processQuestion(question, startTime, MAX_DURATION, allowAskBack) {
+    // 随机延迟 0~30秒
+    const delay = randomDelay(0, 30000);
+    await sleep(delay);
+    
+    // 检查是否超时
+    if (Date.now() - startTime > MAX_DURATION) {
+        question._status = 'timeout';
+        return;
+    }
+    
+    // 三选一：拒绝回答 / 暂不回答 / 回答
+    const actions = ['refuse', 'skip', 'answer'];
+    const action = randomChoice(actions);
+    
+    if (action === 'refuse') {
+        question._status = 'refused';
+        if (allowAskBack && coinFlip()) {
+            question._askedBack = true;
+        }
+    } else if (action === 'skip') {
+        question._status = 'skipped';
+        if (allowAskBack && coinFlip()) {
+            question._askedBack = true;
+        }
+    } else if (action === 'answer') {
+        // 回答问题
+        await answerQuestion(question);
+        question._status = 'answered';
+        if (allowAskBack && coinFlip()) {
+            question._askedBack = true;
+        }
+    }
+}
+
+// ---------- 回答具体问题 ----------
+async function answerQuestion(question) {
+    const options = question.options || [];
+    if (options.length === 0) return;
+    
+    // 随机延迟 0~40秒
+    const delay = randomDelay(0, 40000);
+    await sleep(delay);
+    
+    if (question.type === 'single') {
+        // 单选：随机选一个
+        const selected = randomChoice(options);
+        question._selectedOptions = [selected];
+    } else if (question.type === 'multiple') {
+        // 多选：先随机 1~N 个数量
+        const count = randomInt(1, options.length);
+        // 打乱后取前 count 个
+        const shuffled = [...options].sort(() => Math.random() - 0.5);
+        question._selectedOptions = shuffled.slice(0, count);
+    }
+}
+
+// ---------- 构建结果数据 ----------
+function buildResult(originalQuestionnaire, questions, status) {
+    // 统计各状态数量
+    let answered = 0, skipped = 0, refused = 0, timeout = 0;
+    questions.forEach(q => {
+        if (q._status === 'answered') answered++;
+        else if (q._status === 'skipped') skipped++;
+        else if (q._status === 'refused') refused++;
+        else if (q._status === 'timeout') timeout++;
+    });
+    
+    // 构建结果对象（2.0 版本）
+    const result = {
+        id: originalQuestionnaire.id || 'q_' + Date.now(),
+        title: originalQuestionnaire.title,
+        questions: questions.map(q => ({
+            text: q.text,
+            type: q.type,
+            options: q.options,
+            _status: q._status,
+            _selectedOptions: q._selectedOptions || [],
+            _askedBack: q._askedBack || false
+        })),
+        sentTime: originalQuestionnaire.sentTime || Date.now(),
+        status: 'archived', // 投递后归档
+        isNew: true,        // 标记为未查看
+        version: 2,         // 2.0 版本
+        previousVersionId: originalQuestionnaire.id // 指向1.0
+    };
+    
+    // 统计信息
+    result._stats = {
+        total: questions.length,
+        answered: answered,
+        skipped: skipped,
+        refused: refused,
+        timeout: timeout
+    };
+    
+    return result;
+}
+
+// ---------- 投递入口 ----------
+window.handleDelivery = async function() {
+    // 检查是否有问题
+    if (!editingQuestionnaire || editingQuestionnaire.questions.length === 0) {
+        showNotification('问卷没有题目，请先添加问题 ✦', 'warning', 2500);
+        return;
+    }
+    
+    // 检查标题
+    if (!editingQuestionnaire.title || editingQuestionnaire.title.trim() === '') {
+        showNotification('请先为问卷命名 ✦', 'warning', 2500);
+        return;
+    }
+    
+    // 1. 创建1.0版本问卷
+    const newQuestionnaire = {
+        id: 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        title: editingQuestionnaire.title,
+        questions: editingQuestionnaire.questions.map(q => ({
+            text: q.text,
+            type: q.type,
+            options: [...q.options]
+        })),
+        sentTime: Date.now(),
+        status: 'ing',      // 先放入问卷ing
+        isNew: true,
+        version: 1
+    };
+    
+    // 存入 curiosityData.ing
+    curiosityData.ing.push(newQuestionnaire);
+    await saveCuriosityData();
+    
+    // 显示投递成功弹窗
+    showDeliverySuccessPopup(newQuestionnaire);
+    
+    // 2. 开始后台模拟流程
+    // 使用 setTimeout 让弹窗先显示，再开始后台任务
+    setTimeout(async () => {
+        const result = await startDeliveryProcess(newQuestionnaire);
+        // 处理结果
+        await handleDeliveryResult(result, newQuestionnaire);
+    }, 500);
+};
+
+// ---------- 投递成功弹窗 ----------
+function showDeliverySuccessPopup(questionnaire) {
+    const existing = document.getElementById('curiosity-delivery-popup');
+    if (existing) existing.remove();
+    
+    const popup = document.createElement('div');
+    popup.id = 'curiosity-delivery-popup';
+    popup.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--secondary-bg);border:1px solid var(--border-color);border-radius:20px;padding:18px 24px;z-index:8000;max-width:340px;width:88%;box-shadow:0 8px 32px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:12px;animation:slideUpNotif 0.4s cubic-bezier(0.22,1,0.36,1);';
+    popup.innerHTML = `
+        <style>@keyframes slideUpNotif{from{opacity:0;transform:translateX(-50%) translateY(24px) scale(0.9)}60%{transform:translateX(-50%) translateY(-4px) scale(1.02)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}</style>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:28px;">📬</span>
+            <div>
+                <div style="font-size:15px;font-weight:700;color:var(--text-primary);">问卷正在传达</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;opacity:0.8;">已投递「${escapeHtml(questionnaire.title)}」</div>
+            </div>
+        </div>
+        <button onclick="document.getElementById('curiosity-delivery-popup').remove();" style="width:100%;padding:10px 0;border-radius:12px;border:none;background:var(--accent-color);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-family);">知道了 ✦</button>
+    `;
+    document.body.appendChild(popup);
+    
+    // 15秒后自动消失
+    setTimeout(() => {
+        if (popup.parentNode) popup.remove();
+    }, 15000);
+}
+
+// ---------- 处理投递结果 ----------
+async function handleDeliveryResult(result, originalQuestionnaire) {
+    // 从 ing 中删除原问卷（1.0版本）
+    const ingIndex = curiosityData.ing.findIndex(q => q.id === originalQuestionnaire.id);
+    if (ingIndex > -1) {
+        curiosityData.ing.splice(ingIndex, 1);
+    }
+    
+    // 将结果存入 archived
+    curiosityData.archived.push(result);
+    await saveCuriosityData();
+    
+    // 更新列表（如果好奇驿站模态框是打开的）
+    renderCuriosityLists();
+    
+    // 显示回馈弹窗
+    showResultPopup(result);
+}
+
+// ---------- 回馈结果弹窗 ----------
+function showResultPopup(result) {
+    const existing = document.getElementById('curiosity-result-popup');
+    if (existing) existing.remove();
+    
+    const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+    const attemptCount = result._stats ? (result._stats.answered + result._stats.skipped + result._stats.refused) : 0;
+    // 如果全部超时，显示特殊提示
+    const isTimeout = result._stats && result._stats.timeout === result._stats.total;
+    
+    const popup = document.createElement('div');
+    popup.id = 'curiosity-result-popup';
+    popup.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--secondary-bg);border:1px solid var(--border-color);border-radius:20px;padding:18px 24px;z-index:8000;max-width:360px;width:88%;box-shadow:0 8px 32px rgba(0,0,0,0.18);display:flex;flex-direction:column;gap:14px;animation:slideUpNotif 0.4s cubic-bezier(0.22,1,0.36,1);';
+    
+    const statusText = isTimeout 
+        ? '⏳ 部分问题未能及时回答' 
+        : `✅ 已返回 ${attemptCount} 个回答`;
+    
+    popup.innerHTML = `
+        <style>@keyframes slideUpNotif{from{opacity:0;transform:translateX(-50%) translateY(24px) scale(0.9)}60%{transform:translateX(-50%) translateY(-4px) scale(1.02)}to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}}</style>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:28px;">📨</span>
+            <div>
+                <div style="font-size:15px;font-weight:700;color:var(--text-primary);">您发出的问卷：「${escapeHtml(result.title)}」</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${partnerName} 已返回</div>
+                <div style="font-size:11px;color:var(--accent-color);margin-top:2px;">${statusText}</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="document.getElementById('curiosity-result-popup').remove();" style="flex:1;padding:10px 0;border-radius:12px;border:1px solid var(--border-color);background:transparent;color:var(--text-secondary);font-size:13px;cursor:pointer;font-family:var(--font-family);">稍后查看</button>
+            <button onclick="openCuriosityResult('${result.id}')" style="flex:2;padding:10px 0;border-radius:12px;border:none;background:var(--accent-color);color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:var(--font-family);">立即查看 ✦</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    // 10秒后自动消失
+    setTimeout(() => {
+        if (popup.parentNode) popup.remove();
+    }, 10000);
+}
+
+// ---------- 查看回馈结果 ----------
+window.openCuriosityResult = function(resultId) {
+    // 关闭弹窗
+    const popup = document.getElementById('curiosity-result-popup');
+    if (popup) popup.remove();
+    
+    // 查找结果
+    const result = curiosityData.archived.find(q => q.id === resultId);
+    if (!result) {
+        showNotification('问卷记录不存在', 'error');
+        return;
+    }
+    
+    // 标记为已查看
+    result.isNew = false;
+    saveCuriosityData();
+    renderCuriosityLists();
+    
+    // 切换到已归档标签页
+    switchCuriosityTab('archived');
+    
+    // 打开详情（使用新的详情查看函数）
+    viewArchivedResult(result);
+};
+
+// ---------- 查看归档详情 ----------
+window.viewArchivedResult = function(result) {
+    // 这里暂时复用之前的详情提示，后续会扩展为完整详情页
+    showNotification('问卷详情功能开发中 ✦', 'info', 2000);
+};
+
