@@ -227,7 +227,6 @@ function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
     const questionsContainer = document.getElementById('compose-questions-container');
-    const emptyHint = document.getElementById('compose-empty-hint');
     
     // 设置标题（可编辑）
     if (titleEl) {
@@ -257,7 +256,6 @@ function renderComposeEditor() {
             return;
         }
         
-        const labels = 'ABCDEFGH';
         let html = '';
         questions.forEach((q, index) => {
             const typeLabel = q.type === 'single' ? '单选' : '多选';
@@ -269,35 +267,23 @@ function renderComposeEditor() {
             ).join('');
             
             html += `
-                <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:14px;padding:12px 14px 10px;background:var(--secondary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:border-color 0.2s,box-shadow 0.2s;position:relative;">
+                <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:0;padding:14px 0 12px;cursor:pointer;position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-                        <span style="font-size:12px;font-weight:700;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.1);padding:0 8px;border-radius:4px;">Q${index + 1}</span>
-                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f5f0e8;border:1px solid rgba(var(--accent-color-rgb),0.15);flex-shrink:0;"></span>
-                        <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:var(--primary-bg);padding:0 6px;border-radius:3px;">${typeLabel}</span>
-                        <span style="font-size:14px;font-weight:500;color:var(--text-primary);flex:1;">${escapeHtml(q.text)}</span>
+                        <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
+                        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(var(--accent-color-rgb),0.15);flex-shrink:0;"></span>
+                        <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
+                        <span style="font-size:14px;font-weight:500;color:var(--text-primary);flex:1;line-height:1.5;">${escapeHtml(q.text)}</span>
                     </div>
-                    <div style="padding-left:4px;">
+                    <div style="padding-left:22px;margin-top:2px;">
                         ${optionsHtml}
                     </div>
-                    <button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;bottom:6px;right:8px;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:12px;opacity:0.3;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='0.3'">
+                    <button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;top:12px;right:0;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:11px;opacity:0.25;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='0.25'">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
             `;
         });
         questionsContainer.innerHTML = html;
-        
-        // 添加悬停效果（通过 CSS 更干净，但这里加一点样式增强）
-        document.querySelectorAll('.compose-question-card').forEach(el => {
-            el.addEventListener('mouseenter', function() {
-                this.style.borderColor = 'rgba(var(--accent-color-rgb),0.4)';
-                this.style.boxShadow = '0 2px 12px rgba(var(--accent-color-rgb),0.08)';
-            });
-            el.addEventListener('mouseleave', function() {
-                this.style.borderColor = 'var(--border-color)';
-                this.style.boxShadow = 'none';
-            });
-        });
     }
 }
 
@@ -385,20 +371,35 @@ window.openQuestionEditorForEdit = function(index) {
 // 渲染问题编辑弹窗
 function renderQuestionEditor() {
     const textInput = document.getElementById('qe-text-input');
-    const typeSingle = document.getElementById('qe-type-single');
-    const typeMultiple = document.getElementById('qe-type-multiple');
-    const optionsContainer = document.getElementById('qe-options-container');
     const charCount = document.getElementById('qe-char-count');
     
     // 填充问题内容
     if (textInput) {
         textInput.value = tempQuestionData.text || '';
         textInput.dispatchEvent(new Event('input'));
+        if (charCount) charCount.textContent = (tempQuestionData.text || '').length + '/100';
     }
     
-    // 设置类型
-    if (typeSingle) typeSingle.checked = tempQuestionData.type === 'single';
-    if (typeMultiple) typeMultiple.checked = tempQuestionData.type === 'multiple';
+    // 设置类型（带视觉反馈）
+    const singleBtn = document.getElementById('qe-type-single-btn');
+    const multipleBtn = document.getElementById('qe-type-multiple-btn');
+    const isSingle = tempQuestionData.type === 'single';
+    
+    if (isSingle) {
+        singleBtn.classList.add('active');
+        singleBtn.classList.remove('inactive');
+        multipleBtn.classList.remove('active');
+        multipleBtn.classList.add('inactive');
+        if (document.getElementById('qe-type-single')) document.getElementById('qe-type-single').checked = true;
+        if (document.getElementById('qe-type-multiple')) document.getElementById('qe-type-multiple').checked = false;
+    } else {
+        multipleBtn.classList.add('active');
+        multipleBtn.classList.remove('inactive');
+        singleBtn.classList.remove('active');
+        singleBtn.classList.add('inactive');
+        if (document.getElementById('qe-type-single')) document.getElementById('qe-type-single').checked = false;
+        if (document.getElementById('qe-type-multiple')) document.getElementById('qe-type-multiple').checked = true;
+    }
     
     // 渲染选项
     renderQuestionOptions();
@@ -470,11 +471,29 @@ window.removeTempOption = function(index) {
     renderQuestionOptions();
 };
 
-// 切换问题类型
+// 切换问题类型（带视觉反馈）
 window.setQuestionType = function(type) {
     tempQuestionData.type = type;
-    document.getElementById('qe-type-single').checked = type === 'single';
-    document.getElementById('qe-type-multiple').checked = type === 'multiple';
+    
+    const singleBtn = document.getElementById('qe-type-single-btn');
+    const multipleBtn = document.getElementById('qe-type-multiple-btn');
+    
+    // 更新按钮样式
+    if (type === 'single') {
+        singleBtn.classList.add('active');
+        singleBtn.classList.remove('inactive');
+        multipleBtn.classList.remove('active');
+        multipleBtn.classList.add('inactive');
+        document.getElementById('qe-type-single').checked = true;
+        document.getElementById('qe-type-multiple').checked = false;
+    } else {
+        multipleBtn.classList.add('active');
+        multipleBtn.classList.remove('inactive');
+        singleBtn.classList.remove('active');
+        singleBtn.classList.add('inactive');
+        document.getElementById('qe-type-single').checked = false;
+        document.getElementById('qe-type-multiple').checked = true;
+    }
 };
 
 // 保存问题
