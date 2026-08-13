@@ -11861,3 +11861,41 @@ html[data-theme="dark"] #comp-records-title-icon {
     opacity: 0.6;
     font-size: 11px;
 }
+
+/* ---------- 好奇驿站：类型按钮激活状态 ---------- */
+#qe-type-single-btn.active,
+#qe-type-multiple-btn.active {
+    border-color: var(--accent-color) !important;
+    background: rgba(var(--accent-color-rgb), 0.12) !important;
+    color: var(--accent-color) !important;
+}
+#qe-type-single-btn.inactive,
+#qe-type-multiple-btn.inactive {
+    border-color: var(--border-color) !important;
+    background: var(--primary-bg) !important;
+    color: var(--text-secondary) !important;
+}
+#qe-type-single-btn.active #qe-type-single-indicator,
+#qe-type-multiple-btn.active #qe-type-multiple-indicator {
+    border-color: var(--accent-color) !important;
+    background: var(--accent-color) !important;
+}
+#qe-type-single-btn.inactive #qe-type-single-indicator,
+#qe-type-multiple-btn.inactive #qe-type-multiple-indicator {
+    border-color: var(--border-color) !important;
+    background: transparent !important;
+}
+
+/* 信纸风格问题卡片悬停效果 */
+.compose-question-card:hover {
+    background: rgba(var(--accent-color-rgb), 0.03);
+    border-radius: 6px;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    margin-left: -8px;
+    margin-right: -8px;
+    transition: all 0.2s ease;
+}
+.compose-question-card {
+    transition: all 0.2s ease;
+}
