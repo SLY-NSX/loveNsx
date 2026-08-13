@@ -568,12 +568,12 @@
                 </div>
             </div>
 
-            <!-- ⬇️ 底部：只改了两个按钮的样式，保留了 id 和原有结构 ⬇️ -->
+            <!-- 底部固定操作栏：加上笔的图标，但保持高度一致 -->
             <div class="env-send-area" id="curiosity-main-close-btn" style="display:flex;gap:10px;padding:10px 16px 14px;">
-                <button onclick="openNewCuriosityForm()" style="flex:1;padding:13px 0;font-size:14px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);">
-                    创建问卷
+                <button onclick="openNewCuriosityForm()" style="flex:1;padding:13px 0;font-size:14px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-pen" style="font-size:14px;line-height:1;"></i> 创建问卷
                 </button>
-                <button onclick="closeCuriosityModal()" style="flex:1;padding:13px 0;font-size:14px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);">
+                <button onclick="closeCuriosityModal()" style="flex:1;padding:13px 0;font-size:14px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);display:flex;align-items:center;justify-content:center;">
                     关闭
                 </button>
             </div>
