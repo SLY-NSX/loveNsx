@@ -177,11 +177,8 @@ window.deleteCuriosityLetter = function(event, status, id) {
 };
 
 window.openNewCuriosityForm = function() {
-    // 关闭主模态框，打开编辑器
-    closeCuriosityModal();
-    setTimeout(() => {
-        openCuriosityCompose();
-    }, 300);
+    // 直接打开编辑器，不关闭主模态框
+    openCuriosityCompose();
 };
 
 // ---------- 取消创建（回到列表） ----------
@@ -270,7 +267,7 @@ function renderComposeEditor() {
                 <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:0;padding:14px 0 12px;cursor:pointer;position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);">
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                         <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
-                        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(var(--accent-color-rgb),0.15);flex-shrink:0;"></span>
+                        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(var(--accent-color-rgb),0.5);flex-shrink:0;"></span>
                         <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
                         <span style="font-size:14px;font-weight:500;color:var(--text-primary);flex:1;line-height:1.5;">${escapeHtml(q.text)}</span>
                     </div>
