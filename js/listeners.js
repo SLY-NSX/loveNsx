@@ -1494,6 +1494,15 @@ if (companionRecordsOption) {
     });
 }
 
+// ===== 好奇驿站入口 =====
+const curiosityEntryBtn = document.getElementById('curiosity-station-function');
+if (curiosityEntryBtn) {
+    curiosityEntryBtn.addEventListener('click', () => {
+        hideModal(DOMElements.advancedModal.modal);
+        showNotification('功能待开发，敬请期待 ✦', 'info', 3000);
+    });
+}
+
 const closeCompanionMenu = document.getElementById('close-companion-menu');
 if (closeCompanionMenu) {
     closeCompanionMenu.addEventListener('click', () => {
