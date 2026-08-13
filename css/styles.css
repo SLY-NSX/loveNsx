@@ -11731,38 +11731,47 @@ html[data-theme="dark"] #comp-records-title-icon {
     padding: 6px 12px 6px !important;
 }
 
-/* ----- 底部按钮统一大小 ----- */
+/* ---------- 好奇驿站底部按钮视觉平衡 ---------- */
+#curiosity-main-close-btn .env-write-btn {
+    /* 缩窄内边距，抵消图标占据的空间 */
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    /* 字体稍微缩小半个字号 */
+    font-size: 13px !important;
+    /* 图标与文字间距收紧 */
+    gap: 4px !important;
+}
+
+#curiosity-main-close-btn .env-close-btn {
+    /* 保持原样，但可以稍微补一点内边距使其等宽 */
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    font-size: 14px !important;
+}
+
+/* 确保两个按钮在 flex 中严格等分 */
+#curiosity-main-close-btn {
+    display: flex !important;
+    gap: 8px !important;
+    padding: 10px 16px 14px !important;
+}
+
 #curiosity-main-close-btn .env-write-btn,
 #curiosity-main-close-btn .env-close-btn {
-    flex: 1 !important;
-    padding: 12px 0 !important;
-    font-size: 14px !important;
-    border-radius: 14px !important;
-    text-align: center !important;
-    justify-content: center !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 6px !important;
+    flex: 1 1 0 !important;   /* 严格等分剩余空间 */
+    min-width: 0 !important;  /* 防止内容溢出撑宽 */
     box-sizing: border-box !important;
-    height: auto !important;
-    min-height: 48px !important;
-    line-height: 1.2 !important;
-    font-family: var(--font-family) !important;
+    white-space: nowrap !important;
 }
+
+/* 底部按钮精确等高修复 */
+#curiosity-main-close-btn .env-write-btn,
 #curiosity-main-close-btn .env-close-btn {
-    background: transparent !important;
-    border: 1.5px solid var(--border-color) !important;
-    color: var(--text-secondary) !important;
+    height: 48px !important;
+    box-sizing: border-box !important;
+    line-height: 1.2 !important;
 }
-#curiosity-main-close-btn .env-write-btn {
-    background: var(--accent-color) !important;
-    color: #fff !important;
-    border: none !important;
-}
-/* 悬停效果（保持原样） */
-#curiosity-main-close-btn .env-write-btn:hover {
-    opacity: 0.9;
-}
-#curiosity-main-close-btn .env-close-btn:hover {
-    background: var(--primary-bg) !important;
+#curiosity-main-close-btn .env-write-btn svg {
+    flex-shrink: 0;
+    display: block;
 }
