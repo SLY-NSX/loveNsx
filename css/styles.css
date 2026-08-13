@@ -11667,3 +11667,42 @@ html[data-theme="dark"] #comp-records-title-icon {
     font-size: 12px !important;
     line-height: 1.4 !important;
 }
+
+/* ---------- 好奇驿站专用样式 ---------- */
+/* 压缩卡片头部高度 */
+.curiosity-compact-header {
+    padding: 4px 10px 3px !important;
+    min-height: 28px !important;
+}
+.curiosity-compact-header .env-letter-header-from {
+    font-size: 10px !important;
+}
+/* 信箱图标去掉发光特效 + 干净边框 */
+.curiosity-stamp {
+    width: 24px !important;
+    height: 28px !important;
+    font-size: 14px !important;
+    border-width: 1.5px !important;
+    box-shadow: none !important;
+    background: rgba(255,255,255,0.12) !important;
+    border-color: rgba(255,255,255,0.25) !important;
+}
+/* 卡片主体间距微调 */
+.curiosity-letter-item .env-letter-body {
+    padding: 6px 12px 6px !important;
+}
+/* 底部按钮统一大小 */
+#curiosity-main-close-btn {
+    display: flex !important;
+    gap: 8px !important;
+    padding: 10px 16px 14px !important;
+}
+#curiosity-main-close-btn .env-write-btn,
+#curiosity-main-close-btn .env-close-btn {
+    flex: 1 !important;
+    padding: 12px 0 !important;
+    font-size: 14px !important;
+    border-radius: 14px !important;
+    text-align: center !important;
+    justify-content: center !important;
+}
