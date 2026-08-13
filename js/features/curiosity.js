@@ -213,15 +213,11 @@ let editingQuestionnaire = {
 
 // 打开创建问卷编辑器
 window.openCuriosityCompose = function() {
-    // 重置数据
     editingQuestionnaire = {
         title: '未命名问卷',
-        questions: [
-            { id: 'q1', text: '', type: 'single', options: ['', ''] }
-        ],
+        questions: [],  // 改为空数组，不添加示例题目
         createdTime: Date.now()
     };
-    
     renderComposeEditor();
     showModal(document.getElementById('curiosity-compose-modal'));
 };
@@ -230,9 +226,8 @@ window.openCuriosityCompose = function() {
 function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
-    const bodyEl = document.getElementById('compose-body-content');
-    const emptyHint = document.getElementById('compose-empty-hint');
     const questionsContainer = document.getElementById('compose-questions-container');
+    const emptyHint = document.getElementById('compose-empty-hint');
     
     // 设置标题（可编辑）
     if (titleEl) {
@@ -252,39 +247,57 @@ function renderComposeEditor() {
     // 渲染题目列表
     if (questionsContainer) {
         const questions = editingQuestionnaire.questions || [];
+        
         if (questions.length === 0) {
             questionsContainer.innerHTML = `
-                <div style="text-align:center;padding:30px 10px;color:var(--text-secondary);font-size:14px;font-style:italic;opacity:0.6;">
-                    Deepen mutual understanding and bring each other closer
+                <div style="text-align:center;padding:40px 10px;color:var(--text-secondary);font-size:14px;font-style:italic;opacity:0.6;line-height:1.8;">
+                    Deepen mutual understanding<br>and bring each other closer
                 </div>
             `;
-            if (emptyHint) emptyHint.style.display = 'none';
             return;
         }
         
-        if (emptyHint) emptyHint.style.display = 'none';
-        
+        const labels = 'ABCDEFGH';
         let html = '';
         questions.forEach((q, index) => {
             const typeLabel = q.type === 'single' ? '单选' : '多选';
-            const optionsHtml = (q.options || []).map(opt => 
-                `<div style="padding:2px 0 2px 20px;font-size:13px;color:var(--text-secondary);">
-                    <span style="opacity:0.5;">○</span> ${opt || '（空选项）'}
+            const optionsHtml = (q.options || []).map((opt, oi) => 
+                `<div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 6px;font-size:13px;color:var(--text-secondary);">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(var(--accent-color-rgb),0.25);flex-shrink:0;"></span>
+                    <span>${escapeHtml(opt)}</span>
                 </div>`
             ).join('');
             
             html += `
-                <div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px dashed rgba(var(--accent-color-rgb),0.12);">
-                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:14px;padding:12px 14px 10px;background:var(--secondary-bg);border-radius:10px;border:1px solid var(--border-color);cursor:pointer;transition:border-color 0.2s,box-shadow 0.2s;position:relative;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
                         <span style="font-size:12px;font-weight:700;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.1);padding:0 8px;border-radius:4px;">Q${index + 1}</span>
-                        <span style="font-size:13px;font-weight:500;color:var(--text-primary);">${q.text || '（未填写题目）'}</span>
-                        <span style="font-size:10px;color:var(--text-secondary);opacity:0.6;background:var(--primary-bg);padding:0 6px;border-radius:3px;">${typeLabel}</span>
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f5f0e8;border:1px solid rgba(var(--accent-color-rgb),0.15);flex-shrink:0;"></span>
+                        <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:var(--primary-bg);padding:0 6px;border-radius:3px;">${typeLabel}</span>
+                        <span style="font-size:14px;font-weight:500;color:var(--text-primary);flex:1;">${escapeHtml(q.text)}</span>
                     </div>
-                    ${optionsHtml}
+                    <div style="padding-left:4px;">
+                        ${optionsHtml}
+                    </div>
+                    <button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;bottom:6px;right:8px;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:12px;opacity:0.3;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='0.3'">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
                 </div>
             `;
         });
         questionsContainer.innerHTML = html;
+        
+        // 添加悬停效果（通过 CSS 更干净，但这里加一点样式增强）
+        document.querySelectorAll('.compose-question-card').forEach(el => {
+            el.addEventListener('mouseenter', function() {
+                this.style.borderColor = 'rgba(var(--accent-color-rgb),0.4)';
+                this.style.boxShadow = '0 2px 12px rgba(var(--accent-color-rgb),0.08)';
+            });
+            el.addEventListener('mouseleave', function() {
+                this.style.borderColor = 'var(--border-color)';
+                this.style.boxShadow = 'none';
+            });
+        });
     }
 }
 
@@ -299,8 +312,13 @@ window.editComposeTitle = function() {
     }
 };
 
-// ---------- 底部按钮占位功能 ----------
 window.composeAction = function(action) {
+    if (action === 'edit') {
+        // 点击“编辑”键 → 新建问题
+        openQuestionEditor();
+        return;
+    }
+    
     const messages = {
         'draft': '📝 草稿保存功能开发中，敬请期待 ✦',
         'confirm': '✅ 确认功能开发中，敬请期待 ✦',
@@ -312,4 +330,203 @@ window.composeAction = function(action) {
 // ---------- 关闭编辑器 ----------
 window.closeCuriosityCompose = function() {
     hideModal(document.getElementById('curiosity-compose-modal'));
+};
+
+// ============================================================
+// 问题编辑弹窗（点击“编辑”键或点击问题卡片触发）
+// ============================================================
+
+// 当前正在编辑的问题索引（-1 表示新建）
+let editingQuestionIndex = -1;
+// 编辑中的临时数据
+let tempQuestionData = {
+    text: '',
+    type: 'single',
+    options: ['', '']
+};
+
+// 打开问题编辑器（新建）
+window.openQuestionEditor = function() {
+    // 检查是否已达8个问题上限
+    if ((editingQuestionnaire.questions || []).length >= 8) {
+        showNotification('最多只能添加 8 个问题 ✦', 'warning', 2500);
+        return;
+    }
+    
+    editingQuestionIndex = -1;
+    tempQuestionData = {
+        text: '',
+        type: 'single',
+        options: ['', '']
+    };
+    renderQuestionEditor();
+    showModal(document.getElementById('question-editor-modal'));
+};
+
+// 打开问题编辑器（编辑已有问题）
+window.openQuestionEditorForEdit = function(index) {
+    const q = editingQuestionnaire.questions[index];
+    if (!q) return;
+    
+    editingQuestionIndex = index;
+    tempQuestionData = {
+        text: q.text || '',
+        type: q.type || 'single',
+        options: [...(q.options || ['', ''])]
+    };
+    // 确保至少有两个选项
+    while (tempQuestionData.options.length < 2) {
+        tempQuestionData.options.push('');
+    }
+    renderQuestionEditor();
+    showModal(document.getElementById('question-editor-modal'));
+};
+
+// 渲染问题编辑弹窗
+function renderQuestionEditor() {
+    const textInput = document.getElementById('qe-text-input');
+    const typeSingle = document.getElementById('qe-type-single');
+    const typeMultiple = document.getElementById('qe-type-multiple');
+    const optionsContainer = document.getElementById('qe-options-container');
+    const charCount = document.getElementById('qe-char-count');
+    
+    // 填充问题内容
+    if (textInput) {
+        textInput.value = tempQuestionData.text || '';
+        textInput.dispatchEvent(new Event('input'));
+    }
+    
+    // 设置类型
+    if (typeSingle) typeSingle.checked = tempQuestionData.type === 'single';
+    if (typeMultiple) typeMultiple.checked = tempQuestionData.type === 'multiple';
+    
+    // 渲染选项
+    renderQuestionOptions();
+}
+
+// 渲染选项列表
+function renderQuestionOptions() {
+    const container = document.getElementById('qe-options-container');
+    if (!container) return;
+    
+    const options = tempQuestionData.options || [];
+    const labels = 'ABCDEFGH';
+    
+    let html = '';
+    options.forEach((opt, index) => {
+        html += `
+            <div class="qe-option-row" data-index="${index}">
+                <span class="qe-option-label">${labels[index] || '?'}</span>
+                <input class="qe-option-input" type="text" value="${escapeHtml(opt)}" placeholder="选项 ${labels[index]}" maxlength="50" oninput="updateTempOption(${index}, this.value)">
+                <button class="qe-option-delete" onclick="removeTempOption(${index})" ${options.length <= 2 ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : ''}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+        `;
+    });
+    
+    // 添加“+添加选项”按钮（最多8个）
+    const canAdd = options.length < 8;
+    html += `
+        <button class="qe-add-option-btn" onclick="addTempOption()" ${!canAdd ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            添加选项
+        </button>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// 工具：HTML 转义
+function escapeHtml(text) {
+    if (!text) return '';
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// 更新临时选项内容
+window.updateTempOption = function(index, value) {
+    if (tempQuestionData.options && tempQuestionData.options[index] !== undefined) {
+        tempQuestionData.options[index] = value;
+    }
+};
+
+// 添加临时选项
+window.addTempOption = function() {
+    if ((tempQuestionData.options || []).length >= 8) {
+        showNotification('最多 8 个选项', 'warning', 1500);
+        return;
+    }
+    tempQuestionData.options.push('');
+    renderQuestionOptions();
+};
+
+// 删除临时选项
+window.removeTempOption = function(index) {
+    if ((tempQuestionData.options || []).length <= 2) {
+        showNotification('至少保留 2 个选项', 'warning', 1500);
+        return;
+    }
+    tempQuestionData.options.splice(index, 1);
+    renderQuestionOptions();
+};
+
+// 切换问题类型
+window.setQuestionType = function(type) {
+    tempQuestionData.type = type;
+    document.getElementById('qe-type-single').checked = type === 'single';
+    document.getElementById('qe-type-multiple').checked = type === 'multiple';
+};
+
+// 保存问题
+window.saveQuestion = function() {
+    const text = (document.getElementById('qe-text-input')?.value || '').trim();
+    const type = tempQuestionData.type || 'single';
+    const options = tempQuestionData.options.filter(opt => opt.trim() !== '');
+    
+    // 校验
+    if (!text) {
+        showNotification('请填写问题内容 ✦', 'warning', 2000);
+        return;
+    }
+    if (options.length < 2) {
+        showNotification('至少需要 2 个选项 ✦', 'warning', 2000);
+        return;
+    }
+    
+    // 构建问题对象
+    const questionData = {
+        id: 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        text: text,
+        type: type,
+        options: options
+    };
+    
+    if (editingQuestionIndex === -1) {
+        // 新建
+        editingQuestionnaire.questions.push(questionData);
+        showNotification('问题已添加 ✦', 'success', 1500);
+    } else {
+        // 编辑
+        const oldId = editingQuestionnaire.questions[editingQuestionIndex]?.id || questionData.id;
+        questionData.id = oldId;
+        editingQuestionnaire.questions[editingQuestionIndex] = questionData;
+        showNotification('问题已更新 ✦', 'success', 1500);
+    }
+    
+    // 关闭弹窗并刷新编辑器
+    hideModal(document.getElementById('question-editor-modal'));
+    renderComposeEditor();
+};
+
+// 关闭问题编辑器（不保存）
+window.closeQuestionEditor = function() {
+    hideModal(document.getElementById('question-editor-modal'));
+};
+
+// 删除整个问题（从问卷中移除）
+window.deleteQuestion = function(index) {
+    if (!confirm('确定要删除这个问题吗？')) return;
+    editingQuestionnaire.questions.splice(index, 1);
+    renderComposeEditor();
+    showNotification('问题已删除', 'success', 1500);
 };
