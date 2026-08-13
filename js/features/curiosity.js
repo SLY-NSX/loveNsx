@@ -121,7 +121,9 @@ function renderCuriosityList(status) {
             else if (q.type === 'multiple') multiCount++;
         });
         const qCount = (letter.questions || []).length;
-        const preview = `问卷标题：${letter.title}  共${qCount}问  ${singleCount}道单选  ${multiCount}道多选`;
+        // 两行显示：第一行标题加粗，第二行统计信息
+        const titleHtml = `<div style="font-weight:700;font-size:14px;color:var(--text-primary);">${letter.title}</div>`;
+        const statsHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">共${qCount}问 · ${singleCount}道单选 · ${multiCount}道多选</div>`;
         const statusText = status === 'ing' ? '⏳ 等待回复中' : '✅ 已归档';
 
         return `
@@ -134,15 +136,14 @@ function renderCuriosityList(status) {
                         </svg>
                         投递 · ${date}
                     </div>
-                    <div class="env-stamp curiosity-stamp" style="width:28px;height:34px;font-size:16px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;border-radius:4px;">
+                    <div class="env-stamp curiosity-stamp" style="width:28px;height:34px;font-size:16px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;border-radius:4px;box-shadow:none !important;border:1.5px solid rgba(255,255,255,0.3);">
                         📮
                     </div>
                 </div>
-                <div class="env-letter-body">
-                    <div class="env-letter-preview" style="font-size:13px;color:var(--text-primary);white-space:normal;overflow:hidden;text-overflow:ellipsis;max-width:100%;">
-                        ${preview}
-                    </div>
-                    <div class="env-letter-status" style="font-size:11px;color:var(--accent-color);margin-top:4px;">
+                <div class="env-letter-body" style="padding:8px 12px 8px;">
+                    ${titleHtml}
+                    ${statsHtml}
+                    <div class="env-letter-status" style="font-size:11px;color:var(--accent-color);margin-top:6px;">
                         ${statusText}
                     </div>
                 </div>
