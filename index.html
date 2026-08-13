@@ -634,17 +634,17 @@
 
             <!-- 底部操作按键 -->
             <div style="display:flex;gap:10px;padding:12px 18px 16px;border-top:1px solid var(--border-color);flex-shrink:0;flex-wrap:wrap;">
-                <button onclick="composeAction('submit')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);transition:opacity 0.2s;letter-spacing:0.5px;">
-                    📬 投递
+                <button onclick="composeAction('submit')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);transition:opacity 0.2s;letter-spacing:0.5px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-paper-plane" style="font-size:13px;"></i> 投递
                 </button>
-                <button onclick="openQuestionEditor()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:var(--primary-bg);color:var(--text-primary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">
-                    ✏️ 编辑
+                <button onclick="openQuestionEditor()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:var(--primary-bg);color:var(--text-primary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-question" style="font-size:13px;"></i> 提问
                 </button>
-                <button onclick="composeAction('confirm')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid rgba(var(--accent-color-rgb),0.3);border-radius:12px;background:rgba(var(--accent-color-rgb),0.08);color:var(--accent-color);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">
-                    ✅ 确认
+                <button onclick="composeAction('confirm')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid rgba(var(--accent-color-rgb),0.3);border-radius:12px;background:rgba(var(--accent-color-rgb),0.08);color:var(--accent-color);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-archive" style="font-size:13px;"></i> 归档
                 </button>
-                <button onclick="closeCuriosityCompose()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">
-                    关闭
+                <button onclick="closeCuriosityCompose()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-times" style="font-size:13px;"></i> 关闭
                 </button>
             </div>
         </div>
