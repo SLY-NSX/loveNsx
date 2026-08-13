@@ -11646,79 +11646,18 @@ html[data-theme="dark"] #comp-records-title-icon {
     background: var(--primary-bg) !important;
 }
 
-/* ---------- 好奇驿站专用压缩头部 ---------- */
-.curiosity-compact-header {
-    padding: 4px 10px 3px !important;  /* 上下缩小 */
-    min-height: 28px !important;
-}
-.curiosity-compact-header .env-letter-header-from {
-    font-size: 10px !important;
-}
-.curiosity-stamp {
-    width: 24px !important;
-    height: 28px !important;
-    font-size: 14px !important;
-    border-width: 1.5px !important;
-}
-.curiosity-letter-item .env-letter-body {
-    padding: 6px 10px 6px !important;
-}
-.curiosity-letter-item .env-letter-preview {
-    font-size: 12px !important;
-    line-height: 1.4 !important;
-}
-
-/* ---------- 好奇驿站专用样式 ---------- */
-/* 压缩卡片头部高度 */
+/* ---------- 1. 压缩卡片头部 (最终覆盖自第3次声明) ---------- */
 .curiosity-compact-header {
     padding: 4px 10px 3px !important;
     min-height: 28px !important;
+    display: flex !important;          /* 最终生效 */
+    align-items: center !important;    /* 最终生效 */
+    justify-content: space-between !important; /* 最终生效 */
 }
 .curiosity-compact-header .env-letter-header-from {
     font-size: 10px !important;
 }
-/* 信箱图标去掉发光特效 + 干净边框 */
-.curiosity-stamp {
-    width: 24px !important;
-    height: 28px !important;
-    font-size: 14px !important;
-    border-width: 1.5px !important;
-    box-shadow: none !important;
-    background: rgba(255,255,255,0.12) !important;
-    border-color: rgba(255,255,255,0.25) !important;
-}
-/* 卡片主体间距微调 */
-.curiosity-letter-item .env-letter-body {
-    padding: 6px 12px 6px !important;
-}
-/* 底部按钮统一大小 */
-#curiosity-main-close-btn {
-    display: flex !important;
-    gap: 8px !important;
-    padding: 10px 16px 14px !important;
-}
-#curiosity-main-close-btn .env-write-btn,
-#curiosity-main-close-btn .env-close-btn {
-    flex: 1 !important;
-    padding: 12px 0 !important;
-    font-size: 14px !important;
-    border-radius: 14px !important;
-    text-align: center !important;
-    justify-content: center !important;
-}
-/* ---------- 好奇驿站专用样式 ---------- */
-/* 压缩卡片头部高度 */
-.curiosity-compact-header {
-    padding: 4px 10px 3px !important;
-    min-height: 28px !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-}
-.curiosity-compact-header .env-letter-header-from {
-    font-size: 10px !important;
-}
-/* 信箱图标去掉所有框和发光 */
+/* 去除头部图标的所有框和发光 (仅出现1次，保留) */
 .curiosity-compact-header > span {
     filter: none !important;
     text-shadow: none !important;
@@ -11726,48 +11665,67 @@ html[data-theme="dark"] #comp-records-title-icon {
     border: none !important;
     box-shadow: none !important;
 }
-/* 卡片主体间距微调 */
-.curiosity-letter-item .env-letter-body {
-    padding: 6px 12px 6px !important;
-}
 
-/* ---------- 好奇驿站底部按钮视觉平衡 ---------- */
-#curiosity-main-close-btn .env-write-btn {
-    /* 缩窄内边距，抵消图标占据的空间 */
-    padding-left: 8px !important;
-    padding-right: 8px !important;
-    /* 字体稍微缩小半个字号 */
-    font-size: 13px !important;
-    /* 图标与文字间距收紧 */
-    gap: 4px !important;
-}
-
-#curiosity-main-close-btn .env-close-btn {
-    /* 保持原样，但可以稍微补一点内边距使其等宽 */
-    padding-left: 12px !important;
-    padding-right: 12px !important;
+/* ---------- 2. 信箱图标/邮票 (最终覆盖自第2次声明) ---------- */
+.curiosity-stamp {
+    width: 24px !important;
+    height: 28px !important;
     font-size: 14px !important;
+    border-width: 1.5px !important;
+    box-shadow: none !important;          /* 去掉发光 */
+    background: rgba(255,255,255,0.12) !important;
+    border-color: rgba(255,255,255,0.25) !important;
 }
 
-/* 确保两个按钮在 flex 中严格等分 */
+/* ---------- 3. 卡片主体间距 (最终保留 12px 右侧间距) ---------- */
+.curiosity-letter-item .env-letter-body {
+    padding: 6px 12px 6px !important;    /* 覆盖了早期的 10px */
+}
+.curiosity-letter-item .env-letter-preview {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+}
+
+/* ---------- 4. 底部按钮容器 ---------- */
 #curiosity-main-close-btn {
     display: flex !important;
     gap: 8px !important;
     padding: 10px 16px 14px !important;
 }
 
+/* ---------- 5. 底部两个按钮的基础样式 (合并通用属性) ---------- */
 #curiosity-main-close-btn .env-write-btn,
 #curiosity-main-close-btn .env-close-btn {
-    flex: 1 1 0 !important;   /* 严格等分剩余空间 */
-    min-width: 0 !important;  /* 防止内容溢出撑宽 */
+    flex: 1 1 0 !important;          /* 严格等分 (覆盖了 flex:1) */
+    min-width: 0 !important;
     box-sizing: border-box !important;
     white-space: nowrap !important;
+    padding: 12px 0 !important;       /* 上下内边距统一 */
+    border-radius: 14px !important;
+    text-align: center !important;
+    justify-content: center !important;
 }
 
-/* ---------- 好奇驿站底部按钮悬停效果 ---------- */
+/* ---------- 6. 左侧“写信”按钮专属微调 (最终覆盖自最后声明) ---------- */
+#curiosity-main-close-btn .env-write-btn {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    font-size: 13px !important;       /* 覆盖了通用的 14px */
+    gap: 4px !important;
+}
+
+/* ---------- 7. 右侧“关闭”按钮专属微调 ---------- */
+#curiosity-main-close-btn .env-close-btn {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    font-size: 14px !important;
+}
+
+/* ---------- 8. 底部按钮悬停效果 ---------- */
 #curiosity-modal .env-wrapper > div:last-child button:first-child:hover {
     opacity: 0.88;
 }
 #curiosity-modal .env-wrapper > div:last-child button:last-child:hover {
     background: var(--primary-bg);
+}
 }
