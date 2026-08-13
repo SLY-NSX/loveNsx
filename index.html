@@ -500,9 +500,9 @@
     <div class="modal-content" style="max-height:92vh; padding:0; overflow:hidden; background:transparent;">
         <div class="env-wrapper">
             <!-- 顶部装饰区 -->
-            <div class="env-header-flap" style="padding:16px 20px 30px;">
+            <div class="env-header-flap" style="padding:12px 20px 26px;">
                 <!-- 纸张+笔 SVG 图标 -->
-                <svg class="env-header-icon" width="36" height="26" viewBox="0 0 36 28" fill="none" style="display:block;margin:0 auto 6px;">
+                <svg class="env-header-icon" width="32" height="24" viewBox="0 0 36 28" fill="none" style="display:block;margin:0 auto 4px;">
                     <!-- 纸张主体 -->
                     <rect x="2" y="2" width="22" height="22" rx="2" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
                     <!-- 纸张横线 -->
@@ -517,8 +517,8 @@
                     <!-- 笔帽装饰 -->
                     <circle cx="27" cy="6" r="1.5" fill="rgba(255,255,255,0.3)"/>
                 </svg>
-                <div class="env-header-title" style="font-size:16px;">好奇驿站</div>
-                <div class="env-header-subtitle" style="font-size:9px;font-style:italic;letter-spacing:1.5px;">Journeys end in lovers meeting</div>
+                <div class="env-header-title" style="font-size:16px;margin-bottom:2px;">好奇驿站</div>
+                <div class="env-header-subtitle" style="font-size:9px;font-style:italic;letter-spacing:1.5px;margin-top:2px;">Journeys end in lovers meeting</div>
             </div>
 
             <div class="env-body">
@@ -576,19 +576,20 @@
 
             <!-- 底部固定操作栏 -->
             <div class="env-send-area" id="curiosity-main-close-btn" style="display:flex;gap:8px;padding:10px 16px 14px;">
-                <button class="env-write-btn" onclick="openNewCuriosityForm()" style="flex:1;background:var(--accent-color);padding:12px 0;font-size:14px;">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align:-2px;margin-right:6px;">
+                <button class="env-write-btn" onclick="openNewCuriosityForm()" style="flex:1;padding:12px 0;font-size:14px;border-radius:14px;background:var(--accent-color);color:#fff;border:none;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;font-family:var(--font-family);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align:-2px;">
                         <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
                     </svg>
                     创建问卷
                 </button>
-                <button class="env-close-btn" onclick="closeCuriosityModal()" style="flex:1;padding:12px 0;font-size:14px;border-radius:14px;">关闭</button>
+                <button class="env-close-btn" onclick="closeCuriosityModal()" style="flex:1;padding:12px 0;font-size:14px;border-radius:14px;background:transparent;border:1.5px solid var(--border-color);color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);display:flex;align-items:center;justify-content:center;">
+                    关闭
+                </button>
             </div>
         </div>
     </div>
 </div>
 <!-- ===== 好奇驿站结束 ===== -->
-
 
 <div class="modal" id="envelope-view-modal" style="z-index:2100;">
     <div class="modal-content" style="overflow:hidden;padding:0;background:transparent;max-height:92vh;display:flex;flex-direction:column;">
