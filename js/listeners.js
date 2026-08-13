@@ -1499,7 +1499,11 @@ const curiosityEntryBtn = document.getElementById('curiosity-station-function');
 if (curiosityEntryBtn) {
     curiosityEntryBtn.addEventListener('click', () => {
         hideModal(DOMElements.advancedModal.modal);
-        showNotification('功能待开发，敬请期待 ✦', 'info', 3000);
+        if (typeof openCuriosityModal === 'function') {
+            openCuriosityModal();
+        } else {
+            showNotification('curiosity.js 未加载，请刷新重试', 'error');
+        }
     });
 }
 
