@@ -11886,8 +11886,8 @@ html[data-theme="dark"] #comp-records-title-icon {
     background: transparent !important;
 }
 
-/* 信纸风格问题卡片悬停效果 */
-.compose-question-card:hover {
+/* 信纸问题卡片悬停效果 */
+.compose-question-card-hover:hover {
     background: rgba(var(--accent-color-rgb), 0.03);
     border-radius: 6px;
     padding-left: 8px !important;
@@ -11898,4 +11898,102 @@ html[data-theme="dark"] #comp-records-title-icon {
 }
 .compose-question-card {
     transition: all 0.2s ease;
+}
+
+/* 问题编辑弹窗类型按钮 */
+#qe-type-single-btn.active,
+#qe-type-multiple-btn.active {
+    border-color: var(--accent-color) !important;
+    background: rgba(var(--accent-color-rgb), 0.12) !important;
+    color: var(--accent-color) !important;
+}
+#qe-type-single-btn.inactive,
+#qe-type-multiple-btn.inactive {
+    border-color: var(--border-color) !important;
+    background: var(--primary-bg) !important;
+    color: var(--text-secondary) !important;
+}
+#qe-type-single-btn.active #qe-type-single-indicator,
+#qe-type-multiple-btn.active #qe-type-multiple-indicator {
+    border-color: var(--accent-color) !important;
+    background: var(--accent-color) !important;
+}
+#qe-type-single-btn.inactive #qe-type-single-indicator,
+#qe-type-multiple-btn.inactive #qe-type-multiple-indicator {
+    border-color: var(--border-color) !important;
+    background: transparent !important;
+}
+
+/* 选项行样式 */
+.qe-option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+.qe-option-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    width: 22px;
+    flex-shrink: 0;
+    text-align: center;
+}
+.qe-option-input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-family);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.qe-option-input:focus {
+    border-color: var(--accent-color);
+}
+.qe-option-delete {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.qe-option-delete:hover:not(:disabled) {
+    background: rgba(255, 71, 87, 0.1);
+    color: #ff4757;
+}
+.qe-add-option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 0;
+    border: 1.5px dashed var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-family);
+    transition: all 0.2s;
+    margin-top: 2px;
+}
+.qe-add-option-btn:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: rgba(var(--accent-color-rgb), 0.04);
+}
+.qe-add-option-btn svg {
+    flex-shrink: 0;
 }
