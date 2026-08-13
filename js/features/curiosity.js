@@ -61,6 +61,92 @@ function generateCuriosityId() {
     return 'qst_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
 }
 
+// ---------- 版本号工具函数 ----------
+function parseVersion(version) {
+    if (!version) return { prefix: 'A', number: 0, suffix: 'N' };
+    const parts = version.split('-');
+    return {
+        prefix: parts[0] || 'A',
+        number: parseInt(parts[1], 10) || 0,
+        suffix: parts[2] || 'N'
+    };
+}
+
+function getVersionNumber(version) {
+    return parseVersion(version).number;
+}
+
+function getVersionPrefix(version) {
+    return parseVersion(version).prefix;
+}
+
+function getVersionSuffix(version) {
+    return parseVersion(version).suffix;
+}
+
+function incrementVersionNumber(version) {
+    const parsed = parseVersion(version);
+    return `${parsed.prefix}-${parsed.number + 1}-${parsed.suffix}`;
+}
+
+function incrementVersionNumberOnly(version) {
+    const parsed = parseVersion(version);
+    return `${parsed.prefix}-${parsed.number + 1}-${parsed.suffix}`;
+}
+
+// ---------- 自定义确认弹窗 ----------
+function showCuriosityConfirm(options) {
+    const { title, message, confirmText, onConfirm, cancelText, onCancel } = options;
+    
+    // 创建遮罩
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);';
+    
+    // 创建弹窗
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--secondary-bg);border-radius:18px;padding:28px 32px 24px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.3);border:1px solid var(--border-color);';
+    
+    const hasCancel = cancelText && typeof onCancel === 'function';
+    
+    box.innerHTML = `
+        <div style="font-size:17px;font-weight:700;color:var(--text-primary);margin-bottom:10px;text-align:center;">${title}</div>
+        <div style="font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:20px;text-align:center;white-space:pre-wrap;">${message}</div>
+        <div style="display:flex;gap:10px;${!hasCancel ? 'justify-content:center;' : ''}">
+            <button class="curiosity-confirm-btn" style="flex:${hasCancel ? '1' : 'none'};min-width:${hasCancel ? 'auto' : '120px'};padding:11px 24px;border:none;border-radius:12px;background:var(--accent-color);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:opacity 0.2s;">
+                ${confirmText || '确认'}
+            </button>
+            ${hasCancel ? `<button class="curiosity-cancel-btn" style="flex:1;padding:11px 24px;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">${cancelText}</button>` : ''}
+        </div>
+    `;
+    
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    
+    // 确认按钮
+    const confirmBtn = box.querySelector('.curiosity-confirm-btn');
+    confirmBtn.addEventListener('click', () => {
+        overlay.remove();
+        if (onConfirm) onConfirm();
+    });
+    
+    // 取消按钮
+    const cancelBtn = box.querySelector('.curiosity-cancel-btn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+            overlay.remove();
+            if (onCancel) onCancel();
+        });
+    }
+    
+    // 点击背景关闭（仅当有取消按钮时允许）
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay && hasCancel) {
+            overlay.remove();
+            if (onCancel) onCancel();
+        }
+    });
+}
+
 // 提取版本号中的数字部分
 function getVersionNumber(version) {
     if (!version) return 0;
@@ -489,9 +575,9 @@ window.editComposeTitle = function() {
 
 // ---------- 底部按钮操作 ----------
 window.composeAction = function(action) {
-    // 投递和归档都使用占位
     if (action === 'submit') {
-        showNotification('📬 投递功能开发中，敬请期待 ✦', 'info', 2500);
+        // 调用投递逻辑
+        handleSubmitQuestionnaire();
         return;
     }
     if (action === 'confirm') {
@@ -504,68 +590,227 @@ window.composeAction = function(action) {
     showNotification(messages[action] || '功能开发中 ✦', 'info', 2500);
 };
 
-// ---------- 投递处理 ----------
+
+// ---------- 投递处理（阶段1） ----------
 function handleSubmitQuestionnaire() {
-    const content = editingQuestionnaire.questions || [];
-    if (content.length === 0) {
+    const questions = editingQuestionnaire.questions || [];
+    
+    // 基础检查：至少1个问题
+    if (questions.length === 0) {
         showNotification('问卷至少需要 1 个问题才能投递 ✦', 'warning', 2500);
         return;
     }
     
-    // 生成ID（如果还没有）
-    if (!editingQuestionnaire.id) {
-        editingQuestionnaire.id = generateCuriosityId();
+    // 解析当前版本号
+    const currentVersion = editingQuestionnaire.version || 'A-0-N';
+    const versionNum = getVersionNumber(currentVersion);
+    const versionPrefix = getVersionPrefix(currentVersion);
+    
+    // ========== 步骤1：标题检查（数字为0 或 首字母为A） ==========
+    const isDefaultTitle = !editingQuestionnaire.title || editingQuestionnaire.title === '未命名问卷';
+    if ((versionNum === 0 || versionPrefix === 'A') && isDefaultTitle) {
+        showCuriosityConfirm({
+            title: '📝 修改标题',
+            message: '当前问卷标题为默认名称，是否修改后再投递？\n\n点击「修改」返回编辑\n点击「继续投递」直接发出',
+            confirmText: '修改标题',
+            cancelText: '继续投递',
+            onConfirm: () => {
+                // 用户选择修改：留在页面，不投递
+                // 让标题输入框获得焦点（通过DOM操作）
+                const titleEl = document.getElementById('compose-title-display');
+                if (titleEl) {
+                    editComposeTitle();
+                }
+            },
+            onCancel: () => {
+                // 用户选择继续投递 → 进入步骤2
+                proceedToStep2();
+            }
+        });
+        return;
     }
     
-    // 更新状态
-    editingQuestionnaire.isDraft = false;
-    editingQuestionnaire.sentTime = Date.now();
-    editingQuestionnaire.status = 'ing';
-    // 版本号保持 A-0-N（投递不改变版本号）
-    if (!editingQuestionnaire.version) {
-        editingQuestionnaire.version = 'A-0-N';
-    }
+    // 标题检查通过，直接进入步骤2
+    proceedToStep2();
     
-    // 保存到数据
-    const targetArr = curiosityData.ing;
-    const existingIndex = targetArr.findIndex(item => item.id === editingQuestionnaire.id);
-    if (existingIndex > -1) {
-        targetArr[existingIndex] = {
-            ...targetArr[existingIndex],
-            title: editingQuestionnaire.title,
-            questions: editingQuestionnaire.questions,
-            version: editingQuestionnaire.version,
-            isDraft: false,
-            sentTime: editingQuestionnaire.sentTime,
-            status: 'ing'
-        };
-    } else {
-        // 检查是否在 archived 中
-        const archivedIndex = curiosityData.archived.findIndex(item => item.id === editingQuestionnaire.id);
-        if (archivedIndex > -1) {
-            curiosityData.archived.splice(archivedIndex, 1);
+    // ========== 步骤2：检查【同问】标记 ==========
+    function proceedToStep2() {
+        const hasSameQuestion = questions.some(q => q.isSameQuestion === true);
+        if (hasSameQuestion) {
+            // 从设置获取梦角名字
+            const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+            showCuriosityConfirm({
+                title: '💭 等待回答中',
+                message: `${partnerName} 正在思考这些问题...\n\n请耐心等待对方的回答 ✦`,
+                confirmText: '我知道了',
+                onConfirm: () => {
+                    // 确认后进入步骤3
+                    proceedToStep3();
+                }
+            });
+        } else {
+            // 没有【同问】，直接进入步骤3
+            proceedToStep3();
         }
-        targetArr.push({
-            id: editingQuestionnaire.id,
-            title: editingQuestionnaire.title,
-            questions: editingQuestionnaire.questions,
-            version: editingQuestionnaire.version,
-            isDraft: false,
-            sentTime: editingQuestionnaire.sentTime,
-            status: 'ing'
+    }
+    
+    // ========== 步骤3：判断版本号并决定是否可投递 ==========
+    function proceedToStep3() {
+        // 检查问题状态
+        const hasUnanswered = questions.some(q => q.status === 'unanswered');
+        const hasInteractiveOne = questions.some(q => q.isInteractiveOne === true);
+        const prefix = getVersionPrefix(editingQuestionnaire.version || 'A-0-N');
+        const num = getVersionNumber(editingQuestionnaire.version || 'A-0-N');
+        const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+        const title = editingQuestionnaire.title || '未命名问卷';
+        
+        // 判断首字母是否为B
+        if (prefix === 'B') {
+            // 是B → 检查暂不回答 / 同问互动一
+            if (hasUnanswered || hasInteractiveOne) {
+                if (hasUnanswered) {
+                    // 情况2
+                    showSendConfirm(2, partnerName, title, num, prefix);
+                } else {
+                    // 情况3（无暂不回答，但有同问互动一）
+                    showSendConfirm(3, partnerName, title, num, prefix);
+                }
+            } else {
+                // 既没有暂不回答，也没有同问互动一 → 不可投递
+                showNotDeliverable();
+            }
+            return;
+        }
+        
+        // 不是B → 判断是否为A
+        if (prefix === 'A') {
+            // 是A → 同B的逻辑（检查暂不回答/同问互动一）
+            if (hasUnanswered || hasInteractiveOne) {
+                if (hasUnanswered) {
+                    // 情况2
+                    showSendConfirm(2, partnerName, title, num, prefix);
+                } else {
+                    // 情况3
+                    showSendConfirm(3, partnerName, title, num, prefix);
+                }
+            } else {
+                // 既没有暂不回答，也没有同问互动一 → 不可投递
+                showNotDeliverable();
+            }
+            return;
+        }
+        
+        // 不是A也不是B（C/D/E...）
+        if (hasInteractiveOne) {
+            // 情况4
+            showSendConfirm(4, partnerName, title, num, prefix);
+        } else {
+            // 不可投递
+            showNotDeliverable();
+        }
+    }
+    
+    // ========== 发出弹窗 ==========
+    function showSendConfirm(caseType, partnerName, title, num, prefix) {
+        // 投递前更新版本号（数字+1）
+        const newVersion = incrementVersionNumber(editingQuestionnaire.version || 'A-0-N');
+        const newNum = getVersionNumber(newVersion);
+        const x = Math.ceil((newNum + 1) / 2);
+        
+        let titleText, messageText;
+        
+        if (caseType === 1 || caseType === 2) {
+            // 情况1和2：弹窗内容相同
+            titleText = `📬 问卷发出`;
+            messageText = `「${title}」.其${x}\n即将送达 ${partnerName} 处 ✦`;
+        } else {
+            // 情况3和4：弹窗内容相同
+            titleText = `📬 回复发出`;
+            messageText = `${partnerName} 即将收到你关于「${title}」的回复 ✦`;
+        }
+        
+        // 保存当前编辑的版本号（投递前）
+        const versionBeforeSend = editingQuestionnaire.version || 'A-0-N';
+        
+        showCuriosityConfirm({
+            title: titleText,
+            message: messageText,
+            confirmText: '确认',
+            onConfirm: () => {
+                // 确认后：更新版本号并保存到数据
+                // 更新问卷版本号
+                editingQuestionnaire.version = newVersion;
+                
+                // 生成ID（如果还没有）
+                if (!editingQuestionnaire.id) {
+                    editingQuestionnaire.id = generateCuriosityId();
+                }
+                
+                // 标记为非草稿，设置发送时间
+                editingQuestionnaire.isDraft = false;
+                editingQuestionnaire.sentTime = Date.now();
+                editingQuestionnaire.status = 'ing';
+                
+                // 保存到数据
+                const targetArr = curiosityData.ing;
+                const existingIndex = targetArr.findIndex(item => item.id === editingQuestionnaire.id);
+                if (existingIndex > -1) {
+                    targetArr[existingIndex] = {
+                        ...targetArr[existingIndex],
+                        title: editingQuestionnaire.title,
+                        questions: editingQuestionnaire.questions,
+                        version: editingQuestionnaire.version,
+                        isDraft: false,
+                        sentTime: editingQuestionnaire.sentTime,
+                        status: 'ing'
+                    };
+                } else {
+                    // 检查是否在 archived 中
+                    const archivedIndex = curiosityData.archived.findIndex(item => item.id === editingQuestionnaire.id);
+                    if (archivedIndex > -1) {
+                        curiosityData.archived.splice(archivedIndex, 1);
+                    }
+                    targetArr.push({
+                        id: editingQuestionnaire.id,
+                        title: editingQuestionnaire.title,
+                        questions: editingQuestionnaire.questions,
+                        version: editingQuestionnaire.version,
+                        isDraft: false,
+                        sentTime: editingQuestionnaire.sentTime,
+                        status: 'ing'
+                    });
+                }
+                
+                saveCuriosityData();
+                renderCuriosityLists();
+                showNotification(`📬 问卷已投递！版本：${editingQuestionnaire.version}`, 'success', 2000);
+                
+                // 【阶段1占位】后台回复逻辑
+                setTimeout(() => {
+                    showNotification('🧠 后台回复逻辑开发中（阶段2），敬请期待 ✦', 'info', 3000);
+                }, 500);
+                
+                // 关闭编辑器，回到主模态框
+                closeCuriosityCompose();
+                setTimeout(() => {
+                    showModal(document.getElementById('curiosity-modal'));
+                    switchCuriosityTab('ing');
+                }, 300);
+            }
         });
     }
     
-    saveCuriosityData();
-    renderCuriosityLists();
-    showNotification('📬 问卷已投递！', 'success', 2000);
-    
-    // 关闭编辑器，回到主模态框
-    closeCuriosityCompose();
-    setTimeout(() => {
-        showModal(document.getElementById('curiosity-modal'));
-        switchCuriosityTab('ing');
-    }, 300);
+    // ========== 不可投递提示 ==========
+    function showNotDeliverable() {
+        showCuriosityConfirm({
+            title: '🚫 不可投递',
+            message: '当前情况不可投递，可进行归档',
+            confirmText: '我知道了',
+            onConfirm: () => {
+                // 关闭弹窗，不做其他操作
+            }
+        });
+    }
 }
 
 // ---------- 关闭编辑器（核心逻辑） ----------
