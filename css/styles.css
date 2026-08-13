@@ -11764,3 +11764,10 @@ html[data-theme="dark"] #comp-records-title-icon {
     white-space: nowrap !important;
 }
 
+/* ---------- 好奇驿站底部按钮悬停效果 ---------- */
+#curiosity-modal .env-wrapper > div:last-child button:first-child:hover {
+    opacity: 0.88;
+}
+#curiosity-modal .env-wrapper > div:last-child button:last-child:hover {
+    background: var(--primary-bg);
+}
