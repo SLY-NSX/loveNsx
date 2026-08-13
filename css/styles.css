@@ -11706,3 +11706,63 @@ html[data-theme="dark"] #comp-records-title-icon {
     text-align: center !important;
     justify-content: center !important;
 }
+/* ---------- 好奇驿站专用样式 ---------- */
+/* 压缩卡片头部高度 */
+.curiosity-compact-header {
+    padding: 4px 10px 3px !important;
+    min-height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+}
+.curiosity-compact-header .env-letter-header-from {
+    font-size: 10px !important;
+}
+/* 信箱图标去掉所有框和发光 */
+.curiosity-compact-header > span {
+    filter: none !important;
+    text-shadow: none !important;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+/* 卡片主体间距微调 */
+.curiosity-letter-item .env-letter-body {
+    padding: 6px 12px 6px !important;
+}
+
+/* ----- 底部按钮统一大小 ----- */
+#curiosity-main-close-btn .env-write-btn,
+#curiosity-main-close-btn .env-close-btn {
+    flex: 1 !important;
+    padding: 12px 0 !important;
+    font-size: 14px !important;
+    border-radius: 14px !important;
+    text-align: center !important;
+    justify-content: center !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    box-sizing: border-box !important;
+    height: auto !important;
+    min-height: 48px !important;
+    line-height: 1.2 !important;
+    font-family: var(--font-family) !important;
+}
+#curiosity-main-close-btn .env-close-btn {
+    background: transparent !important;
+    border: 1.5px solid var(--border-color) !important;
+    color: var(--text-secondary) !important;
+}
+#curiosity-main-close-btn .env-write-btn {
+    background: var(--accent-color) !important;
+    color: #fff !important;
+    border: none !important;
+}
+/* 悬停效果（保持原样） */
+#curiosity-main-close-btn .env-write-btn:hover {
+    opacity: 0.9;
+}
+#curiosity-main-close-btn .env-close-btn:hover {
+    background: var(--primary-bg) !important;
+}
