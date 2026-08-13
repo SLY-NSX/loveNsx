@@ -225,7 +225,7 @@ function renderComposeEditor() {
     const dateEl = document.getElementById('compose-date-line');
     const questionsContainer = document.getElementById('compose-questions-container');
     
-    // 设置标题（可编辑）
+    // 设置标题
     if (titleEl) {
         titleEl.textContent = editingQuestionnaire.title || '未命名问卷';
     }
@@ -264,17 +264,23 @@ function renderComposeEditor() {
             ).join('');
             
             html += `
-                <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:0;padding:14px 0 12px;cursor:pointer;position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);">
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                <div class="compose-question-card" onclick="openQuestionEditorForEdit(${index})" style="margin-bottom:0;padding:14px 20px 12px 4px;cursor:pointer;position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;">
+                    <!-- 第一行：Q1 + 小圆点 + 类型标签 -->
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
                         <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
                         <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(var(--accent-color-rgb),0.5);flex-shrink:0;"></span>
                         <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
-                        <span style="font-size:14px;font-weight:500;color:var(--text-primary);flex:1;line-height:1.5;">${escapeHtml(q.text)}</span>
                     </div>
+                    <!-- 第二行：题目 -->
+                    <div style="font-size:14px;font-weight:500;color:var(--text-primary);line-height:1.5;padding-left:22px;margin-bottom:4px;">
+                        ${escapeHtml(q.text)}
+                    </div>
+                    <!-- 选项列表 -->
                     <div style="padding-left:22px;margin-top:2px;">
                         ${optionsHtml}
                     </div>
-                    <button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;top:12px;right:0;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:11px;opacity:0.25;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='0.25'">
+                    <!-- 删除按钮（移到更边缘） -->
+                    <button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;top:12px;right:-4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:11px;opacity:0.25;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='0.25'">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </div>
