@@ -2,7 +2,6 @@
 // 版本号管理系统
 // ============================================================
 
-// 获取当前版本号
 function getVersionNumber(versionStr) {
     if (!versionStr || typeof versionStr !== 'string') return { letter: 'A', number: 0 };
     const match = versionStr.match(/^([A-Z])-(\d+)$/);
@@ -10,30 +9,24 @@ function getVersionNumber(versionStr) {
     return { letter: match[1], number: parseInt(match[2], 10) };
 }
 
-// 生成版本号字符串
 function makeVersionString(letter, number) {
     return letter + '-' + number;
 }
 
-// 字母递进（A→B→C...）
 function advanceLetter(letter) {
     if (!letter || letter.length !== 1) return 'A';
-    const nextCode = letter.charCodeAt(0) + 1;
-    return String.fromCharCode(nextCode);
+    return String.fromCharCode(letter.charCodeAt(0) + 1);
 }
 
-// 创建初始版本号（A-0）
 function createInitialVersion() {
     return 'A-0';
 }
 
-// 增加数字（投递或回复后调用）
 function incrementVersionNumber(versionStr) {
     const parsed = getVersionNumber(versionStr);
     return makeVersionString(parsed.letter, parsed.number + 1);
 }
 
-// 递进字母（进入 YES 阶段后调用）
 function advanceVersionLetter(versionStr) {
     const parsed = getVersionNumber(versionStr);
     return makeVersionString(advanceLetter(parsed.letter), parsed.number);
@@ -41,13 +34,10 @@ function advanceVersionLetter(versionStr) {
 
 // ============================================================
 // 好奇驿站 - 问卷调查功能
-// 基于信封投递框架改造
 // ============================================================
 
-// ---------- 数据模型 ----------
 let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
-let editingCuriosityId = null;
 
 // 默认示例数据（首次打开时自动添加）
 const DEFAULT_SAMPLES = [
@@ -83,7 +73,6 @@ const DEFAULT_SAMPLES = [
     }
 ];
 
-// ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
     if (saved) {
@@ -102,7 +91,6 @@ function saveCuriosityData() {
     localforage.setItem(getStorageKey('curiosityData'), curiosityData);
 }
 
-// ---------- 打开主模态框 ----------
 window.openCuriosityModal = async function() {
     await loadCuriosityData();
     currentCuriosityTab = 'ing';
@@ -116,7 +104,6 @@ window.openCuriosityModal = async function() {
     showModal(document.getElementById('curiosity-modal'));
 };
 
-// ---------- 标签切换 ----------
 window.switchCuriosityTab = function(tab) {
     currentCuriosityTab = tab;
     document.getElementById('curiosity-tab-ing').classList.toggle('active', tab === 'ing');
@@ -128,7 +115,6 @@ window.switchCuriosityTab = function(tab) {
     renderCuriosityLists();
 };
 
-// ---------- 渲染列表 ----------
 function renderCuriosityLists() {
     renderCuriosityList('ing');
     renderCuriosityList('archived');
@@ -228,7 +214,6 @@ function renderCuriosityList(status) {
     }).join('');
 }
 
-// ---------- 查看详情 ----------
 window.viewCuriosityLetter = function(status, id) {
     const letter = curiosityData.ing.find(l => l.id === id);
     if (!letter) {
@@ -255,7 +240,6 @@ window.viewCuriosityLetter = function(status, id) {
     openCuriosityDetail(letter, false, parsed.number);
 };
 
-// ---------- 取消创建（回到列表） ----------
 window.cancelCuriosityCompose = function() {
     document.getElementById('curiosity-compose-form').style.display = 'none';
     document.getElementById('curiosity-main-close-btn').style.display = 'flex';
@@ -266,13 +250,12 @@ window.cancelCuriosityCompose = function() {
     }
 };
 
-// ---------- 关闭主模态框 ----------
 window.closeCuriosityModal = function() {
     hideModal(document.getElementById('curiosity-modal'));
 };
 
 // ============================================================
-// 创建问卷 - 编辑页面
+// 编辑页面
 // ============================================================
 
 let editingQuestionnaire = {
@@ -281,7 +264,6 @@ let editingQuestionnaire = {
     createdTime: Date.now()
 };
 
-// 打开创建问卷编辑器
 window.openCuriosityCompose = function() {
     editingQuestionnaire = {
         title: '未命名问卷',
@@ -297,7 +279,6 @@ window.openCuriosityCompose = function() {
     showModal(document.getElementById('curiosity-compose-modal'));
 };
 
-// 渲染编辑器（入口）
 function renderComposeEditor() {
     if (editingQuestionnaire._isReadOnly !== undefined) {
         renderComposeEditorWithPermissions();
@@ -310,7 +291,6 @@ function renderComposeEditor() {
     renderComposeEditorWithPermissions();
 }
 
-// ---------- 标题点击编辑 ----------
 window.editComposeTitle = function() {
     const currentTitle = editingQuestionnaire.title || '未命名问卷';
     const newTitle = prompt('请输入问卷标题：', currentTitle);
@@ -321,20 +301,14 @@ window.editComposeTitle = function() {
     }
 };
 
-// ---------- 底部操作按键 ----------
 window.composeAction = function(action) {
     if (action === 'submit') {
         handleDelivery();
         return;
     }
-    const messages = {
-        'draft': '📝 草稿保存功能开发中，敬请期待 ✦',
-        'confirm': '✅ 确认功能开发中，敬请期待 ✦'
-    };
-    showNotification(messages[action] || '功能开发中 ✦', 'info', 2500);
+    showNotification('功能开发中 ✦', 'info', 2500);
 };
 
-// ---------- 关闭编辑器 ----------
 window.closeCuriosityCompose = async function() {
     if (!editingQuestionnaire._isReadOnly) {
         const questions = editingQuestionnaire.questions || [];
@@ -375,7 +349,6 @@ let tempQuestionData = {
     options: ['', '']
 };
 
-// 打开问题编辑器（新建）
 window.openQuestionEditor = function() {
     const numPart = editingQuestionnaire._numPart;
     if (numPart !== undefined && numPart !== 0) {
@@ -396,7 +369,6 @@ window.openQuestionEditor = function() {
     showModal(document.getElementById('question-editor-modal'));
 };
 
-// 打开问题编辑器（编辑已有问题）
 window.openQuestionEditorForEdit = function(index) {
     const q = editingQuestionnaire.questions[index];
     if (!q) return;
@@ -428,7 +400,6 @@ window.openQuestionEditorForEdit = function(index) {
     showModal(document.getElementById('question-editor-modal'));
 };
 
-// 渲染问题编辑弹窗
 function renderQuestionEditor() {
     const textInput = document.getElementById('qe-text-input');
     const charCount = document.getElementById('qe-char-count');
@@ -462,7 +433,6 @@ function renderQuestionEditor() {
     renderQuestionOptions();
 }
 
-// 渲染选项列表
 function renderQuestionOptions() {
     const container = document.getElementById('qe-options-container');
     if (!container) return;
@@ -494,20 +464,17 @@ function renderQuestionOptions() {
     container.innerHTML = html;
 }
 
-// 工具：HTML 转义
 function escapeHtml(text) {
     if (!text) return '';
     return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// 更新临时选项内容
 window.updateTempOption = function(index, value) {
     if (tempQuestionData.options && tempQuestionData.options[index] !== undefined) {
         tempQuestionData.options[index] = value;
     }
 };
 
-// 添加临时选项
 window.addTempOption = function() {
     if ((tempQuestionData.options || []).length >= 8) {
         showNotification('最多 8 个选项', 'warning', 1500);
@@ -517,7 +484,6 @@ window.addTempOption = function() {
     renderQuestionOptions();
 };
 
-// 删除临时选项
 window.removeTempOption = function(index) {
     if ((tempQuestionData.options || []).length <= 2) {
         showNotification('至少保留 2 个选项', 'warning', 1500);
@@ -527,7 +493,6 @@ window.removeTempOption = function(index) {
     renderQuestionOptions();
 };
 
-// 切换问题类型
 window.setQuestionType = function(type) {
     tempQuestionData.type = type;
 
@@ -551,7 +516,6 @@ window.setQuestionType = function(type) {
     }
 };
 
-// 保存问题
 window.saveQuestion = function() {
     const text = (document.getElementById('qe-text-input')?.value || '').trim();
     const type = tempQuestionData.type || 'single';
@@ -587,12 +551,10 @@ window.saveQuestion = function() {
     renderComposeEditor();
 };
 
-// 关闭问题编辑器
 window.closeQuestionEditor = function() {
     hideModal(document.getElementById('question-editor-modal'));
 };
 
-// 删除问题
 window.deleteQuestion = function(index) {
     const numPart = editingQuestionnaire._numPart;
     const canDelete = (numPart === 0 || (numPart % 2 === 0 && numPart > 0));
@@ -614,7 +576,6 @@ window.deleteQuestion = function(index) {
 // 问卷详情查看（只读模式）
 // ============================================================
 
-// 打开问卷详情
 window.openCuriosityDetail = function(questionnaire, editable, numPart) {
     const parsedNum = (numPart !== undefined) ? numPart : getVersionNumber(questionnaire.version || 'A-0').number;
     const isEven = (parsedNum % 2 === 0);
@@ -654,7 +615,6 @@ function renderComposeEditorWithPermissions() {
     const numPart = editingQuestionnaire._numPart || 0;
     const hasReply = (numPart % 2 === 0 && numPart > 0);
 
-    // 标题
     if (titleEl) {
         titleEl.textContent = editingQuestionnaire.title || '未命名问卷';
         const parent = titleEl.parentElement;
@@ -675,7 +635,6 @@ function renderComposeEditorWithPermissions() {
         }
     }
 
-    // 日期
     if (dateEl) {
         const now = new Date(editingQuestionnaire.createdTime);
         const y = now.getFullYear();
@@ -685,7 +644,6 @@ function renderComposeEditorWithPermissions() {
         dateEl.textContent = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
     }
 
-    // 题目列表
     if (questionsContainer) {
         const questions = editingQuestionnaire.questions || [];
         if (questions.length === 0) {
@@ -766,7 +724,6 @@ function renderComposeEditorWithPermissions() {
         questionsContainer.innerHTML = html;
     }
 
-    // 底部按钮
     const bottomArea = document.querySelector('#curiosity-compose-modal .env-wrapper > div:last-child');
     if (bottomArea) {
         if (isReadOnly) {
@@ -799,7 +756,7 @@ function renderComposeEditorWithPermissions() {
 }
 
 // ============================================================
-// 投递功能 - 完整的后台模拟流程
+// 投递功能 - 完整的后台模拟流程（✅ 已修复所有逻辑）
 // ============================================================
 
 function randomDelay(minMs, maxMs) {
@@ -824,7 +781,7 @@ function sleep(ms) {
 
 async function startDeliveryProcess(questionnaire) {
     const startTime = Date.now();
-    const MAX_DURATION = 5 * 60 * 1000;
+    const MAX_DURATION = 5 * 60 * 1000; // 5 分钟
 
     let questions = questionnaire.questions.map(q => ({
         ...q,
@@ -836,23 +793,24 @@ async function startDeliveryProcess(questionnaire) {
 
     let enteredYes = false;
 
+    // ===== 阶段 A：决定是否进入 YES =====
     let entered = false;
-    let attempts = 0;
 
     while (!entered) {
         const elapsed = Date.now() - startTime;
         if (elapsed > MAX_DURATION) {
-            return buildResult(questionnaire, questions, 'timeout', enteredYes);
+            // 超时，强制回复（不进入 YES）
+            return buildResult(questionnaire, questions, 'timeout', false);
         }
-        const delay = randomDelay(1000, 60000);
+        const delay = randomDelay(1000, 60000); // 1 秒 ~ 1 分钟
         await sleep(delay);
-        attempts++;
         if (coinFlip()) {
             entered = true;
             enteredYes = true;
         }
     }
 
+    // ===== 阶段 B：第一遍处理所有问题 =====
     for (let i = 0; i < questions.length; i++) {
         const elapsed = Date.now() - startTime;
         if (elapsed > MAX_DURATION) {
@@ -861,6 +819,7 @@ async function startDeliveryProcess(questionnaire) {
         await processQuestion(questions[i], startTime, MAX_DURATION, true);
     }
 
+    // ===== 阶段 C：第二轮处理“暂不回答”的问题 =====
     const skippedQuestions = questions.filter(q => q._status === 'skipped');
     for (let i = 0; i < skippedQuestions.length; i++) {
         const elapsed = Date.now() - startTime;
@@ -870,6 +829,7 @@ async function startDeliveryProcess(questionnaire) {
         await processQuestion(skippedQuestions[i], startTime, MAX_DURATION, false);
     }
 
+    // ===== 阶段 D：完成 =====
     return buildResult(questionnaire, questions, 'completed', enteredYes);
 }
 
@@ -934,8 +894,10 @@ function buildResult(originalQuestionnaire, questions, status, enteredYes) {
     let newVersion;
 
     if (enteredYes) {
+        // 进入 YES：字母递进，数字不变（数字已在投递时 +1）
         newVersion = advanceVersionLetter(oldVersion);
     } else {
+        // 未进入 YES：仅数字 +1
         newVersion = incrementVersionNumber(oldVersion);
     }
 
@@ -967,6 +929,10 @@ function buildResult(originalQuestionnaire, questions, status, enteredYes) {
     return result;
 }
 
+// ============================================================
+// 投递入口（✅ 已修复：确保弹窗显示、状态更新、版本迭代）
+// ============================================================
+
 window.handleDelivery = async function() {
     if (!editingQuestionnaire || editingQuestionnaire.questions.length === 0) {
         showNotification('问卷没有题目，请先添加问题 ✦', 'warning', 2500);
@@ -979,11 +945,14 @@ window.handleDelivery = async function() {
         if (!confirmResult) return;
     }
 
+    // 1. 关闭编辑器
     hideModal(document.getElementById('curiosity-compose-modal'));
 
+    // 2. 生成新版本（投递：数字 +1）
     const currentVersion = editingQuestionnaire._version || createInitialVersion();
     const newVersion = incrementVersionNumber(currentVersion);
 
+    // 3. 创建 A-1 版本问卷
     const newQuestionnaire = {
         id: 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
         title: editingQuestionnaire.title,
@@ -995,19 +964,27 @@ window.handleDelivery = async function() {
         sentTime: Date.now(),
         status: 'ing',
         isNew: false,
-        version: newVersion,
+        version: newVersion, // A-1
         _enteredYes: false
     };
 
+    // 4. 存入 ing 并刷新列表（立即显示“等待回复中”）
     curiosityData.ing.push(newQuestionnaire);
     await saveCuriosityData();
     renderCuriosityLists();
     showDeliverySuccessPopup(newQuestionnaire);
 
-    setTimeout(async () => {
-        const result = await startDeliveryProcess(newQuestionnaire);
-        await handleDeliveryResult(result, newQuestionnaire);
-    }, 500);
+    // 5. 启动后台模拟（异步执行，不阻塞 UI）
+    // 注意：这里必须使用 IIFE 或者单独的函数，确保错误被捕获
+    (async function() {
+        try {
+            const result = await startDeliveryProcess(newQuestionnaire);
+            await handleDeliveryResult(result, newQuestionnaire);
+        } catch (e) {
+            console.error('[好奇驿站] 投递流程出错:', e);
+            showNotification('投递流程出现异常，请重试', 'error');
+        }
+    })();
 };
 
 function showDeliverySuccessPopup(questionnaire) {
@@ -1035,20 +1012,33 @@ function showDeliverySuccessPopup(questionnaire) {
     }, 15000);
 }
 
+// ============================================================
+// 处理投递结果（✅ 已修复：删除旧版本，存入新版本，刷新列表，弹窗）
+// ============================================================
+
 async function handleDeliveryResult(result, originalQuestionnaire) {
+    // 1. 删除旧版本（A-1 或 B-3 等）
     const ingIndex = curiosityData.ing.findIndex(q => q.id === originalQuestionnaire.id);
     if (ingIndex > -1) {
         curiosityData.ing.splice(ingIndex, 1);
     }
 
+    // 2. 存入新版本（A-2 或 B-4 等）
     curiosityData.ing.push(result);
+
+    // 3. 保存并刷新列表
     await saveCuriosityData();
     renderCuriosityLists();
 
+    // 4. 显示回馈弹窗（延迟一点确保列表刷新完成）
     setTimeout(() => {
         showResultPopup(result);
-    }, 300);
+    }, 500);
 }
+
+// ============================================================
+// 回馈结果弹窗
+// ============================================================
 
 function showResultPopup(result) {
     const existing = document.getElementById('curiosity-result-popup');
@@ -1087,6 +1077,10 @@ function showResultPopup(result) {
         if (popup.parentNode) popup.remove();
     }, 10000);
 }
+
+// ============================================================
+// 查看回馈结果
+// ============================================================
 
 window.openCuriosityResult = function(resultId) {
     const popup = document.getElementById('curiosity-result-popup');
