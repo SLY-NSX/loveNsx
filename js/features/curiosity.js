@@ -90,6 +90,7 @@ function renderCuriosityList(status) {
     const list = document.getElementById(listId);
     if (!list) return;
 
+    // 注意：所有卡片现在都在 ing 中，archived 暂时为空
     const data = status === 'ing' ? curiosityData.ing : curiosityData.archived;
 
     if (data.length === 0) {
@@ -115,7 +116,7 @@ function renderCuriosityList(status) {
             month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
         
-        // 统计题目类型（兼容有无 _stats）
+        // 统计题目类型
         let singleCount = 0, multiCount = 0;
         (letter.questions || []).forEach(q => {
             if (q.type === 'single') singleCount++;
@@ -123,42 +124,33 @@ function renderCuriosityList(status) {
         });
         const qCount = (letter.questions || []).length;
         
-        // 标题和统计
+        // 判断版本和状态
+        const isVersion2 = letter.version === 2;
+        const isNew = letter.isNew || false;  // 只有2.0才有红点
+        const hasResult = isVersion2;  // 2.0 表示已有回复
+        
+        // 状态文字
+        let statusText = '';
+        if (isVersion2) {
+            // 统计回答情况
+            const answered = (letter.questions || []).filter(q => q._status === 'answered').length;
+            const total = (letter.questions || []).length;
+            statusText = `✅ 已收到回复 · ${answered}/${total} 已答`;
+        } else {
+            statusText = '⏳ 等待回复中';
+        }
+        
+        // 标题 + 统计（两行）
         const titleHtml = `<div style="font-weight:700;font-size:14px;color:var(--text-primary);">${escapeHtml(letter.title)}</div>`;
         const statsHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">共${qCount}问 · ${singleCount}道单选 · ${multiCount}道多选</div>`;
         
-        // 状态文字（ing 固定显示“等待中”，archived 显示结果统计或固定占位）
-        let statusText = '';
-        if (status === 'ing') {
-            statusText = '⏳ 等待回复中';
-        } else {
-            // 已归档：显示结果状态
-            if (letter._stats) {
-                const answered = letter._stats.answered || 0;
-                const total = letter._stats.total || qCount;
-                if (answered === total) {
-                    statusText = '✅ 全部回答';
-                } else if (answered > 0) {
-                    statusText = `✅ 已回答 ${answered}/${total}`;
-                } else if (letter._stats.timeout && letter._stats.timeout === total) {
-                    statusText = '⏳ 超时未答';
-                } else {
-                    statusText = '✅ 已归档';
-                }
-            } else {
-                // 兼容旧数据
-                statusText = '✅ 已归档';
-            }
-        }
-        
-        // 红标（未查看）
-        const isNew = letter.isNew || false;
-        const newBadge = isNew 
+        // 红点（仅2.0且未查看）
+        const redDot = (isVersion2 && isNew) 
             ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#ff4757;margin-left:6px;flex-shrink:0;box-shadow:0 0 8px rgba(255,71,87,0.5);"></span>` 
             : '';
 
         return `
-            <div class="env-letter-item curiosity-letter-item" onclick="viewCuriosityLetter('${status}','${letter.id}')">
+            <div class="env-letter-item curiosity-letter-item ${isVersion2 && isNew ? 'env-letter-new' : ''}" onclick="viewCuriosityLetter('${status}','${letter.id}')">
                 <div class="env-letter-header curiosity-compact-header">
                     <div class="env-letter-header-from">
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px;">
@@ -166,9 +158,9 @@ function renderCuriosityList(status) {
                             <path d="M22 7l-10 7L2 7"/>
                         </svg>
                         投递 · ${date}
-                        ${newBadge}
+                        ${redDot}
                     </div>
-                    <span style="font-size:18px;line-height:1;flex-shrink:0;">📮</span>
+                    <span style="font-size:18px;line-height:1;flex-shrink:0;">${isVersion2 ? '📨' : '📮'}</span>
                 </div>
                 <div class="env-letter-body" style="padding:8px 12px 8px;">
                     ${titleHtml}
@@ -188,24 +180,25 @@ function renderCuriosityList(status) {
     }).join('');
 }
 
+
 // ---------- 查看详情（占位） ----------
 window.viewCuriosityLetter = function(status, id) {
-    // 暂不实现详情弹窗，直接提示
-    showNotification('问卷详情功能待开发 ✦', 'info', 2000);
-};
-
-// ---------- 删除问卷 ----------
-window.deleteCuriosityLetter = function(event, status, id) {
-    event.stopPropagation();
-    if (!confirm('确定要删除这份问卷吗？')) return;
-    const arr = status === 'ing' ? curiosityData.ing : curiosityData.archived;
-    const index = arr.findIndex(l => l.id === id);
-    if (index > -1) {
-        arr.splice(index, 1);
+    // 从 ing 中查找（所有卡片都在 ing 中）
+    const letter = curiosityData.ing.find(l => l.id === id);
+    if (!letter) {
+        showNotification('问卷不存在', 'error');
+        return;
+    }
+    
+    // 如果是2.0且未查看，标记为已查看（取消红点）
+    if (letter.version === 2 && letter.isNew) {
+        letter.isNew = false;
         saveCuriosityData();
         renderCuriosityLists();
-        showNotification('已删除', 'success');
     }
+    
+    // 打开详情页面（复用编辑器，但设为只读模式）
+    openCuriosityDetail(letter);
 };
 
 window.openNewCuriosityForm = function() {
@@ -244,16 +237,23 @@ let editingQuestionnaire = {
 window.openCuriosityCompose = function() {
     editingQuestionnaire = {
         title: '未命名问卷',
-        questions: [],  // 改为空数组，不添加示例题目
-        createdTime: Date.now()
+        questions: [],
+        createdTime: Date.now(),
+        _isReadOnly: false,   // 新建时为可编辑
+        _version: 1
     };
     renderComposeEditor();
     showModal(document.getElementById('curiosity-compose-modal'));
 };
 
-// 渲染编辑器内容
+
 // 渲染编辑器内容
 function renderComposeEditor() {
+    // 如果是只读模式，调用只读渲染
+    if (editingQuestionnaire._isReadOnly) {
+        renderComposeEditorReadOnly();
+        return;
+    }
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
     const questionsContainer = document.getElementById('compose-questions-container');
@@ -586,6 +586,179 @@ window.deleteQuestion = function(index) {
 };
 
 // ============================================================
+// 问卷详情查看（只读模式）
+// ============================================================
+
+// 打开问卷详情（只读模式）
+window.openCuriosityDetail = function(questionnaire) {
+    // 将当前问卷数据设为编辑数据（只读模式）
+    editingQuestionnaire = {
+        title: questionnaire.title || '未命名问卷',
+        questions: JSON.parse(JSON.stringify(questionnaire.questions || [])),
+        createdTime: questionnaire.sentTime || Date.now(),
+        _isReadOnly: true,           // 标记为只读
+        _version: questionnaire.version || 1,
+        _result: questionnaire.version === 2 ? questionnaire : null  // 2.0 带结果
+    };
+    
+    // 渲染编辑器（只读模式）
+    renderComposeEditorReadOnly();
+    showModal(document.getElementById('curiosity-compose-modal'));
+};
+
+// 只读模式渲染（显示回复结果）
+function renderComposeEditorReadOnly() {
+    const titleEl = document.getElementById('compose-title-display');
+    const dateEl = document.getElementById('compose-date-line');
+    const questionsContainer = document.getElementById('compose-questions-container');
+    const isReadOnly = editingQuestionnaire._isReadOnly || false;
+    const isVersion2 = editingQuestionnaire._version === 2;
+    
+    // 设置标题（只读，不可点击编辑）
+    if (titleEl) {
+        titleEl.textContent = editingQuestionnaire.title || '未命名问卷';
+        // 移除点击编辑功能
+        const parent = titleEl.parentElement;
+        if (parent) {
+            parent.style.cursor = 'default';
+            parent.onclick = null;
+        }
+        // 移除"点击修改"提示
+        const hint = parent ? parent.querySelector('span:last-child') : null;
+        if (hint && hint.textContent && hint.textContent.includes('点击修改')) {
+            hint.style.display = 'none';
+        }
+        // 去掉下划线
+        titleEl.style.borderBottom = 'none';
+    }
+    
+    // 设置日期
+    if (dateEl) {
+        const now = new Date(editingQuestionnaire.createdTime);
+        const y = now.getFullYear();
+        const mo = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        dateEl.textContent = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
+    }
+    
+    // 渲染题目列表（带回复状态）
+    if (questionsContainer) {
+        const questions = editingQuestionnaire.questions || [];
+        
+        if (questions.length === 0) {
+            questionsContainer.innerHTML = `
+                <div style="text-align:center;padding:40px 10px;color:var(--text-secondary);font-size:14px;font-style:italic;opacity:0.6;line-height:1.8;">
+                    这份问卷还没有添加问题
+                </div>
+            `;
+            return;
+        }
+        
+        let html = '';
+        questions.forEach((q, index) => {
+            const typeLabel = q.type === 'single' ? '单选' : '多选';
+            const isAnswered = q._status === 'answered';
+            const isSkipped = q._status === 'skipped';
+            const isRefused = q._status === 'refused';
+            const isTimeout = q._status === 'timeout';
+            
+            // 圆点颜色
+            let dotColor = 'rgba(var(--accent-color-rgb),0.15)'; // 默认灰色
+            if (isVersion2) {
+                if (isAnswered) dotColor = '#4CAF50';      // 绿色
+                else if (isSkipped) dotColor = '#FF9800';  // 橙色
+                else if (isRefused) dotColor = '#9C27B0';  // 深紫色
+                else if (isTimeout) dotColor = 'rgba(var(--accent-color-rgb),0.15)'; // 不变
+            }
+            
+            // 选项渲染（带填充状态）
+            const selectedOptions = q._selectedOptions || [];
+            const optionsHtml = (q.options || []).map((opt, oi) => {
+                const isSelected = selectedOptions.includes(opt);
+                const fillColor = isSelected ? 'var(--accent-color)' : 'transparent';
+                return `
+                    <div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 6px;font-size:13px;color:var(--text-secondary);">
+                        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(var(--accent-color-rgb),0.25);flex-shrink:0;background:${fillColor};transition:background 0.3s;"></span>
+                        <span>${escapeHtml(opt)}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            // 反问标记
+            const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+            const askedBackHtml = (isVersion2 && q._askedBack) 
+                ? `<div style="font-size:11px;color:var(--accent-color);margin-top:4px;padding-left:22px;font-style:italic;opacity:0.8;">${partnerName}同问 ✦</div>`
+                : '';
+            
+            // 状态标签（仅2.0显示）
+            let statusLabel = '';
+            if (isVersion2) {
+                if (isAnswered) statusLabel = `<span style="font-size:9px;color:#4CAF50;background:rgba(76,175,80,0.1);padding:0 6px;border-radius:8px;border:1px solid rgba(76,175,80,0.2);">已答</span>`;
+                else if (isSkipped) statusLabel = `<span style="font-size:9px;color:#FF9800;background:rgba(255,152,0,0.1);padding:0 6px;border-radius:8px;border:1px solid rgba(255,152,0,0.2);">暂未答</span>`;
+                else if (isRefused) statusLabel = `<span style="font-size:9px;color:#9C27B0;background:rgba(156,39,176,0.1);padding:0 6px;border-radius:8px;border:1px solid rgba(156,39,176,0.2);">拒绝</span>`;
+                else if (isTimeout) statusLabel = `<span style="font-size:9px;color:var(--text-secondary);background:var(--primary-bg);padding:0 6px;border-radius:8px;border:1px solid var(--border-color);">超时</span>`;
+            }
+            
+            html += `
+                <div class="compose-question-card" style="margin-bottom:0;padding:14px 32px 12px 0px;position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;${isReadOnly ? 'cursor:default;' : ''}">
+                    <!-- 第一行：Q1 + 小圆点 + 类型标签 + 状态标签 -->
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
+                        <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
+                        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;transition:background 0.3s;"></span>
+                        <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
+                        ${statusLabel}
+                    </div>
+                    <!-- 第二行：题目 -->
+                    <div style="font-size:14px;font-weight:500;color:var(--text-primary);line-height:1.5;padding-left:16px;margin-bottom:4px;">
+                        ${escapeHtml(q.text)}
+                    </div>
+                    <!-- 选项列表 -->
+                    <div style="padding-left:16px;margin-top:2px;">
+                        ${optionsHtml}
+                    </div>
+                    ${askedBackHtml}
+                    ${isReadOnly ? '' : `<button onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;top:12px;right:4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:11px;opacity:0.25;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='0.25'">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>`}
+                </div>
+            `;
+        });
+        questionsContainer.innerHTML = html;
+    }
+    
+    // 修改底部按钮：只保留"返回"
+    const bottomArea = document.querySelector('#curiosity-compose-modal .env-wrapper > div:last-child');
+    if (bottomArea && isReadOnly) {
+        bottomArea.innerHTML = `
+            <div style="display:flex;gap:10px;padding:12px 18px 16px;border-top:1px solid var(--border-color);flex-shrink:0;flex-wrap:wrap;">
+                <button onclick="closeCuriosityCompose()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-arrow-left" style="font-size:13px;"></i> 返回
+                </button>
+            </div>
+        `;
+    } else if (bottomArea && !isReadOnly) {
+        // 非只读模式，保持原有按钮
+        bottomArea.innerHTML = `
+            <div style="display:flex;gap:10px;padding:12px 18px 16px;border-top:1px solid var(--border-color);flex-shrink:0;flex-wrap:wrap;">
+                <button onclick="composeAction('submit')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);transition:opacity 0.2s;letter-spacing:0.5px;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-paper-plane" style="font-size:13px;"></i> 投递
+                </button>
+                <button onclick="openQuestionEditor()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:var(--primary-bg);color:var(--text-primary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-question" style="font-size:13px;"></i> 提问
+                </button>
+                <button onclick="composeAction('confirm')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid rgba(var(--accent-color-rgb),0.3);border-radius:12px;background:rgba(var(--accent-color-rgb),0.08);color:var(--accent-color);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-archive" style="font-size:13px;"></i> 归档
+                </button>
+                <button onclick="closeCuriosityCompose()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;display:flex;align-items:center;justify-content:center;gap:6px;">
+                    <i class="fas fa-times" style="font-size:13px;"></i> 关闭
+                </button>
+            </div>
+        `;
+    }
+}
+
+// ============================================================
 // 投递功能 - 完整的后台模拟流程
 // ============================================================
 
@@ -784,7 +957,10 @@ window.handleDelivery = async function() {
         return;
     }
     
-    // 1. 创建1.0版本问卷
+    // 1. 关闭编辑器模态框
+    hideModal(document.getElementById('curiosity-compose-modal'));
+    
+    // 2. 创建1.0版本问卷
     const newQuestionnaire = {
         id: 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
         title: editingQuestionnaire.title,
@@ -794,8 +970,8 @@ window.handleDelivery = async function() {
             options: [...q.options]
         })),
         sentTime: Date.now(),
-        status: 'ing',      // 先放入问卷ing
-        isNew: true,
+        status: 'ing',
+        isNew: false,      // 1.0 不显示红点
         version: 1
     };
     
@@ -803,14 +979,15 @@ window.handleDelivery = async function() {
     curiosityData.ing.push(newQuestionnaire);
     await saveCuriosityData();
     
-    // 显示投递成功弹窗
+    // 3. 刷新列表（让新卡片立即显示）
+    renderCuriosityLists();
+    
+    // 4. 显示投递成功弹窗
     showDeliverySuccessPopup(newQuestionnaire);
     
-    // 2. 开始后台模拟流程
-    // 使用 setTimeout 让弹窗先显示，再开始后台任务
+    // 5. 开始后台模拟流程
     setTimeout(async () => {
         const result = await startDeliveryProcess(newQuestionnaire);
-        // 处理结果
         await handleDeliveryResult(result, newQuestionnaire);
     }, 500);
 };
@@ -850,11 +1027,15 @@ async function handleDeliveryResult(result, originalQuestionnaire) {
         curiosityData.ing.splice(ingIndex, 1);
     }
     
-    // 将结果存入 archived
-    curiosityData.archived.push(result);
+    // 将2.0结果存入 ing（注意：不是 archived）
+    result.status = 'ing';
+    result.isNew = true;   // 2.0 默认未查看，显示红点
+    result.version = 2;
+    curiosityData.ing.push(result);
+    
     await saveCuriosityData();
     
-    // 更新列表（如果好奇驿站模态框是打开的）
+    // 刷新列表（立即显示2.0卡片，带红点）
     renderCuriosityLists();
     
     // 显示回馈弹窗
