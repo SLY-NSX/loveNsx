@@ -503,18 +503,13 @@
             <div class="env-header-flap" style="padding:12px 20px 26px;">
                 <!-- 纸张+笔 SVG 图标 -->
                 <svg class="env-header-icon" width="32" height="24" viewBox="0 0 36 28" fill="none" style="display:block;margin:0 auto 4px;">
-                    <!-- 纸张主体 -->
                     <rect x="2" y="2" width="22" height="22" rx="2" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
-                    <!-- 纸张横线 -->
                     <path d="M5 7.5 H21" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
                     <path d="M5 11.5 H21" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
                     <path d="M5 15.5 H17" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
                     <path d="M5 19.5 H13" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
-                    <!-- 笔杆 -->
                     <rect x="23" y="3" width="3" height="20" rx="1" transform="rotate(35, 24.5, 13)" fill="rgba(255,255,255,0.25)" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>
-                    <!-- 笔尖（三角形） -->
                     <path d="M20 14 L24 10 L21.5 12 L20 14Z" fill="rgba(255,255,255,0.45)" stroke="rgba(255,255,255,0.3)" stroke-width="0.8"/>
-                    <!-- 笔帽装饰 -->
                     <circle cx="27" cy="6" r="1.5" fill="rgba(255,255,255,0.3)"/>
                 </svg>
                 <div class="env-header-title" style="font-size:16px;margin-bottom:2px;">好奇驿站</div>
@@ -574,12 +569,12 @@
                 </div>
             </div>
 
-            <!-- 底部固定操作栏（已将创建问卷按钮的图标去掉） -->
-            <div class="env-send-area" id="curiosity-main-close-btn" style="display:flex;gap:8px;padding:10px 16px 14px;">
-                <button class="env-write-btn" onclick="openNewCuriosityForm()" style="flex:1;padding:12px 0;font-size:14px;border-radius:14px;background:var(--accent-color);color:#fff;border:none;cursor:pointer;font-weight:600;display:flex;align-items:center;justify-content:center;font-family:var(--font-family);">
+            <!-- 底部固定操作栏：全新自定义按钮，完全一致 -->
+            <div style="display:flex;gap:10px;padding:12px 16px 16px;border-top:1px solid var(--border-color);background:var(--secondary-bg);border-radius:0 0 18px 18px;">
+                <button onclick="openNewCuriosityForm()" style="flex:1;padding:13px 0;font-size:14px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);transition:opacity 0.2s;letter-spacing:0.5px;">
                     创建问卷
                 </button>
-                <button class="env-close-btn" onclick="closeCuriosityModal()" style="flex:1;padding:12px 0;font-size:14px;border-radius:14px;background:transparent;border:1.5px solid var(--border-color);color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);display:flex;align-items:center;justify-content:center;">
+                <button onclick="closeCuriosityModal()" style="flex:1;padding:13px 0;font-size:14px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">
                     关闭
                 </button>
             </div>
