@@ -489,14 +489,13 @@ window.editComposeTitle = function() {
 
 // ---------- 底部按钮操作 ----------
 window.composeAction = function(action) {
+    // 投递和归档都使用占位
     if (action === 'submit') {
-        // 投递逻辑
-        handleSubmitQuestionnaire();
+        showNotification('📬 投递功能开发中，敬请期待 ✦', 'info', 2500);
         return;
     }
     if (action === 'confirm') {
-        // 归档逻辑（占位）
-        showNotification('归档功能开发中，敬请期待 ✦', 'info', 2500);
+        showNotification('📦 归档功能开发中，敬请期待 ✦', 'info', 2500);
         return;
     }
     const messages = {
