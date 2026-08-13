@@ -11729,3 +11729,19 @@ html[data-theme="dark"] #comp-records-title-icon {
     background: var(--primary-bg);
 }
 }
+
+
+/* ---------- 好奇驿站编辑器底部按钮悬停 ---------- */
+#curiosity-compose-modal .env-wrapper > div > div:last-child button:first-child:hover {
+    opacity: 0.88;
+}
+#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2):hover {
+    background: var(--border-color);
+}
+#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(3):hover {
+    background: rgba(var(--accent-color-rgb), 0.16);
+}
+#curiosity-compose-modal .env-wrapper > div > div:last-child button:last-child:hover {
+    background: var(--primary-bg);
+}
+
