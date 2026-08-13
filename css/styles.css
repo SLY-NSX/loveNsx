@@ -11764,14 +11764,3 @@ html[data-theme="dark"] #comp-records-title-icon {
     white-space: nowrap !important;
 }
 
-/* 底部按钮精确等高修复 */
-#curiosity-main-close-btn .env-write-btn,
-#curiosity-main-close-btn .env-close-btn {
-    height: 48px !important;
-    box-sizing: border-box !important;
-    line-height: 1.2 !important;
-}
-#curiosity-main-close-btn .env-write-btn svg {
-    flex-shrink: 0;
-    display: block;
-}
