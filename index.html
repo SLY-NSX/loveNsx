@@ -583,6 +583,80 @@
 </div>
 <!-- ===== 好奇驿站结束 ===== -->
 
+<!-- ===== 好奇驿站 - 创建问卷编辑器（类似信封详情弹窗） ===== -->
+<div class="modal" id="curiosity-compose-modal" style="z-index:2100;">
+    <div class="modal-content" style="overflow:hidden;padding:0;background:transparent;max-height:92vh;display:flex;flex-direction:column;">
+        <div style="background:var(--secondary-bg);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
+            
+            <!-- 顶部标题区（深色背景条） -->
+            <div style="background:var(--accent-color);padding:0;position:relative;overflow:hidden;flex-shrink:0;">
+                <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,0.04) 0px,rgba(255,255,255,0.04) 2px,transparent 2px,transparent 12px);pointer-events:none;"></div>
+                <div style="position:relative;padding:14px 20px 12px;display:flex;align-items:center;justify-content:space-between;">
+                    <div style="display:flex;align-items:center;gap:10px;color:white;cursor:pointer;" onclick="editComposeTitle()" title="点击修改标题">
+                        <span style="font-size:22px;">📪</span>
+                        <span id="compose-title-display" style="font-size:14px;font-weight:700;letter-spacing:1px;border-bottom:1.5px dashed rgba(255,255,255,0.4);padding-bottom:2px;">未命名问卷</span>
+                        <span style="font-size:10px;opacity:0.6;font-weight:400;letter-spacing:0.5px;">✎ 点击修改</span>
+                    </div>
+                    <div style="border:2px solid rgba(255,255,255,0.5);border-radius:50%;width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.7;">
+                        <span style="font-size:7px;color:white;letter-spacing:0.5px;">投递中</span>
+                        <span style="font-size:8px;color:white;font-weight:600;">一次</span>
+                        <span style="font-size:6px;color:white;opacity:0.8;">ANSWER</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 信纸正文区 -->
+            <div style="padding:0;overflow-y:auto;flex:1;min-height:0;">
+                <div style="background:var(--primary-bg);margin:14px 16px 16px;border-radius:12px;border:1px solid var(--border-color);overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                    
+                    <!-- 顶部横线装饰 -->
+                    <div style="height:6px;background:linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.4),var(--accent-color));"></div>
+                    
+                    <div style="padding:20px 20px 16px;position:relative;">
+                        <div style="position:absolute;left:52px;top:0;bottom:0;width:1px;background:rgba(220,80,80,0.15);pointer-events:none;"></div>
+                        <div style="position:absolute;inset:0;background:repeating-linear-gradient(transparent,transparent 31px,rgba(var(--accent-color-rgb),0.06) 31px,rgba(var(--accent-color-rgb),0.06) 32px);pointer-events:none;border-radius:12px;"></div>
+                        
+                        <div style="position:relative;z-index:1;">
+                            <!-- 日期行 -->
+                            <div id="compose-date-line" style="font-size:11px;color:var(--text-secondary);text-align:right;margin-bottom:16px;letter-spacing:1px;opacity:0.8;font-style:italic;"></div>
+                            
+                            <!-- 题目列表容器 -->
+                            <div id="compose-questions-container" style="min-height:120px;">
+                                <!-- 由 JS 动态渲染 -->
+                            </div>
+                            
+                            <!-- 分隔虚线 -->
+                            <div style="border-top:1px dashed rgba(var(--accent-color-rgb),0.25);margin:12px 0;"></div>
+                            
+                            <!-- 底部提示 -->
+                            <div style="font-size:10px;color:var(--text-secondary);text-align:center;opacity:0.5;letter-spacing:1.5px;padding-top:6px;">
+                                ✦ 问卷编辑中 ✦
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部操作按键 -->
+            <div style="display:flex;gap:10px;padding:12px 18px 16px;border-top:1px solid var(--border-color);flex-shrink:0;flex-wrap:wrap;">
+                <button onclick="composeAction('submit')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);transition:opacity 0.2s;letter-spacing:0.5px;">
+                    📬 投递
+                </button>
+                <button onclick="composeAction('draft')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:var(--primary-bg);color:var(--text-primary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">
+                    ✏️ 编辑
+                </button>
+                <button onclick="composeAction('confirm')" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid rgba(var(--accent-color-rgb),0.3);border-radius:12px;background:rgba(var(--accent-color-rgb),0.08);color:var(--accent-color);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">
+                    ✅ 确认
+                </button>
+                <button onclick="closeCuriosityCompose()" style="flex:1;min-width:60px;padding:11px 0;font-size:13px;font-weight:600;border:1.5px solid var(--border-color);border-radius:12px;background:transparent;color:var(--text-secondary);cursor:pointer;font-family:var(--font-family);transition:background 0.2s;">
+                    关闭
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- ===== 创建问卷编辑器结束 ===== -->
+
 <div class="modal" id="envelope-view-modal" style="z-index:2100;">
     <div class="modal-content" style="overflow:hidden;padding:0;background:transparent;max-height:92vh;display:flex;flex-direction:column;">
     <div style="background:var(--secondary-bg);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
