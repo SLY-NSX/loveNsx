@@ -176,15 +176,12 @@ window.deleteCuriosityLetter = function(event, status, id) {
     }
 };
 
-// ---------- 创建问卷（占位） ----------
 window.openNewCuriosityForm = function() {
-    // 隐藏列表，显示创建表单（暂不实现，仅提示）
-    showNotification('创建问卷功能开发中，敬请期待 ✦', 'info', 3000);
-    // 但是可以先隐藏列表区域（可选）
-    // document.getElementById('curiosity-ing-section').style.display = 'none';
-    // document.getElementById('curiosity-archived-section').style.display = 'none';
-    // document.getElementById('curiosity-main-close-btn').style.display = 'none';
-    // document.getElementById('curiosity-compose-form').style.display = 'block';
+    // 关闭主模态框，打开编辑器
+    closeCuriosityModal();
+    setTimeout(() => {
+        openCuriosityCompose();
+    }, 300);
 };
 
 // ---------- 取消创建（回到列表） ----------
@@ -201,4 +198,118 @@ window.cancelCuriosityCompose = function() {
 // ---------- 关闭模态框 ----------
 window.closeCuriosityModal = function() {
     hideModal(document.getElementById('curiosity-modal'));
+};
+
+// ============================================================
+// 创建问卷 - 编辑页面（类似信封详情弹窗）
+// ============================================================
+
+// 当前编辑中的问卷数据
+let editingQuestionnaire = {
+    title: '',
+    questions: [],
+    createdTime: Date.now()
+};
+
+// 打开创建问卷编辑器
+window.openCuriosityCompose = function() {
+    // 重置数据
+    editingQuestionnaire = {
+        title: '未命名问卷',
+        questions: [
+            { id: 'q1', text: '', type: 'single', options: ['', ''] }
+        ],
+        createdTime: Date.now()
+    };
+    
+    renderComposeEditor();
+    showModal(document.getElementById('curiosity-compose-modal'));
+};
+
+// 渲染编辑器内容
+function renderComposeEditor() {
+    const titleEl = document.getElementById('compose-title-display');
+    const dateEl = document.getElementById('compose-date-line');
+    const bodyEl = document.getElementById('compose-body-content');
+    const emptyHint = document.getElementById('compose-empty-hint');
+    const questionsContainer = document.getElementById('compose-questions-container');
+    
+    // 设置标题（可编辑）
+    if (titleEl) {
+        titleEl.textContent = editingQuestionnaire.title || '未命名问卷';
+    }
+    
+    // 设置日期
+    if (dateEl) {
+        const now = new Date(editingQuestionnaire.createdTime);
+        const y = now.getFullYear();
+        const mo = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+        dateEl.textContent = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
+    }
+    
+    // 渲染题目列表
+    if (questionsContainer) {
+        const questions = editingQuestionnaire.questions || [];
+        if (questions.length === 0) {
+            questionsContainer.innerHTML = `
+                <div style="text-align:center;padding:30px 10px;color:var(--text-secondary);font-size:14px;font-style:italic;opacity:0.6;">
+                    Deepen mutual understanding and bring each other closer
+                </div>
+            `;
+            if (emptyHint) emptyHint.style.display = 'none';
+            return;
+        }
+        
+        if (emptyHint) emptyHint.style.display = 'none';
+        
+        let html = '';
+        questions.forEach((q, index) => {
+            const typeLabel = q.type === 'single' ? '单选' : '多选';
+            const optionsHtml = (q.options || []).map(opt => 
+                `<div style="padding:2px 0 2px 20px;font-size:13px;color:var(--text-secondary);">
+                    <span style="opacity:0.5;">○</span> ${opt || '（空选项）'}
+                </div>`
+            ).join('');
+            
+            html += `
+                <div style="margin-bottom:16px;padding-bottom:14px;border-bottom:1px dashed rgba(var(--accent-color-rgb),0.12);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <span style="font-size:12px;font-weight:700;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.1);padding:0 8px;border-radius:4px;">Q${index + 1}</span>
+                        <span style="font-size:13px;font-weight:500;color:var(--text-primary);">${q.text || '（未填写题目）'}</span>
+                        <span style="font-size:10px;color:var(--text-secondary);opacity:0.6;background:var(--primary-bg);padding:0 6px;border-radius:3px;">${typeLabel}</span>
+                    </div>
+                    ${optionsHtml}
+                </div>
+            `;
+        });
+        questionsContainer.innerHTML = html;
+    }
+}
+
+// ---------- 标题点击编辑 ----------
+window.editComposeTitle = function() {
+    const currentTitle = editingQuestionnaire.title || '未命名问卷';
+    const newTitle = prompt('请输入问卷标题：', currentTitle);
+    if (newTitle !== null && newTitle.trim() !== '') {
+        editingQuestionnaire.title = newTitle.trim();
+        const titleEl = document.getElementById('compose-title-display');
+        if (titleEl) titleEl.textContent = editingQuestionnaire.title;
+    }
+};
+
+// ---------- 底部按钮占位功能 ----------
+window.composeAction = function(action) {
+    const messages = {
+        'draft': '📝 草稿保存功能开发中，敬请期待 ✦',
+        'confirm': '✅ 确认功能开发中，敬请期待 ✦',
+        'submit': '📬 投递功能开发中，敬请期待 ✦'
+    };
+    showNotification(messages[action] || '功能开发中 ✦', 'info', 2500);
+};
+
+// ---------- 关闭编辑器 ----------
+window.closeCuriosityCompose = function() {
+    hideModal(document.getElementById('curiosity-compose-modal'));
 };
