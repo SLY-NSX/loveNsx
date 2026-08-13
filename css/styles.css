@@ -11745,3 +11745,119 @@ html[data-theme="dark"] #comp-records-title-icon {
     background: var(--primary-bg);
 }
 
+/* ---------- 问题编辑弹窗样式 ---------- */
+#qe-type-single-btn.active,
+#qe-type-multiple-btn.active {
+    border-color: var(--accent-color);
+    background: rgba(var(--accent-color-rgb), 0.08);
+    color: var(--accent-color);
+}
+#qe-type-single-btn.active #qe-type-single-indicator,
+#qe-type-multiple-btn.active #qe-type-multiple-indicator {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+}
+
+.qe-option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+}
+.qe-option-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    width: 22px;
+    flex-shrink: 0;
+    text-align: center;
+}
+.qe-option-input {
+    flex: 1;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-family);
+    outline: none;
+    transition: border-color 0.2s;
+}
+.qe-option-input:focus {
+    border-color: var(--accent-color);
+}
+.qe-option-delete {
+    width: 28px;
+    height: 28px;
+    border: none;
+    background: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.qe-option-delete:hover:not(:disabled) {
+    background: rgba(255, 71, 87, 0.1);
+    color: #ff4757;
+}
+.qe-add-option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 0;
+    border: 1.5px dashed var(--border-color);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-family);
+    transition: all 0.2s;
+    margin-top: 2px;
+}
+.qe-add-option-btn:hover:not(:disabled) {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: rgba(var(--accent-color-rgb), 0.04);
+}
+.qe-add-option-btn svg {
+    flex-shrink: 0;
+}
+
+/* 问题卡片悬停时删除按钮可见度提升 */
+.compose-question-card:hover .qe-card-delete {
+    opacity: 0.6 !important;
+}
+.compose-question-card .qe-card-delete {
+    opacity: 0.2;
+    transition: opacity 0.2s;
+}
+
+/* 信纸空状态 */
+#compose-questions-container .compose-empty-state {
+    text-align: center;
+    padding: 50px 10px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-style: italic;
+    opacity: 0.5;
+    line-height: 1.8;
+}
+
+/* 底部“编辑”按钮特殊标识 */
+#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2) {
+    position: relative;
+}
+#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2)::after {
+    content: ' 新建问题';
+    font-weight: 400;
+    opacity: 0.6;
+    font-size: 11px;
+}
