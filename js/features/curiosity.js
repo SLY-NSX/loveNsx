@@ -175,6 +175,68 @@ function incrementVersionNumber(version) {
     return `${parsed.prefix}-${parsed.number + 1}-${parsed.suffix}`;
 }
 
+// ---------- 版本号迭代规则（阶段2） ----------
+/**
+ * 更新版本号（完整迭代规则）
+ * @param {string} currentVersion - 当前版本号，如 "A-0-N"
+ * @param {object} flags - 迭代标志
+ * @param {boolean} flags.enteredBigLoop - 本次是否进入了大循环
+ * @param {boolean} flags.enteredYes - 本次是否进入了YES
+ * @returns {string} 新的版本号
+ * 
+ * 规则：
+ * - 数字：每次调用都 +1
+ * - 首字母：如果 enteredBigLoop && enteredYes，则递增（A→B→C...）
+ * - 尾字母：如果 enteredBigLoop，则为 Y，否则为 N
+ */
+function updateVersion(currentVersion, flags) {
+    const parsed = parseVersion(currentVersion || 'A-0-N');
+    const { prefix, number, suffix } = parsed;
+    const { enteredBigLoop, enteredYes } = flags || {};
+    
+    // 数字：始终 +1
+    const newNumber = number + 1;
+    
+    // 尾字母：进入过大循环则为 Y，否则为 N
+    let newSuffix = enteredBigLoop ? 'Y' : 'N';
+    // 如果没有传 enteredBigLoop，保持原后缀
+    if (enteredBigLoop === undefined) {
+        newSuffix = suffix;
+    }
+    
+    // 首字母：如果进入大循环且进入YES，则递增
+    let newPrefix = prefix;
+    if (enteredBigLoop && enteredYes) {
+        // A→B→C→...→Z→AA→AB...
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let currentIndex = chars.indexOf(prefix);
+        if (currentIndex === -1) {
+            // 如果是AA之类的，简单处理：先保留
+            newPrefix = prefix;
+        } else if (currentIndex < chars.length - 1) {
+            newPrefix = chars[currentIndex + 1];
+        } else {
+            // Z → AA
+            newPrefix = 'AA';
+        }
+    } else if (enteredBigLoop === undefined || enteredBigLoop === false) {
+        // 未进入大循环或未进入YES，首字母不变
+        newPrefix = prefix;
+    }
+    
+    return `${newPrefix}-${newNumber}-${newSuffix}`;
+}
+
+/**
+ * 获取下一个版本号（用于【发出】时只做数字+1）
+ * @param {string} currentVersion - 当前版本号
+ * @returns {string} 新的版本号（仅数字+1，首字母和尾字母不变）
+ */
+function getNextVersionForSend(currentVersion) {
+    const parsed = parseVersion(currentVersion || 'A-0-N');
+    return `${parsed.prefix}-${parsed.number + 1}-${parsed.suffix}`;
+}
+
 // ---------- 自定义确认弹窗 ----------
 function showCuriosityConfirm(options) {
     const { title, message, confirmText, onConfirm, cancelText, onCancel } = options;
@@ -776,7 +838,7 @@ function handleSubmitQuestionnaire() {
     // 发出弹窗
     // ============================================================
     function proceedToSend(caseType) {
-        const newVersion = incrementVersionNumber(editingQuestionnaire.version || 'A-0-N');
+        const newVersion = getNextVersionForSend(editingQuestionnaire.version || 'A-0-N');
         const newNum = getVersionNumber(newVersion);
         const x = Math.ceil((newNum + 1) / 2);
         
@@ -836,8 +898,21 @@ function handleSubmitQuestionnaire() {
                 renderCuriosityLists();
                 showNotification(`📬 问卷已投递！版本：${editingQuestionnaire.version}`, 'success', 2000);
                 
-                setTimeout(() => {
-                    showNotification('🧠 后台回复逻辑开发中（阶段2），敬请期待 ✦', 'info', 3000);
+                // 启动后台回复逻辑
+                setTimeout(async () => {
+                    try {
+                        const result = await simulateReplyLogic(
+                            editingQuestionnaire.id,
+                            editingQuestionnaire.version,
+                            caseType
+                        );
+                        console.log('[后台回复] 结果:', result);
+                        // TODO: 阶段7 - 显示正式回复弹窗
+                        // TODO: 阶段7 - 更新卡片状态
+                    } catch (error) {
+                        console.error('[后台回复] 错误:', error);
+                        showNotification('后台回复处理出错，请稍后查看', 'error', 3000);
+                    }
                 }, 500);
                 
                 closeCuriosityCompose(true);
@@ -857,6 +932,186 @@ function handleSubmitQuestionnaire() {
             onConfirm: () => {}
         });
     }
+}
+
+// ============================================================
+// 阶段3：后台回复逻辑框架（模拟线程）
+// ============================================================
+
+/**
+ * 睡眠工具 - 返回一个在指定毫秒后 resolved 的 Promise
+ * @param {number} ms - 毫秒数
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 后台回复逻辑入口
+ * @param {string} questionnaireId - 问卷ID
+ * @param {string} currentVersion - 当前版本号（投递时的版本号）
+ * @param {string} caseType - 投递情况类型 ('case1' | 'case2' | 'case3' | 'case4')
+ * @returns {Promise<Object>} 返回 { enteredBigLoop, enteredYes, updatedQuestions }
+ */
+async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
+    console.log(`[后台回复] 开始 - ID: ${questionnaireId}, 版本: ${currentVersion}, 情况: ${caseType}`);
+    
+    const prefix = getVersionPrefix(currentVersion);
+    const num = getVersionNumber(currentVersion);
+    
+    // 定义结果标志
+    let enteredBigLoop = false;
+    let enteredYes = false;
+    let updatedQuestions = [];
+    
+    // ============================================================
+    // 前置判断：首字母是否为 A 或 B
+    // ============================================================
+    if (prefix !== 'A' && prefix !== 'B') {
+        // 首字母非A/B → 执行【回复逻辑一】
+        console.log('[后台回复] 进入【回复逻辑一】（首字母非A/B）');
+        const result = await replyLogicOne(questionnaireId, currentVersion);
+        enteredBigLoop = result.enteredBigLoop;
+        enteredYes = result.enteredYes;
+        updatedQuestions = result.updatedQuestions || [];
+    } else {
+        // 首字母是A或B → 判断数字
+        const timeLimit = num === 1 ? 5 * 60 * 1000 : 2.5 * 60 * 1000; // 5分钟 或 2.5分钟（毫秒）
+        console.log(`[后台回复] 大循环时间上限: ${timeLimit / 1000 / 60} 分钟`);
+        
+        if (prefix === 'A') {
+            // 首字母A → 【回复逻辑二】
+            console.log('[后台回复] 进入【回复逻辑二】（首字母A）');
+            const result = await replyLogicTwo(questionnaireId, currentVersion, timeLimit);
+            enteredBigLoop = result.enteredBigLoop;
+            enteredYes = result.enteredYes;
+            updatedQuestions = result.updatedQuestions || [];
+        } else {
+            // 首字母B → 【回复逻辑三】
+            console.log('[后台回复] 进入【回复逻辑三】（首字母B）');
+            const result = await replyLogicThree(questionnaireId, currentVersion, timeLimit);
+            enteredBigLoop = result.enteredBigLoop;
+            enteredYes = result.enteredYes;
+            updatedQuestions = result.updatedQuestions || [];
+        }
+    }
+    
+    console.log(`[后台回复] 完成 - enteredBigLoop: ${enteredBigLoop}, enteredYes: ${enteredYes}`);
+    console.log(`[后台回复] 更新了 ${updatedQuestions.length} 个问题`);
+    
+    return {
+        enteredBigLoop,
+        enteredYes,
+        updatedQuestions
+    };
+}
+
+// ============================================================
+// 回复逻辑一（首字母非A/B）
+// ============================================================
+async function replyLogicOne(questionnaireId, currentVersion) {
+    console.log('[回复逻辑一] 开始执行');
+    
+    // 阶段3：占位实现 - 模拟延迟和随机选择
+    // 正式实现将在阶段4完成
+    
+    // 1. 静默倒计时一分钟
+    console.log('[回复逻辑一] 静默倒计时 60 秒...');
+    await sleep(60 * 1000); // 正式实现会改为真实倒计时
+    
+    // 2. 在6分钟以内随机选择一个数作为倒计时
+    const randomSeconds = Math.floor(Math.random() * 360); // 0-360秒 = 0-6分钟
+    console.log(`[回复逻辑一] 随机倒计时 ${randomSeconds} 秒...`);
+    await sleep(randomSeconds * 1000);
+    
+    // 3. 模拟：将【同问.互动一】变成【同问.互动一.√】
+    // 阶段3暂不实现具体数据更新
+    
+    // 阶段3占位：假设进入了循环但未进入YES
+    const enteredBigLoop = true;
+    const enteredYes = false;
+    
+    console.log('[回复逻辑一] 执行完成（占位）');
+    
+    return {
+        enteredBigLoop,
+        enteredYes,
+        updatedQuestions: []
+    };
+}
+
+// ============================================================
+// 回复逻辑二（首字母A）
+// ============================================================
+async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
+    console.log('[回复逻辑二] 开始执行，时间上限:', timeLimit / 1000 / 60, '分钟');
+    
+    // 阶段3：占位实现 - 模拟延迟和随机选择
+    // 正式实现将在阶段5完成
+    
+    // 1. 静默倒计时一分钟
+    console.log('[回复逻辑二] 静默倒计时 60 秒...');
+    await sleep(60 * 1000);
+    
+    // 2. 模拟大循环：随机决定是否能进入YES
+    // 阶段3占位：随机结果
+    const entersYes = Math.random() > 0.5;
+    const enteredBigLoop = true;
+    const enteredYesResult = entersYes;
+    
+    if (entersYes) {
+        console.log('[回复逻辑二] 进入 YES');
+        // 模拟回答问题（占位）
+        await sleep(30 * 1000);
+    } else {
+        console.log('[回复逻辑二] 未进入 YES，大循环结束');
+    }
+    
+    console.log('[回复逻辑二] 执行完成（占位）');
+    
+    return {
+        enteredBigLoop,
+        enteredYes: enteredYesResult,
+        updatedQuestions: []
+    };
+}
+
+// ============================================================
+// 回复逻辑三（首字母B）
+// ============================================================
+async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
+    console.log('[回复逻辑三] 开始执行，时间上限:', timeLimit / 1000 / 60, '分钟');
+    
+    // 阶段3：占位实现 - 模拟延迟和随机选择
+    // 正式实现将在阶段6完成
+    
+    // 1. 静默倒计时一分钟
+    console.log('[回复逻辑三] 静默倒计时 60 秒...');
+    await sleep(60 * 1000);
+    
+    // 2. 检查是否有"暂不回答"的问题
+    // 阶段3暂不实现具体数据查询，模拟有/无
+    const hasUnanswered = Math.random() > 0.5;
+    console.log(`[回复逻辑三] 是否有暂不回答: ${hasUnanswered}`);
+    
+    if (hasUnanswered) {
+        // 模拟处理暂不回答
+        await sleep(20 * 1000);
+    }
+    
+    // 3. 检查【同问.互动一】
+    // 阶段3暂不实现
+    
+    const enteredBigLoop = true;
+    const enteredYes = Math.random() > 0.5;
+    
+    console.log('[回复逻辑三] 执行完成（占位）');
+    
+    return {
+        enteredBigLoop,
+        enteredYes,
+        updatedQuestions: []
+    };
 }
 
 // ---------- 关闭编辑器 ----------
