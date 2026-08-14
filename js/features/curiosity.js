@@ -1113,12 +1113,13 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
             updatedQuestions = result.updatedQuestions || [];
             prevVersion = result.prevVersion || currentVersion;
         } else {
-            // 首字母B → 【回复逻辑三】（暂未实现）
+            // 首字母B → 【回复逻辑三】
             console.log('[后台回复] 进入【回复逻辑三】（首字母B）');
-            // 阶段6：暂未实现，返回占位结果
-            enteredBigLoop = true;
-            enteredYes = false;
-            updatedQuestions = [];
+            const result = await replyLogicThree(questionnaireId, currentVersion, timeLimit);
+            enteredBigLoop = result.enteredBigLoop;
+            enteredYes = result.enteredYes;
+            updatedQuestions = result.updatedQuestions || [];
+            prevVersion = result.prevVersion || currentVersion;
         }
     }
     
@@ -1505,40 +1506,223 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
 }
 
 // ============================================================
-// 回复逻辑三（首字母B）
+// 回复逻辑三（首字母B）- 完整实现
 // ============================================================
 async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     console.log('[回复逻辑三] 开始执行，时间上限:', timeLimit / 1000 / 60, '分钟');
     
-    // 阶段3：占位实现 - 模拟延迟和随机选择
-    // 正式实现将在阶段6完成
+    // 从存储中获取当前问卷数据
+    let questionnaire = null;
+    let sourceArr = null;
+    let sourceIndex = -1;
     
-    // 1. 静默倒计时一分钟
-    console.log('[回复逻辑三] 静默倒计时 60 秒...');
-    await sleep(60 * 1000);
-    
-    // 2. 检查是否有"暂不回答"的问题
-    // 阶段3暂不实现具体数据查询，模拟有/无
-    const hasUnanswered = Math.random() > 0.5;
-    console.log(`[回复逻辑三] 是否有暂不回答: ${hasUnanswered}`);
-    
-    if (hasUnanswered) {
-        // 模拟处理暂不回答
-        await sleep(20 * 1000);
+    // 在 ing 中查找
+    const ingIndex = curiosityData.ing.findIndex(item => item.id === questionnaireId);
+    if (ingIndex > -1) {
+        questionnaire = { ...curiosityData.ing[ingIndex] };
+        sourceArr = 'ing';
+        sourceIndex = ingIndex;
+    } else {
+        const archivedIndex = curiosityData.archived.findIndex(item => item.id === questionnaireId);
+        if (archivedIndex > -1) {
+            questionnaire = { ...curiosityData.archived[archivedIndex] };
+            sourceArr = 'archived';
+            sourceIndex = archivedIndex;
+        }
     }
     
-    // 3. 检查【同问.互动一】
-    // 阶段3暂不实现
+    if (!questionnaire) {
+        console.error('[回复逻辑三] 未找到问卷:', questionnaireId);
+        return { enteredBigLoop: false, enteredYes: false, updatedQuestions: [] };
+    }
     
-    const enteredBigLoop = true;
-    const enteredYes = Math.random() > 0.5;
+    const questions = questionnaire.questions || [];
+    const prevVersion = questionnaire.version;
     
-    console.log('[回复逻辑三] 执行完成（占位）');
+    // ============================================================
+    // 步骤1：静默倒计时 60 秒（计入已用时间）
+    // ============================================================
+    console.log('[回复逻辑三] 步骤1：静默倒计时 60 秒...');
+    await sleep(60 * 1000);
+    let elapsedTime = 60; // 已用时间（秒）
+    console.log(`[回复逻辑三] 静默完成，已用时间: ${elapsedTime}秒`);
+    
+    // ============================================================
+    // 步骤2：筛选出所有被标记为「暂不回答」的问题
+    // ============================================================
+    const unansweredIndices = [];
+    questions.forEach((q, idx) => {
+        if (q.status === 'unanswered') {
+            unansweredIndices.push(idx);
+        }
+    });
+    const hasUnanswered = unansweredIndices.length > 0;
+    console.log(`[回复逻辑三] 步骤2：暂不回答的问题数量: ${unansweredIndices.length}`);
+    
+    // 初始化标志
+    let enteredBigLoop = false;
+    let enteredYes = false;
+    let updatedQuestions = [...questions];
+    
+    // ============================================================
+    // 如果有暂不回答的问题，进入大循环
+    // ============================================================
+    if (hasUnanswered) {
+        console.log('[回复逻辑三] 进入大循环处理暂不回答的问题');
+        enteredBigLoop = true;
+        const timeLimitSeconds = timeLimit / 1000; // 转换为秒
+        let totalElapsed = elapsedTime;
+        let loopCount = 0;
+        let hasEnteredYes = false;
+        
+        // ============================================================
+        // 大循环迭代（只针对暂不回答列表）
+        // ============================================================
+        while (true) {
+            loopCount++;
+            console.log(`[回复逻辑三] 大循环 #${loopCount}`);
+            
+            // 在 1~30 秒内随机一个数字 d
+            const d = randomSeconds(1, 30);
+            console.log(`[回复逻辑三] 抽取随机等待: ${d} 秒`);
+            console.log(`[回复逻辑三] 当前已用: ${totalElapsed}秒，加上 ${d} 秒后为 ${totalElapsed + d}秒，上限: ${timeLimitSeconds}秒`);
+            
+            // 先判断：已用时间 + d 是否 ≥ 时间上限？
+            if (totalElapsed + d >= timeLimitSeconds) {
+                console.log(`[回复逻辑三] ⏰ 已用时间 ${totalElapsed}秒 + ${d}秒 = ${totalElapsed + d}秒 ≥ 上限 ${timeLimitSeconds}秒，大循环结束，未进入YES`);
+                enteredYes = false;
+                break;
+            }
+            
+            // 未超时，等待 d 秒
+            console.log(`[回复逻辑三] 等待 ${d} 秒...`);
+            await sleep(d * 1000);
+            totalElapsed += d;
+            console.log(`[回复逻辑三] 当前已用时间: ${totalElapsed}秒`);
+            
+            // 进入 YES/NO 判断（各50%）
+            const yesNo = Math.random() < 0.5 ? 'YES' : 'NO';
+            console.log(`[回复逻辑三] YES/NO 判断: ${yesNo}`);
+            
+            if (yesNo === 'YES') {
+                hasEnteredYes = true;
+                enteredYes = true;
+                console.log('[回复逻辑三] ✅ 进入 YES，开始处理暂不回答的问题');
+                break;
+            } else {
+                console.log('[回复逻辑三] ❌ 进入 NO，继续大循环');
+                // 继续循环
+            }
+        }
+        
+        // ============================================================
+        // 分支A：已进入 YES，处理所有暂不回答的问题（一轮定结果）
+        // ============================================================
+        if (hasEnteredYes) {
+            console.log(`[回复逻辑三] 分支A：处理 ${unansweredIndices.length} 个暂不回答的问题`);
+            
+            for (const idx of unansweredIndices) {
+                const q = updatedQuestions[idx];
+                console.log(`[回复逻辑三] 处理暂不回答问题 Q${idx + 1}: "${q.text}"`);
+                
+                // 步骤(A)：在 1~30 秒内随机一个时间，等待
+                const waitTime = randomSeconds(1, 30);
+                console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime} 秒...`);
+                await sleep(waitTime * 1000);
+                
+                // 三选一判断
+                const decision = randomDecision();
+                console.log(`[回复逻辑三] Q${idx + 1} 决策: ${decision}`);
+                
+                // 更新问题状态（覆盖原来的暂不回答）
+                q.status = decision;
+                q.selectedOptions = [];
+                
+                if (decision === 'rejected') {
+                    console.log(`[回复逻辑三] Q${idx + 1} 拒绝回答`);
+                } else if (decision === 'unanswered') {
+                    console.log(`[回复逻辑三] Q${idx + 1} 再次暂不回答`);
+                    // ⭐ 即使再次选到暂不回答，也要继续执行反问
+                } else {
+                    // 回答
+                    console.log(`[回复逻辑三] Q${idx + 1} 开始回答`);
+                    if (q.type === 'multiple') {
+                        const count = randomSeconds(1, q.options.length);
+                        console.log(`[回复逻辑三] Q${idx + 1} 多选题，选择 ${count} 个选项`);
+                        const waitTime2 = randomSeconds(1, 40);
+                        console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime2} 秒后选择...`);
+                        await sleep(waitTime2 * 1000);
+                        q.selectedOptions = randomSelectMultiple(q.options, count);
+                        console.log(`[回复逻辑三] Q${idx + 1} 选中选项: ${q.selectedOptions.map(i => q.options[i]).join(', ')}`);
+                    } else {
+                        const waitTime2 = randomSeconds(1, 40);
+                        console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime2} 秒后选择...`);
+                        await sleep(waitTime2 * 1000);
+                        const selected = randomSelectOption(q.options);
+                        q.selectedOptions = [selected];
+                        console.log(`[回复逻辑三] Q${idx + 1} 选中选项: ${q.options[selected]}`);
+                    }
+                }
+                
+                // ⭐ 静默 15 秒
+                console.log(`[回复逻辑三] Q${idx + 1} 静默 15 秒...`);
+                await sleep(15 * 1000);
+                
+                // 投骰子决定是否反问（各50%）
+                const askBack = Math.random() < 0.5;
+                if (askBack) {
+                    q.isSameQuestion = true;
+                    console.log(`[回复逻辑三] Q${idx + 1} 🔄 反问 → 标记【同问】`);
+                } else {
+                    q.isSameQuestion = false;
+                    console.log(`[回复逻辑三] Q${idx + 1} 不反问`);
+                }
+                
+                console.log(`[回复逻辑三] Q${idx + 1} 处理完成`);
+            }
+        }
+    } else {
+        console.log('[回复逻辑三] 步骤2：无暂不回答的问题，跳过');
+    }
+    
+    // ============================================================
+    // 步骤3：等待 30 秒（无论步骤2是否执行，都等待）
+    // ============================================================
+    console.log('[回复逻辑三] 步骤3：等待 30 秒...');
+    await sleep(30 * 1000);
+    console.log('[回复逻辑三] 等待完成');
+    
+    // ============================================================
+    // 步骤4：检查是否有【同问.互动一】标记的问题
+    // ============================================================
+    let interactiveOneCount = 0;
+    const finalQuestions = updatedQuestions.map(q => {
+        const newQ = { ...q };
+        if (q.isInteractiveOne === true) {
+            // 将【同问.互动一】变为【同问.互动一.√】
+            newQ.isInteractiveOne = false;
+            newQ.isInteractiveOneDone = true;
+            interactiveOneCount++;
+            console.log(`[回复逻辑三] 问题 "${q.text}" 的【同问.互动一】已标记为完成`);
+        }
+        return newQ;
+    });
+    console.log(`[回复逻辑三] 步骤4：共处理 ${interactiveOneCount} 个【同问.互动一】标记`);
+    
+    // ============================================================
+    // 【结束】整理数据，返回结果
+    // ============================================================
+    console.log('[回复逻辑三] 执行完成');
+    console.log(`[回复逻辑三] enteredBigLoop: ${enteredBigLoop}, enteredYes: ${enteredYes}`);
+    console.log(`[回复逻辑三] 共处理 ${unansweredIndices.length} 个暂不回答的问题`);
+    console.log(`[回复逻辑三] 【同问】标记新增: ${finalQuestions.filter(q => q.isSameQuestion === true).length}`);
+    console.log(`[回复逻辑三] 【同问.互动一.√】新增: ${interactiveOneCount}`);
     
     return {
-        enteredBigLoop,
-        enteredYes,
-        updatedQuestions: []
+        enteredBigLoop: enteredBigLoop,
+        enteredYes: enteredYes,
+        updatedQuestions: finalQuestions,
+        prevVersion: prevVersion
     };
 }
 
