@@ -9,7 +9,147 @@ let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
 // 默认示例数据（首次打开时自动添加）
-const DEFAULT_SAMPLES = [
+// 测试用示例问卷（强行添加，用于测试版本号和状态显示）
+const TEST_SAMPLES = [
+    {
+        id: 'test_A1N_' + Date.now(),
+        title: '测试问卷 A-1-N',
+        questions: [
+            { 
+                id: 't1', 
+                text: '你最喜欢的季节？', 
+                type: 'single', 
+                options: ['春天', '夏天', '秋天', '冬天'],
+                // 米白色（未回答）→ 无特殊状态
+            },
+            { 
+                id: 't2', 
+                text: '你平时喜欢什么运动？', 
+                type: 'multiple', 
+                options: ['跑步', '游泳', '篮球', '瑜伽'],
+                status: 'answered'  // 绿色
+            },
+            { 
+                id: 't3', 
+                text: '你怕黑吗？', 
+                type: 'single', 
+                options: ['怕', '不怕', '看情况'],
+                status: 'rejected'  // 深紫色
+            },
+            { 
+                id: 't4', 
+                text: '你相信一见钟情吗？', 
+                type: 'single', 
+                options: ['相信', '不信', '不确定'],
+                status: 'unanswered'  // 橙色
+            }
+        ],
+        sentTime: Date.now() - 3600000 * 3,
+        status: 'ing',
+        version: 'A-1-N',
+        isDraft: false
+    },
+    {
+        id: 'test_B2N_' + Date.now(),
+        title: '测试问卷 B-2-N',
+        questions: [
+            { 
+                id: 't5', 
+                text: '你最想去的地方是？', 
+                type: 'single', 
+                options: ['海边', '雪山', '草原', '古城'],
+                status: 'answered'  // 绿色
+            },
+            { 
+                id: 't6', 
+                text: '你喜欢什么类型的电影？', 
+                type: 'multiple', 
+                options: ['科幻', '爱情', '悬疑', '喜剧'],
+                status: 'answered'  // 绿色
+            },
+            { 
+                id: 't7', 
+                text: '你养过宠物吗？', 
+                type: 'single', 
+                options: ['养过', '没养过', '想养'],
+                status: 'unanswered'  // 橙色
+            }
+        ],
+        sentTime: Date.now() - 3600000 * 5,
+        status: 'ing',
+        version: 'B-2-N',
+        isDraft: false
+    },
+    {
+        id: 'test_C4N_' + Date.now(),
+        title: '测试问卷 C-4-N',
+        questions: [
+            { 
+                id: 't8', 
+                text: '你最喜欢的颜色是？', 
+                type: 'single', 
+                options: ['红色', '蓝色', '绿色', '紫色'],
+                status: 'rejected'  // 深紫色
+            },
+            { 
+                id: 't9', 
+                text: '你平时周末做什么？', 
+                type: 'multiple', 
+                options: ['看书', '运动', '追剧', '约朋友'],
+                status: 'answered'  // 绿色
+            },
+            { 
+                id: 't10', 
+                text: '你喜欢吃辣吗？', 
+                type: 'single', 
+                options: ['超喜欢', '一般', '不吃辣'],
+                status: 'unanswered'  // 橙色
+            },
+            { 
+                id: 't11', 
+                text: '你相信星座吗？', 
+                type: 'single', 
+                options: ['相信', '不信', '半信半疑'],
+                // 米白色（未回答）
+            }
+        ],
+        sentTime: Date.now() - 3600000 * 8,
+        status: 'ing',
+        version: 'C-4-N',
+        isDraft: false
+    },
+    {
+        id: 'test_C6N_sameq_' + Date.now(),
+        title: '测试问卷 C-6-N（含同问）',
+        questions: [
+            { 
+                id: 't12', 
+                text: '你最喜欢的音乐类型？', 
+                type: 'single', 
+                options: ['流行', '古典', '摇滚', '电子'],
+                status: 'answered',  // 绿色
+                isSameQuestion: true  // 打上【同问】标签
+            },
+            { 
+                id: 't13', 
+                text: '你理想中的旅行目的地？', 
+                type: 'multiple', 
+                options: ['日本', '欧洲', '南极', '非洲'],
+                status: 'answered'  // 绿色
+            },
+            { 
+                id: 't14', 
+                text: '你喜欢下雨天吗？', 
+                type: 'single', 
+                options: ['喜欢', '不喜欢', '看心情'],
+                status: 'unanswered'  // 橙色
+            }
+        ],
+        sentTime: Date.now() - 3600000 * 12,
+        status: 'ing',
+        version: 'C-6-N',
+        isDraft: false,
+        hasSameQuestion: true  // 问卷级别标记
     {
         id: 'sample_1_' + Date.now(),
         title: '关于你的一切',
@@ -576,7 +716,6 @@ window.editComposeTitle = function() {
 // ---------- 底部按钮操作 ----------
 window.composeAction = function(action) {
     if (action === 'submit') {
-        // 调用投递逻辑
         handleSubmitQuestionnaire();
         return;
     }
@@ -591,7 +730,7 @@ window.composeAction = function(action) {
 };
 
 
-// ---------- 投递处理（阶段1） ----------
+// ---------- 投递处理（阶段1 - 修正版） ----------
 function handleSubmitQuestionnaire() {
     const questions = editingQuestionnaire.questions || [];
     
@@ -605,132 +744,112 @@ function handleSubmitQuestionnaire() {
     const currentVersion = editingQuestionnaire.version || 'A-0-N';
     const versionNum = getVersionNumber(currentVersion);
     const versionPrefix = getVersionPrefix(currentVersion);
+    const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+    const title = editingQuestionnaire.title || '未命名问卷';
     
-    // ========== 步骤1：标题检查（数字为0 或 首字母为A） ==========
-    const isDefaultTitle = !editingQuestionnaire.title || editingQuestionnaire.title === '未命名问卷';
-    if ((versionNum === 0 || versionPrefix === 'A') && isDefaultTitle) {
-        showCuriosityConfirm({
-            title: '📝 修改标题',
-            message: '当前问卷标题为默认名称，是否修改后再投递？\n\n点击「修改」返回编辑\n点击「继续投递」直接发出',
-            confirmText: '修改标题',
-            cancelText: '继续投递',
-            onConfirm: () => {
-                // 用户选择修改：留在页面，不投递
-                // 让标题输入框获得焦点（通过DOM操作）
-                const titleEl = document.getElementById('compose-title-display');
-                if (titleEl) {
+    // ============================================================
+    // 关口1：数字是否为0 或 首字母是否为A
+    // ============================================================
+    if (versionNum === 0 || versionPrefix === 'A') {
+        // 检查标题是否为默认
+        const isDefaultTitle = !editingQuestionnaire.title || editingQuestionnaire.title === '未命名问卷';
+        if (isDefaultTitle) {
+            // 弹出是否修改标题的确认弹窗
+            showCuriosityConfirm({
+                title: '📝 修改标题',
+                message: '当前问卷标题为默认名称，是否修改后再投递？\n\n点击「修改」返回编辑\n点击「继续投递」直接发出',
+                confirmText: '修改标题',
+                cancelText: '继续投递',
+                onConfirm: () => {
+                    // 用户选择修改：留在页面，不投递
                     editComposeTitle();
+                },
+                onCancel: () => {
+                    // 用户选择继续投递 → 关口1放行，直接发出
+                    proceedToSend('case1');
                 }
-            },
-            onCancel: () => {
-                // 用户选择继续投递 → 进入步骤2
-                proceedToStep2();
+            });
+            return;
+        } else {
+            // 标题合格，直接放行
+            proceedToSend('case1');
+            return;
+        }
+    }
+    
+    // ============================================================
+    // 关口1不满足 (数字≠0 且 首字母≠A) → 进入后续检查
+    // ============================================================
+    
+    // 步骤A：检查是否有【同问】标记
+    const hasSameQuestion = questions.some(q => q.isSameQuestion === true);
+    if (hasSameQuestion) {
+        showCuriosityConfirm({
+            title: '💭 等待回答中',
+            message: `${partnerName} 正在思考这些问题...\n\n请耐心等待对方的回答 ✦`,
+            confirmText: '我知道了',
+            onConfirm: () => {
+                // 确认后进入下一步
+                proceedWithSameQuestionChecked();
             }
         });
         return;
     }
     
-    // 标题检查通过，直接进入步骤2
-    proceedToStep2();
+    // 没有【同问】，直接进入下一步
+    proceedWithSameQuestionChecked();
     
-    // ========== 步骤2：检查【同问】标记 ==========
-    function proceedToStep2() {
-        const hasSameQuestion = questions.some(q => q.isSameQuestion === true);
-        if (hasSameQuestion) {
-            // 从设置获取梦角名字
-            const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
-            showCuriosityConfirm({
-                title: '💭 等待回答中',
-                message: `${partnerName} 正在思考这些问题...\n\n请耐心等待对方的回答 ✦`,
-                confirmText: '我知道了',
-                onConfirm: () => {
-                    // 确认后进入步骤3
-                    proceedToStep3();
-                }
-            });
-        } else {
-            // 没有【同问】，直接进入步骤3
-            proceedToStep3();
-        }
-    }
-    
-    // ========== 步骤3：判断版本号并决定是否可投递 ==========
-    function proceedToStep3() {
-        // 检查问题状态
+    // ============================================================
+    // 步骤B：根据首字母分支判断
+    // ============================================================
+    function proceedWithSameQuestionChecked() {
         const hasUnanswered = questions.some(q => q.status === 'unanswered');
         const hasInteractiveOne = questions.some(q => q.isInteractiveOne === true);
-        const prefix = getVersionPrefix(editingQuestionnaire.version || 'A-0-N');
-        const num = getVersionNumber(editingQuestionnaire.version || 'A-0-N');
-        const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
-        const title = editingQuestionnaire.title || '未命名问卷';
         
-        // 判断首字母是否为B
-        if (prefix === 'B') {
-            // 是B → 检查暂不回答 / 同问互动一
+        if (versionPrefix === 'B') {
+            // 首字母为 B
             if (hasUnanswered || hasInteractiveOne) {
                 if (hasUnanswered) {
                     // 情况2
-                    showSendConfirm(2, partnerName, title, num, prefix);
+                    proceedToSend('case2');
                 } else {
                     // 情况3（无暂不回答，但有同问互动一）
-                    showSendConfirm(3, partnerName, title, num, prefix);
+                    proceedToSend('case3');
                 }
             } else {
-                // 既没有暂不回答，也没有同问互动一 → 不可投递
+                // 两者都无 → 不可投递
                 showNotDeliverable();
             }
             return;
         }
         
-        // 不是B → 判断是否为A
-        if (prefix === 'A') {
-            // 是A → 同B的逻辑（检查暂不回答/同问互动一）
-            if (hasUnanswered || hasInteractiveOne) {
-                if (hasUnanswered) {
-                    // 情况2
-                    showSendConfirm(2, partnerName, title, num, prefix);
-                } else {
-                    // 情况3
-                    showSendConfirm(3, partnerName, title, num, prefix);
-                }
-            } else {
-                // 既没有暂不回答，也没有同问互动一 → 不可投递
-                showNotDeliverable();
-            }
-            return;
-        }
-        
-        // 不是A也不是B（C/D/E...）
+        // 首字母不是 B（C/D/E...）
         if (hasInteractiveOne) {
             // 情况4
-            showSendConfirm(4, partnerName, title, num, prefix);
+            proceedToSend('case4');
         } else {
-            // 不可投递
+            // 无同问互动一 → 不可投递
             showNotDeliverable();
         }
     }
     
-    // ========== 发出弹窗 ==========
-    function showSendConfirm(caseType, partnerName, title, num, prefix) {
-        // 投递前更新版本号（数字+1）
+    // ============================================================
+    // 发出弹窗（统一处理四种情况）
+    // ============================================================
+    function proceedToSend(caseType) {
+        // 发出前更新版本号：数字+1
         const newVersion = incrementVersionNumber(editingQuestionnaire.version || 'A-0-N');
         const newNum = getVersionNumber(newVersion);
-        const x = Math.ceil((newNum + 1) / 2);
+        const x = Math.ceil((newNum + 1) / 2);  // 根据公式 (数字+1)/2
         
         let titleText, messageText;
-        
-        if (caseType === 1 || caseType === 2) {
-            // 情况1和2：弹窗内容相同
-            titleText = `📬 问卷发出`;
+        if (caseType === 'case1' || caseType === 'case2') {
+            titleText = '📬 问卷发出';
             messageText = `「${title}」.其${x}\n即将送达 ${partnerName} 处 ✦`;
-        } else {
-            // 情况3和4：弹窗内容相同
-            titleText = `📬 回复发出`;
+        } else { // case3 或 case4
+            titleText = '📬 回复发出';
             messageText = `${partnerName} 即将收到你关于「${title}」的回复 ✦`;
         }
-        
-        // 保存当前编辑的版本号（投递前）
-        const versionBeforeSend = editingQuestionnaire.version || 'A-0-N';
         
         showCuriosityConfirm({
             title: titleText,
@@ -738,7 +857,6 @@ function handleSubmitQuestionnaire() {
             confirmText: '确认',
             onConfirm: () => {
                 // 确认后：更新版本号并保存到数据
-                // 更新问卷版本号
                 editingQuestionnaire.version = newVersion;
                 
                 // 生成ID（如果还没有）
@@ -800,7 +918,9 @@ function handleSubmitQuestionnaire() {
         });
     }
     
-    // ========== 不可投递提示 ==========
+    // ============================================================
+    // 不可投递提示
+    // ============================================================
     function showNotDeliverable() {
         showCuriosityConfirm({
             title: '🚫 不可投递',
@@ -812,7 +932,6 @@ function handleSubmitQuestionnaire() {
         });
     }
 }
-
 // ---------- 关闭编辑器（核心逻辑） ----------
 window.closeCuriosityCompose = function() {
     const isNew = !editingQuestionnaire.id;
