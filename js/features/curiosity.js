@@ -683,7 +683,8 @@ let editingQuestionnaire = {
     status: 'draft',
     isDraft: true,
     sentTime: null,
-    _sourceStatus: null  // 来源列表，用于保存时更新
+    _sourceStatus: null
+    let isDirty = false; 
 };
 
 // 是否正在查看模式（从卡片点击进入）
@@ -692,6 +693,7 @@ let isViewMode = false;
 // 打开创建问卷编辑器（新建）
 window.openCuriosityCompose = function() {
     isViewMode = false;
+    isDirty = false;
     editingQuestionnaire = {
         id: null,
         title: '未命名问卷',
@@ -710,6 +712,7 @@ window.openCuriosityCompose = function() {
 // 打开创建问卷编辑器（查看已有问卷）
 window.openCuriosityComposeForView = function(questionnaire, sourceStatus) {
     isViewMode = true;
+    isDirty = false;
     editingQuestionnaire = {
         ...questionnaire,
         _sourceStatus: sourceStatus || (questionnaire.status === 'ing' ? 'ing' : 'archived')
@@ -926,6 +929,7 @@ window.editComposeTitle = function() {
         editingQuestionnaire.title = newTitle.trim();
         const titleEl = document.getElementById('compose-title-display');
         if (titleEl) titleEl.textContent = editingQuestionnaire.title;
+        isDirty = true; 
     }
 };
 
@@ -1305,7 +1309,6 @@ function showReplyNotification(questionnaireId, title, partnerName, currentVersi
         },
         onCancel: () => {
             // 点击取消：不跳转，留在当前页面
-            showNotification('💬 稍后再来看吧 ✦', 'info', 1500);
         }
     });
 }
@@ -1879,25 +1882,37 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     };
 }
 
-// ---------- 关闭编辑器 ----------
+// ---------- 关闭编辑器（基于 isDirty 判断是否需要保存） ----------
 window.closeCuriosityCompose = function(skipConfirm) {
-    // 如果是从投递成功调用的，跳过确认弹窗
+    // 如果是从投递成功调用的，跳过所有确认，直接关闭
     if (skipConfirm) {
         hideModal(document.getElementById('curiosity-compose-modal'));
         return;
     }
     
+    // ⭐ 如果没有真正发生过任何修改，直接关闭，不询问
+    if (!isDirty) {
+        hideModal(document.getElementById('curiosity-compose-modal'));
+        if (isViewMode) {
+            setTimeout(() => {
+                showModal(document.getElementById('curiosity-modal'));
+            }, 300);
+        }
+        return;
+    }
+    
+    // ⭐ 有真实修改，需要询问是否保存
     const isNew = !editingQuestionnaire.id;
-    const hasContent = hasQuestionnaireContent(editingQuestionnaire);
     const questions = editingQuestionnaire.questions || [];
     const hasQuestions = questions.length > 0;
     
-    // 判断是否为只读模式（从卡片进入查看）
-    const permissions = getEditPermissions(editingQuestionnaire.version);
-    const isReadOnly = !permissions.canEdit && !permissions.canDeleteQuestion;
+    // 如果没有任何问题（可能所有问题都被删除了），检查是否有标题内容
+    const hasTitle = editingQuestionnaire.title && 
+                     editingQuestionnaire.title.trim() !== '' && 
+                     editingQuestionnaire.title !== '未命名问卷';
     
-    // 只读模式：直接关闭，不询问保存
-    if (isReadOnly && isViewMode) {
+    // 完全没有任何内容 → 直接关闭，不询问
+    if (!hasQuestions && !hasTitle) {
         hideModal(document.getElementById('curiosity-compose-modal'));
         if (isViewMode) {
             setTimeout(() => {
@@ -1907,17 +1922,22 @@ window.closeCuriosityCompose = function(skipConfirm) {
         return;
     }
     
-    // 无内容，直接关闭
-    if (!hasQuestions && !hasContent) {
-        hideModal(document.getElementById('curiosity-compose-modal'));
-        if (isViewMode) {
-            setTimeout(() => {
-                showModal(document.getElementById('curiosity-modal'));
-            }, 300);
+    // 有内容但无问题 → 询问是否放弃（可能只是删光了所有问题）
+    if (!hasQuestions && hasTitle) {
+        if (confirm('当前问卷没有题目，是否放弃修改？\n\n点击「确定」放弃\n点击「取消」继续编辑')) {
+            // 放弃修改，重置 isDirty
+            isDirty = false;
+            hideModal(document.getElementById('curiosity-compose-modal'));
+            if (isViewMode) {
+                setTimeout(() => {
+                    showModal(document.getElementById('curiosity-modal'));
+                }, 300);
+            }
         }
         return;
     }
     
+    // 有新问题（或修改过问题），询问是否保存
     if (isNew) {
         // 新建模式：有内容，询问是否保存草稿
         if (confirm('问卷尚未保存，是否保存为草稿？\n\n点击「确定」保存草稿\n点击「取消」放弃修改')) {
@@ -1959,6 +1979,12 @@ window.closeCuriosityCompose = function(skipConfirm) {
             }
             saveCuriosityData();
             renderCuriosityLists();
+            // 保存成功后重置 isDirty
+            isDirty = false;
+            // 不弹通知
+        } else {
+            // 用户选择不保存，重置 isDirty
+            isDirty = false;
         }
     } else {
         // 非新建模式：询问是否保存修改
@@ -1974,10 +2000,17 @@ window.closeCuriosityCompose = function(skipConfirm) {
                 };
                 saveCuriosityData();
                 renderCuriosityLists();
+                // 保存成功后重置 isDirty
+                isDirty = false;
+                // 不弹通知
             }
+        } else {
+            // 用户选择不保存，重置 isDirty
+            isDirty = false;
         }
     }
     
+    // 关闭编辑器
     hideModal(document.getElementById('curiosity-compose-modal'));
     if (isViewMode) {
         setTimeout(() => {
@@ -1985,7 +2018,6 @@ window.closeCuriosityCompose = function(skipConfirm) {
         }, 300);
     }
 };
-
 // ============================================================
 // 问题编辑弹窗
 // ============================================================
@@ -2196,7 +2228,7 @@ window.saveQuestion = function() {
         editingQuestionnaire.questions[editingQuestionIndex] = questionData;
         showNotification('问题已更新 ✦', 'success', 1500);
     }
-    
+    isDirty = true;
     hideModal(document.getElementById('question-editor-modal'));
     renderComposeEditor();
 };
@@ -2218,6 +2250,7 @@ window.deleteQuestion = function(index) {
     }
     if (!confirm('确定要删除这个问题吗？')) return;
     editingQuestionnaire.questions.splice(index, 1);
+    isDirty = true;
     renderComposeEditor();
     showNotification('问题已删除', 'success', 1500);
 };
