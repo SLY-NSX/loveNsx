@@ -192,35 +192,58 @@ function generateCuriosityId() {
 /**
  * 统一存储问卷最新版本（版本号变化时调用）
  * 存储完整当前数据 + 上一版本号名称（仅保留名称用于对比）
+ * 如果问卷不存在，则自动创建新条目
  */
 function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, updatedQuestions, status, sentTime) {
+    // 先在 ing 中查找
     let targetArr = curiosityData.ing;
     let index = targetArr.findIndex(item => item.id === questionnaireId);
     let found = index > -1;
+    let targetStatus = 'ing';
 
     if (!found) {
+        // 在 archived 中查找
         targetArr = curiosityData.archived;
         index = targetArr.findIndex(item => item.id === questionnaireId);
         found = index > -1;
+        if (found) targetStatus = 'archived';
     }
 
     if (found) {
+        // 更新已有问卷
         const existing = targetArr[index];
         targetArr[index] = {
             ...existing,
-            version: newVersion,                          // 新版本号
-            prevVersion: prevVersion || existing.version, // 只保留上一版本号名称
-            questions: updatedQuestions,                  // 最新完整数据
+            version: newVersion,
+            prevVersion: prevVersion || existing.version,
+            questions: updatedQuestions,
             status: status || existing.status,
             sentTime: sentTime || existing.sentTime,
             isDraft: false
         };
-        saveCuriosityData();
-        renderCuriosityLists();
         console.log(`[存储] 问卷 ${questionnaireId} 已更新到版本 ${newVersion}，上一版本: ${prevVersion || existing.version}`);
     } else {
-        console.error(`[存储] 未找到问卷 ${questionnaireId}`);
+        // ⭐ 新增：问卷不存在 → 创建新条目
+        console.log(`[存储] 问卷 ${questionnaireId} 不存在，创建新条目`);
+        const newEntry = {
+            id: questionnaireId,
+            title: '未命名问卷',
+            questions: updatedQuestions,
+            version: newVersion,
+            prevVersion: prevVersion || 'A-0-N',
+            status: status || 'ing',
+            sentTime: sentTime || Date.now(),
+            isDraft: false,
+            createdTime: Date.now()
+        };
+        // 根据 status 决定放入 ing 还是 archived
+        const targetList = (status === 'archived') ? curiosityData.archived : curiosityData.ing;
+        targetList.push(newEntry);
+        console.log(`[存储] 新问卷 ${questionnaireId} 已创建，版本: ${newVersion}`);
     }
+
+    saveCuriosityData();
+    renderCuriosityLists();
 }
 
 // ---------- 随机工具函数 ----------
