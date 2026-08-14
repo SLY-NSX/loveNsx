@@ -177,16 +177,106 @@ const TEST_SAMPLES = [
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
+    
+    // 生成带时间戳的测试数据（每次刷新都重新生成，确保卡片出现）
+    const freshTestSamples = [
+        {
+            id: 'test_A1N_' + Date.now(),
+            title: '测试问卷 A-1-N',
+            questions: [
+                { id: 't1', text: '你最喜欢的季节？', type: 'single', options: ['春天', '夏天', '秋天', '冬天'] },
+                { id: 't2', text: '你平时喜欢什么运动？', type: 'multiple', options: ['跑步', '游泳', '篮球', '瑜伽'], status: 'answered' },
+                { id: 't3', text: '你怕黑吗？', type: 'single', options: ['怕', '不怕', '看情况'], status: 'rejected' },
+                { id: 't4', text: '你相信一见钟情吗？', type: 'single', options: ['相信', '不信', '不确定'], status: 'unanswered' }
+            ],
+            sentTime: Date.now() - 3600000 * 3,
+            status: 'ing',
+            version: 'A-1-N',
+            isDraft: false
+        },
+        {
+            id: 'test_B2N_' + Date.now(),
+            title: '测试问卷 B-2-N',
+            questions: [
+                { id: 't5', text: '你最想去的地方是？', type: 'single', options: ['海边', '雪山', '草原', '古城'], status: 'answered' },
+                { id: 't6', text: '你喜欢什么类型的电影？', type: 'multiple', options: ['科幻', '爱情', '悬疑', '喜剧'], status: 'answered' },
+                { id: 't7', text: '你养过宠物吗？', type: 'single', options: ['养过', '没养过', '想养'], status: 'unanswered' }
+            ],
+            sentTime: Date.now() - 3600000 * 5,
+            status: 'ing',
+            version: 'B-2-N',
+            isDraft: false
+        },
+        {
+            id: 'test_C4N_' + Date.now(),
+            title: '测试问卷 C-4-N',
+            questions: [
+                { id: 't8', text: '你最喜欢的颜色是？', type: 'single', options: ['红色', '蓝色', '绿色', '紫色'], status: 'rejected' },
+                { id: 't9', text: '你平时周末做什么？', type: 'multiple', options: ['看书', '运动', '追剧', '约朋友'], status: 'answered' },
+                { id: 't10', text: '你喜欢吃辣吗？', type: 'single', options: ['超喜欢', '一般', '不吃辣'], status: 'unanswered' },
+                { id: 't11', text: '你相信星座吗？', type: 'single', options: ['相信', '不信', '半信半疑'] }
+            ],
+            sentTime: Date.now() - 3600000 * 8,
+            status: 'ing',
+            version: 'C-4-N',
+            isDraft: false
+        },
+        {
+            id: 'test_C6N_sameq_' + Date.now(),
+            title: '测试问卷 C-6-N（含同问）',
+            questions: [
+                { id: 't12', text: '你最喜欢的音乐类型？', type: 'single', options: ['流行', '古典', '摇滚', '电子'], status: 'answered', isSameQuestion: true },
+                { id: 't13', text: '你理想中的旅行目的地？', type: 'multiple', options: ['日本', '欧洲', '南极', '非洲'], status: 'answered' },
+                { id: 't14', text: '你喜欢下雨天吗？', type: 'single', options: ['喜欢', '不喜欢', '看心情'], status: 'unanswered' }
+            ],
+            sentTime: Date.now() - 3600000 * 12,
+            status: 'ing',
+            version: 'C-6-N',
+            isDraft: false
+        },
+        {
+            id: 'sample_1_' + Date.now(),
+            title: '关于你的一切',
+            questions: [
+                { id: 'q1', text: '你最喜欢的颜色？', type: 'single', options: ['红色', '蓝色', '绿色', '其他'] },
+                { id: 'q2', text: '你平时喜欢做什么？', type: 'multiple', options: ['看书', '运动', '音乐', '旅行'] },
+                { id: 'q3', text: '你对我的第一印象？', type: 'single', options: ['温柔', '有趣', '高冷', '可爱'] }
+            ],
+            sentTime: Date.now() - 3600000 * 2,
+            status: 'ing',
+            version: 'A-0-N',
+            isDraft: false
+        },
+        {
+            id: 'sample_2_' + Date.now(),
+            title: '我们的未来',
+            questions: [
+                { id: 'q4', text: '你希望我们多久见一次面？', type: 'single', options: ['每天', '每周', '每月', '随缘'] },
+                { id: 'q5', text: '你最想和我一起做的事？', type: 'multiple', options: ['看电影', '旅行', '做饭', '聊天'] }
+            ],
+            sentTime: Date.now() - 3600000 * 48,
+            status: 'archived',
+            version: 'A-2-N',
+            isDraft: false
+        }
+    ];
+
     if (saved) {
         curiosityData = saved;
+        // 强制合并测试数据（每次都覆盖或追加）
+        curiosityData.ing = curiosityData.ing.filter(item => !item.id.startsWith('test_'));
+        curiosityData.ing = [...freshTestSamples.filter(s => s.status === 'ing'), ...curiosityData.ing];
+        // archived 也做类似处理
+        curiosityData.archived = curiosityData.archived.filter(item => !item.id.startsWith('test_'));
+        curiosityData.archived = [...freshTestSamples.filter(s => s.status === 'archived'), ...curiosityData.archived];
     } else {
         curiosityData = { ing: [], archived: [] };
-        DEFAULT_SAMPLES.forEach(sample => {
+        freshTestSamples.forEach(sample => {
             if (sample.status === 'ing') curiosityData.ing.push(sample);
             else curiosityData.archived.push(sample);
         });
-        await saveCuriosityData();
     }
+    await saveCuriosityData();
 }
 
 function saveCuriosityData() {
@@ -906,7 +996,7 @@ function handleSubmitQuestionnaire() {
                 }, 500);
                 
                 // 关闭编辑器，回到主模态框
-                closeCuriosityCompose();
+                closeCuriosityCompose(true);
                 setTimeout(() => {
                     showModal(document.getElementById('curiosity-modal'));
                     switchCuriosityTab('ing');
@@ -930,17 +1020,37 @@ function handleSubmitQuestionnaire() {
     }
 }
 // ---------- 关闭编辑器（核心逻辑） ----------
-window.closeCuriosityCompose = function() {
+// ---------- 关闭编辑器 ----------
+window.closeCuriosityCompose = function(skipConfirm) {
+    // 如果是从投递成功调用的，跳过确认弹窗
+    if (skipConfirm) {
+        hideModal(document.getElementById('curiosity-compose-modal'));
+        return;
+    }
+    
     const isNew = !editingQuestionnaire.id;
     const hasContent = hasQuestionnaireContent(editingQuestionnaire);
     const questions = editingQuestionnaire.questions || [];
     const hasQuestions = questions.length > 0;
     
-    // 判断是否有实际内容（至少有问题）
-    if (!hasQuestions) {
-        // 无内容，直接关闭
+    // 判断是否为只读模式（从卡片进入查看）
+    const permissions = getEditPermissions(editingQuestionnaire.version);
+    const isReadOnly = !permissions.canEdit && !permissions.canDeleteQuestion;
+    
+    // 只读模式：直接关闭，不询问保存
+    if (isReadOnly && isViewMode) {
         hideModal(document.getElementById('curiosity-compose-modal'));
-        // 如果是查看模式（从卡片进入），回到主模态框
+        if (isViewMode) {
+            setTimeout(() => {
+                showModal(document.getElementById('curiosity-modal'));
+            }, 300);
+        }
+        return;
+    }
+    
+    // 无内容，直接关闭
+    if (!hasQuestions && !hasContent) {
+        hideModal(document.getElementById('curiosity-compose-modal'));
         if (isViewMode) {
             setTimeout(() => {
                 showModal(document.getElementById('curiosity-modal'));
@@ -952,7 +1062,6 @@ window.closeCuriosityCompose = function() {
     if (isNew) {
         // 新建模式：有内容，询问是否保存草稿
         if (confirm('问卷尚未保存，是否保存为草稿？\n\n点击「确定」保存草稿\n点击「取消」放弃修改')) {
-            // 保存草稿：生成ID，版本号 A-0-N，状态 draft
             if (!editingQuestionnaire.id) {
                 editingQuestionnaire.id = generateCuriosityId();
             }
@@ -963,7 +1072,6 @@ window.closeCuriosityCompose = function() {
                 editingQuestionnaire.version = 'A-0-N';
             }
             
-            // 保存到 ing 列表
             const existingIndex = curiosityData.ing.findIndex(item => item.id === editingQuestionnaire.id);
             if (existingIndex > -1) {
                 curiosityData.ing[existingIndex] = {
@@ -976,7 +1084,6 @@ window.closeCuriosityCompose = function() {
                     status: 'draft'
                 };
             } else {
-                // 检查是否在 archived 中
                 const archivedIndex = curiosityData.archived.findIndex(item => item.id === editingQuestionnaire.id);
                 if (archivedIndex > -1) {
                     curiosityData.archived.splice(archivedIndex, 1);
@@ -994,14 +1101,10 @@ window.closeCuriosityCompose = function() {
             saveCuriosityData();
             renderCuriosityLists();
             showNotification('📝 草稿已保存', 'success', 1500);
-        } else {
-            // 不保存，直接关闭，ID不生成
-            // 无任何遗留
         }
     } else {
-        // 非新建模式：有内容，询问是否保存修改
+        // 非新建模式：询问是否保存修改
         if (confirm('是否保存本次修改？\n\n点击「确定」保存内容\n点击「取消」放弃修改')) {
-            // 保存内容（版本号不变）
             const targetArr = editingQuestionnaire._sourceStatus === 'ing' ? curiosityData.ing : curiosityData.archived;
             const index = targetArr.findIndex(item => item.id === editingQuestionnaire.id);
             if (index > -1) {
@@ -1015,16 +1118,10 @@ window.closeCuriosityCompose = function() {
                 renderCuriosityLists();
                 showNotification('已保存修改', 'success', 1500);
             }
-        } else {
-            // 不保存，忽视当前修改
-            // 不做任何操作
         }
     }
     
-    // 关闭编辑器
     hideModal(document.getElementById('curiosity-compose-modal'));
-    
-    // 如果是查看模式，回到主模态框
     if (isViewMode) {
         setTimeout(() => {
             showModal(document.getElementById('curiosity-modal'));
