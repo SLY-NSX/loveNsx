@@ -193,8 +193,15 @@ function generateCuriosityId() {
  * 统一存储问卷最新版本（版本号变化时调用）
  * 存储完整当前数据 + 上一版本号名称（仅保留名称用于对比）
  * 如果问卷不存在，则自动创建新条目
+ * @param {string} questionnaireId - 问卷ID
+ * @param {string} newVersion - 新版本号
+ * @param {string} prevVersion - 上一版本号名称
+ * @param {Array} updatedQuestions - 更新后的问题列表
+ * @param {string} status - 问卷状态
+ * @param {number} sentTime - 发送时间
+ * @param {string} title - 问卷标题（新增）
  */
-function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, updatedQuestions, status, sentTime) {
+function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, updatedQuestions, status, sentTime, title) {
     // 先在 ing 中查找
     let targetArr = curiosityData.ing;
     let index = targetArr.findIndex(item => item.id === questionnaireId);
@@ -219,7 +226,8 @@ function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, upda
             questions: updatedQuestions,
             status: status || existing.status,
             sentTime: sentTime || existing.sentTime,
-            isDraft: false
+            isDraft: false,
+            title: title || existing.title || '未命名问卷'
         };
         console.log(`[存储] 问卷 ${questionnaireId} 已更新到版本 ${newVersion}，上一版本: ${prevVersion || existing.version}`);
     } else {
@@ -227,7 +235,7 @@ function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, upda
         console.log(`[存储] 问卷 ${questionnaireId} 不存在，创建新条目`);
         const newEntry = {
             id: questionnaireId,
-            title: '未命名问卷',
+            title: title || '未命名问卷',
             questions: updatedQuestions,
             version: newVersion,
             prevVersion: prevVersion || 'A-0-N',
@@ -239,7 +247,7 @@ function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, upda
         // 根据 status 决定放入 ing 还是 archived
         const targetList = (status === 'archived') ? curiosityData.archived : curiosityData.ing;
         targetList.push(newEntry);
-        console.log(`[存储] 新问卷 ${questionnaireId} 已创建，版本: ${newVersion}`);
+        console.log(`[存储] 新问卷 ${questionnaireId} 已创建，版本: ${newVersion}，标题: ${newEntry.title}`);
     }
 
     saveCuriosityData();
@@ -521,7 +529,8 @@ function renderCuriosityList(status) {
         // 判断是否为草稿
         const isDraft = letter.isDraft === true || letter.status === 'draft' || !letter.id;
         const versionDisplay = letter.version || 'A-0-N';
-        const dateDisplay = isDraft ? '📝 未投递' : '投递 · ' + new Date(letter.sentTime).toLocaleDateString('zh-CN', {
+        // ⭐ 阶段7：去掉 📝 图标，纯文字
+        const dateDisplay = isDraft ? '未投递' : '投递 · ' + new Date(letter.sentTime).toLocaleDateString('zh-CN', {
             month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
         // 组合显示：日期 + 版本号（小字）
@@ -535,7 +544,7 @@ function renderCuriosityList(status) {
         const qCount = (letter.questions || []).length;
         const titleHtml = `<div style="font-weight:700;font-size:14px;color:var(--text-primary);">${letter.title || '未命名问卷'}</div>`;
         const statsHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">共${qCount}问 · ${singleCount}道单选 · ${multiCount}道多选</div>`;
-        const statusText = isDraft ? '📝 草稿' : (status === 'ing' ? '⏳ 等待回复中' : '✅ 已归档');
+        const statusText = isDraft ? '草稿' : (status === 'ing' ? '⏳ 等待回复中' : '✅ 已归档');
 
         return `
             <div class="env-letter-item curiosity-letter-item" onclick="viewCuriosityLetter('${status}','${letter.id}')">
@@ -772,26 +781,39 @@ function renderComposeEditor() {
             // 如果没有编辑权且不是【同问】，则不可点击
             const hoverEffect = canClick ? 'compose-question-card-hover' : '';
             
-            const optionsHtml = (q.options || []).map((opt, oi) => 
-                `<div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 6px;font-size:13px;color:var(--text-secondary);">
-                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(var(--accent-color-rgb),0.25);flex-shrink:0;"></span>
+            // ⭐ 阶段7：根据状态决定选项圆点颜色（蓝色填充）
+            const optionsHtml = (q.options || []).map((opt, oi) => {
+                const isSelected = q.selectedOptions && q.selectedOptions.includes(oi);
+                const isAnswered = q.status === 'answered';
+                // 蓝色填充：已回答且该选项被选中
+                const fillColor = (isAnswered && isSelected) ? 'var(--accent-color)' : 'transparent';
+                const borderColor = isSelected ? 'var(--accent-color)' : 'rgba(var(--accent-color-rgb),0.25)';
+                return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 6px;font-size:13px;color:var(--text-secondary);">
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid ${borderColor};background:${fillColor};flex-shrink:0;transition:all 0.2s;"></span>
                     <span>${escapeHtml(opt)}</span>
-                </div>`
-            ).join('');
+                </div>`;
+            }).join('');
             
             // 是否显示删除按钮
             const showDelete = permissions.canDeleteQuestion && questions.length > 1;
             // 如果只有一个问题，禁止删除
             const deleteDisabled = questions.length <= 1;
             
+            // ⭐ 阶段7：状态圆点颜色
+            let dotColor = 'rgba(var(--accent-color-rgb),0.5)'; // 默认：米白色
+            if (q.status === 'answered') dotColor = '#4CAF50';      // 绿色
+            else if (q.status === 'unanswered') dotColor = '#FF9800';    // 橙色
+            else if (q.status === 'rejected') dotColor = '#9C27B0';      // 深紫色
+            
             html += `
                 <div class="compose-question-card ${hoverEffect}" onclick="${canClick ? `openQuestionEditorForEdit(${index})` : ''}" style="margin-bottom:0;padding:14px 32px 12px 0px;cursor:${canClick ? 'pointer' : 'default'};position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;${!canClick ? 'opacity:0.7;' : ''}">
                     <!-- 第一行：Q1 + 小圆点 + 类型标签 -->
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
                         <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
-                        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(var(--accent-color-rgb),0.5);flex-shrink:0;"></span>
+                        <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;transition:all 0.2s;"></span>
                         <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
                         ${isSameQuestion ? `<span style="font-size:9px;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.12);padding:0 6px;border-radius:4px;border:1px solid rgba(var(--accent-color-rgb),0.2);">【同问】</span>` : ''}
+                        ${q.isInteractiveOneDone ? `<span style="font-size:9px;color:#6BCB77;background:rgba(107,203,119,0.12);padding:0 6px;border-radius:4px;border:1px solid rgba(107,203,119,0.2);">【互动完成】</span>` : ''}
                     </div>
                     <!-- 第二行：题目 -->
                     <div style="font-size:14px;font-weight:500;color:var(--text-primary);line-height:1.5;padding-left:16px;margin-bottom:4px;">
@@ -1008,7 +1030,7 @@ function proceedToSend(caseType) {
             editingQuestionnaire.sentTime = Date.now();
             editingQuestionnaire.status = 'ing';
             
-            // 使用统一存储函数保存
+            // 使用统一存储函数保存（⭐ 传递标题）
             const prevVersion = editingQuestionnaire.version; // 投递前的版本
             saveQuestionnaireVersion(
                 editingQuestionnaire.id,
@@ -1016,7 +1038,8 @@ function proceedToSend(caseType) {
                 prevVersion,
                 editingQuestionnaire.questions,
                 'ing',
-                editingQuestionnaire.sentTime
+                editingQuestionnaire.sentTime,
+                editingQuestionnaire.title  // ⭐ 传递标题
             );
             
             showNotification(`📬 问卷已投递！版本：${newVersion}`, 'success', 2000);
@@ -1030,8 +1053,6 @@ function proceedToSend(caseType) {
                         caseType
                     );
                     console.log('[后台回复] 结果:', result);
-                    // TODO: 阶段7 - 显示正式回复弹窗
-                    // TODO: 阶段7 - 更新卡片状态
                 } catch (error) {
                     console.error('[后台回复] 错误:', error);
                     showNotification('后台回复处理出错，请稍后查看', 'error', 3000);
@@ -1137,15 +1158,39 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
     
     // 保存到存储（只有当有更新内容或进入过大循环时才保存）
     if (updatedQuestions.length > 0 || enteredBigLoop) {
+        // 获取标题
+        let title = '未命名问卷';
+        const qInIng = curiosityData.ing.find(item => item.id === questionnaireId);
+        const qInArchived = curiosityData.archived.find(item => item.id === questionnaireId);
+        const qData = qInIng || qInArchived;
+        if (qData && qData.title) title = qData.title;
+        
         saveQuestionnaireVersion(
             questionnaireId,
             newVersion,
             prevVersion,
             updatedQuestions,
-            'ing'
+            'ing',
+            undefined,  // sentTime 保持现有
+            title        // ⭐ 传递标题
         );
     } else {
         console.log('[后台回复] 无内容变化，跳过保存');
+    }
+    
+    // ⭐ 阶段7：显示正式回复弹窗（延迟1.5秒）
+    if (updatedQuestions.length > 0 || enteredBigLoop) {
+        // 获取标题和对方名字
+        let title = '未命名问卷';
+        const qInIng = curiosityData.ing.find(item => item.id === questionnaireId);
+        const qInArchived = curiosityData.archived.find(item => item.id === questionnaireId);
+        const qData = qInIng || qInArchived;
+        if (qData && qData.title) title = qData.title;
+        const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+        
+        setTimeout(() => {
+            showReplyNotification(questionnaireId, title, partnerName, newVersion, prevVersion);
+        }, 1500);
     }
     
     return {
@@ -1155,6 +1200,72 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
         newVersion,
         prevVersion
     };
+}
+
+// ============================================================
+// 阶段7：正式回复弹窗
+// ============================================================
+
+/**
+ * 显示正式回复弹窗（模仿信封功能）
+ * @param {string} questionnaireId - 问卷ID
+ * @param {string} title - 问卷标题
+ * @param {string} partnerName - 对方名字
+ * @param {string} currentVersion - 当前版本号
+ * @param {string} prevVersion - 上一版本号
+ */
+function showReplyNotification(questionnaireId, title, partnerName, currentVersion, prevVersion) {
+    const prefix = getVersionPrefix(currentVersion);
+    const num = getVersionNumber(currentVersion);
+    const suffix = getVersionSuffix(currentVersion);
+    const prevPrefix = getVersionPrefix(prevVersion || 'A-0-N');
+    
+    // 计算 x = 数字 / 2（用于尾字母Y的情况）
+    const x = Math.ceil(num / 2);
+    
+    let notificationTitle, notificationMessage, confirmText, cancelText;
+    
+    // 判断弹窗类型
+    if (suffix === 'N') {
+        // 情况A：尾字母 = N
+        notificationTitle = '📬 回复已送达';
+        notificationMessage = `你关于「${title}.${x}」的选择，${partnerName} 已知晓，是否立即查看？`;
+        confirmText = '立即查看';
+        cancelText = '稍后再说';
+    } else if (suffix === 'Y' && prefix !== prevPrefix) {
+        // 情况B：尾字母 = Y，首字母已更新（对比上一版本）
+        notificationTitle = '📬 回复已送达';
+        notificationMessage = `「${title}.${x}」\n${partnerName} 已有回复，是否立刻查看？`;
+        confirmText = '立即查看';
+        cancelText = '稍后再说';
+    } else {
+        // 情况C：尾字母 = Y，首字母未更新（对比上一版本）
+        notificationTitle = '📬 传达失误';
+        notificationMessage = `「${title}.${x}」传达过程中发生失误，是否立即查看？`;
+        confirmText = '立即查看';
+        cancelText = '稍后再说';
+    }
+    
+    showCuriosityConfirm({
+        title: notificationTitle,
+        message: notificationMessage,
+        confirmText: confirmText,
+        cancelText: cancelText,
+        onConfirm: () => {
+            // 点击确认：跳转到好奇驿站首页
+            const modal = document.getElementById('curiosity-modal');
+            if (modal) {
+                showModal(modal);
+                switchCuriosityTab('ing');
+                renderCuriosityLists();
+            }
+            showNotification('📬 已跳转到好奇驿站', 'success', 1500);
+        },
+        onCancel: () => {
+            // 点击取消：不跳转，留在当前页面
+            showNotification('💬 稍后再来看吧 ✦', 'info', 1500);
+        }
+    });
 }
 
 // ============================================================
