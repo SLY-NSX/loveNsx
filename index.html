@@ -588,22 +588,21 @@
     <div class="modal-content" style="overflow:hidden;padding:0;background:transparent;max-height:92vh;display:flex;flex-direction:column;">
         <div style="background:var(--secondary-bg);border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh;">
             
-            <!-- 顶部标题区（深色背景条） -->
-            <div style="background:var(--accent-color);padding:0;position:relative;overflow:hidden;flex-shrink:0;">
-                <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,0.04) 0px,rgba(255,255,255,0.04) 2px,transparent 2px,transparent 12px);pointer-events:none;"></div>
-                <div style="position:relative;padding:14px 20px 12px;display:flex;align-items:center;justify-content:space-between;">
-                    <div style="display:flex;align-items:center;gap:10px;color:white;cursor:pointer;" onclick="editComposeTitle()" title="点击修改标题">
-                        <span style="font-size:22px;">📪</span>
-                        <span id="compose-title-display" style="font-size:14px;font-weight:700;letter-spacing:1px;border-bottom:1.5px dashed rgba(255,255,255,0.4);padding-bottom:2px;">未命名问卷</span>
-                        <span style="font-size:10px;opacity:0.6;font-weight:400;letter-spacing:0.5px;">✎ 点击修改</span>
-                    </div>
-                    <div style="border:2px solid rgba(255,255,255,0.5);border-radius:50%;width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.7;">
-                        <span style="font-size:7px;color:white;letter-spacing:0.5px;">投递中</span>
-                        <span style="font-size:8px;color:white;font-weight:600;">一次</span>
-                        <span style="font-size:6px;color:white;opacity:0.8;">ANSWER</span>
-                    </div>
-                </div>
-            </div>
+<!-- 顶部标题区（深色背景条） -->
+<div style="background:var(--accent-color);padding:0;position:relative;overflow:hidden;flex-shrink:0;">
+    <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,0.04) 0px,rgba(255,255,255,0.04) 2px,transparent 2px,transparent 12px);pointer-events:none;"></div>
+    <div style="position:relative;padding:14px 20px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <div style="display:flex;align-items:center;gap:10px;color:white;cursor:pointer;flex:1;min-width:0;" onclick="editComposeTitle()">
+            <span style="font-size:22px;flex-shrink:0;">📪</span>
+            <span id="compose-title-display" style="font-size:14px;font-weight:700;letter-spacing:1px;border-bottom:1.5px dashed rgba(255,255,255,0.4);padding-bottom:2px;word-wrap:break-word;overflow-wrap:break-word;max-width:50%;line-height:1.3;flex-shrink:1;">未命名问卷</span>
+        </div>
+        <div style="border:2px solid rgba(255,255,255,0.5);border-radius:50%;width:48px;height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0.7;flex-shrink:0;">
+            <span style="font-size:7px;color:white;letter-spacing:0.5px;">投递中</span>
+            <span style="font-size:8px;color:white;font-weight:600;">一次</span>
+            <span style="font-size:6px;color:white;opacity:0.8;">ANSWER</span>
+        </div>
+    </div>
+</div>
 
             <!-- 信纸正文区 -->
             <div style="padding:0;overflow-y:auto;flex:1;min-height:0;">
