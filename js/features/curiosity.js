@@ -8,6 +8,11 @@ let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
+// ---------- 数据模型 ----------
+let curiosityData = { ing: [], archived: [] };
+let currentCuriosityTab = 'ing';
+let editingCuriosityId = null;
+
 // 默认示例数据（首次打开时自动添加）
 const TEST_SAMPLES = [
     {
@@ -145,6 +150,62 @@ const TEST_SAMPLES = [
         sentTime: Date.now() - 3600000 * 12,
         status: 'ing',
         version: 'C-6-N',
+        isDraft: false
+    },
+    {
+        id: 'test_B4Y_' + Date.now(),
+        title: '测试问卷 B-4-Y',
+        questions: [
+            { 
+                id: 't15', 
+                text: '你最喜欢的饮品？', 
+                type: 'single', 
+                options: ['咖啡', '茶', '果汁', '水'],
+                status: 'unanswered'
+            },
+            { 
+                id: 't16', 
+                text: '你平时几点睡觉？', 
+                type: 'single', 
+                options: ['22点前', '23点', '0点', '1点后'],
+                status: 'answered'
+            }
+        ],
+        sentTime: Date.now() - 3600000 * 6,
+        status: 'ing',
+        version: 'B-4-Y',
+        isDraft: false
+    },
+    {
+        id: 'test_B8N_' + Date.now(),
+        title: '测试问卷 B-8-N（暂不回答+同问）',
+        questions: [
+            { 
+                id: 't17', 
+                text: '你最喜欢的运动？', 
+                type: 'single', 
+                options: ['篮球', '足球', '游泳', '跑步'],
+                status: 'unanswered'
+            },
+            { 
+                id: 't18', 
+                text: '你最喜欢的电影类型？', 
+                type: 'multiple', 
+                options: ['科幻', '爱情', '悬疑', '喜剧'],
+                status: 'answered',
+                isSameQuestion: true
+            },
+            { 
+                id: 't19', 
+                text: '你养过宠物吗？', 
+                type: 'single', 
+                options: ['养过', '没养过', '想养'],
+                status: 'answered'
+            }
+        ],
+        sentTime: Date.now() - 3600000 * 9,
+        status: 'ing',
+        version: 'B-8-N',
         isDraft: false
     },
     {
