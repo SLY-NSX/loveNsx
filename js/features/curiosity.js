@@ -8,290 +8,12 @@ let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
-// 默认示例数据（首次打开时自动添加）
-const TEST_SAMPLES = [
-    {
-        id: 'test_A1N_' + Date.now(),
-        title: '测试问卷 A-1-N',
-        questions: [
-            { 
-                id: 't1', 
-                text: '你最喜欢的季节？', 
-                type: 'single', 
-                options: ['春天', '夏天', '秋天', '冬天']
-            },
-            { 
-                id: 't2', 
-                text: '你平时喜欢什么运动？', 
-                type: 'multiple', 
-                options: ['跑步', '游泳', '篮球', '瑜伽'],
-                status: 'answered'
-            },
-            { 
-                id: 't3', 
-                text: '你怕黑吗？', 
-                type: 'single', 
-                options: ['怕', '不怕', '看情况'],
-                status: 'rejected'
-            },
-            { 
-                id: 't4', 
-                text: '你相信一见钟情吗？', 
-                type: 'single', 
-                options: ['相信', '不信', '不确定'],
-                status: 'unanswered'
-            }
-        ],
-        sentTime: Date.now() - 3600000 * 3,
-        status: 'ing',
-        version: 'A-1-N',
-        isDraft: false
-    },
-    {
-        id: 'test_B2N_' + Date.now(),
-        title: '测试问卷 B-2-N',
-        questions: [
-            { 
-                id: 't5', 
-                text: '你最想去的地方是？', 
-                type: 'single', 
-                options: ['海边', '雪山', '草原', '古城'],
-                status: 'answered'
-            },
-            { 
-                id: 't6', 
-                text: '你喜欢什么类型的电影？', 
-                type: 'multiple', 
-                options: ['科幻', '爱情', '悬疑', '喜剧'],
-                status: 'answered'
-            },
-            { 
-                id: 't7', 
-                text: '你养过宠物吗？', 
-                type: 'single', 
-                options: ['养过', '没养过', '想养'],
-                status: 'unanswered'
-            }
-        ],
-        sentTime: Date.now() - 3600000 * 5,
-        status: 'ing',
-        version: 'B-2-N',
-        isDraft: false
-    },
-    {
-        id: 'test_C4N_' + Date.now(),
-        title: '测试问卷 C-4-N',
-        questions: [
-            { 
-                id: 't8', 
-                text: '你最喜欢的颜色是？', 
-                type: 'single', 
-                options: ['红色', '蓝色', '绿色', '紫色'],
-                status: 'rejected'
-            },
-            { 
-                id: 't9', 
-                text: '你平时周末做什么？', 
-                type: 'multiple', 
-                options: ['看书', '运动', '追剧', '约朋友'],
-                status: 'answered'
-            },
-            { 
-                id: 't10', 
-                text: '你喜欢吃辣吗？', 
-                type: 'single', 
-                options: ['超喜欢', '一般', '不吃辣'],
-                status: 'unanswered'
-            },
-            { 
-                id: 't11', 
-                text: '你相信星座吗？', 
-                type: 'single', 
-                options: ['相信', '不信', '半信半疑']
-            }
-        ],
-        sentTime: Date.now() - 3600000 * 8,
-        status: 'ing',
-        version: 'C-4-N',
-        isDraft: false
-    },
-    {
-        id: 'test_C6N_sameq_' + Date.now(),
-        title: '测试问卷 C-6-N（含同问）',
-        questions: [
-            { 
-                id: 't12', 
-                text: '你最喜欢的音乐类型？', 
-                type: 'single', 
-                options: ['流行', '古典', '摇滚', '电子'],
-                status: 'answered',
-                isSameQuestion: true
-            },
-            { 
-                id: 't13', 
-                text: '你理想中的旅行目的地？', 
-                type: 'multiple', 
-                options: ['日本', '欧洲', '南极', '非洲'],
-                status: 'answered'
-            },
-            { 
-                id: 't14', 
-                text: '你喜欢下雨天吗？', 
-                type: 'single', 
-                options: ['喜欢', '不喜欢', '看心情'],
-                status: 'unanswered'
-            }
-        ],
-        sentTime: Date.now() - 3600000 * 12,
-        status: 'ing',
-        version: 'C-6-N',
-        isDraft: false
-    },
-    {
-        id: 'test_B4Y_' + Date.now(),
-        title: '测试问卷 B-4-Y',
-        questions: [
-            { 
-                id: 't15', 
-                text: '你最喜欢的饮品？', 
-                type: 'single', 
-                options: ['咖啡', '茶', '果汁', '水'],
-                status: 'unanswered'
-            },
-            { 
-                id: 't16', 
-                text: '你平时几点睡觉？', 
-                type: 'single', 
-                options: ['22点前', '23点', '0点', '1点后'],
-                status: 'answered'
-            }
-        ],
-        sentTime: Date.now() - 3600000 * 6,
-        status: 'ing',
-        version: 'B-4-Y',
-        isDraft: false
-    },
-    {
-        id: 'test_B8N_' + Date.now(),
-        title: '测试问卷 B-8-N（暂不回答+同问）',
-        questions: [
-            { 
-                id: 't17', 
-                text: '你最喜欢的运动？', 
-                type: 'single', 
-                options: ['篮球', '足球', '游泳', '跑步'],
-                status: 'unanswered'
-            },
-            { 
-                id: 't18', 
-                text: '你最喜欢的电影类型？', 
-                type: 'multiple', 
-                options: ['科幻', '爱情', '悬疑', '喜剧'],
-                status: 'answered',
-                isSameQuestion: true
-            },
-            { 
-                id: 't19', 
-                text: '你养过宠物吗？', 
-                type: 'single', 
-                options: ['养过', '没养过', '想养'],
-                status: 'answered'
-            }
-        ],
-        sentTime: Date.now() - 3600000 * 9,
-        status: 'ing',
-        version: 'B-8-N',
-        isDraft: false
-    },
-    {
-        id: 'sample_1_' + Date.now(),
-        title: '关于你的一切',
-        questions: [
-            { id: 'q1', text: '你最喜欢的颜色？', type: 'single', options: ['红色', '蓝色', '绿色', '其他'] },
-            { id: 'q2', text: '你平时喜欢做什么？', type: 'multiple', options: ['看书', '运动', '音乐', '旅行'] },
-            { id: 'q3', text: '你对我的第一印象？', type: 'single', options: ['温柔', '有趣', '高冷', '可爱'] }
-        ],
-        sentTime: Date.now() - 3600000 * 2,
-        status: 'ing',
-        version: 'A-0-N',
-        isDraft: false
-    },
-    {
-        id: 'sample_2_' + Date.now(),
-        title: '我们的未来',
-        questions: [
-            { id: 'q4', text: '你希望我们多久见一次面？', type: 'single', options: ['每天', '每周', '每月', '随缘'] },
-            { id: 'q5', text: '你最想和我一起做的事？', type: 'multiple', options: ['看电影', '旅行', '做饭', '聊天'] }
-        ],
-        sentTime: Date.now() - 3600000 * 48,
-        status: 'archived',
-        version: 'A-2-N',
-        isDraft: false
-    }
-];
-
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
     
     // 生成带时间戳的测试数据（每次刷新都重新生成，确保卡片出现）
     const freshTestSamples = [
-        {
-            id: 'test_B4Y_' + Date.now(),
-            title: '测试问卷 B-4-Y',
-            questions: [
-                { 
-                    id: 't15', 
-                    text: '你最喜欢的饮品？', 
-                    type: 'single', 
-                    options: ['咖啡', '茶', '果汁', '水'],
-                    status: 'unanswered'  // 暂不回答标记
-                },
-                { 
-                    id: 't16', 
-                    text: '你平时几点睡觉？', 
-                    type: 'single', 
-                    options: ['22点前', '23点', '0点', '1点后'],
-                    status: 'answered'
-                }
-            ],
-            sentTime: Date.now() - 3600000 * 6,
-            status: 'ing',
-            version: 'B-4-Y',
-            isDraft: false
-        },
-        {
-            id: 'test_B8N_' + Date.now(),
-            title: '测试问卷 B-8-N（暂不回答+同问）',
-            questions: [
-                { 
-                    id: 't17', 
-                    text: '你最喜欢的运动？', 
-                    type: 'single', 
-                    options: ['篮球', '足球', '游泳', '跑步'],
-                    status: 'unanswered'  // 暂不回答标记
-                },
-                { 
-                    id: 't18', 
-                    text: '你最喜欢的电影类型？', 
-                    type: 'multiple', 
-                    options: ['科幻', '爱情', '悬疑', '喜剧'],
-                    status: 'answered',
-                    isSameQuestion: true  // 同问标记
-                },
-                { 
-                    id: 't19', 
-                    text: '你养过宠物吗？', 
-                    type: 'single', 
-                    options: ['养过', '没养过', '想养'],
-                    status: 'answered'
-                }
-            ],
-            sentTime: Date.now() - 3600000 * 9,
-            status: 'ing',
-            version: 'B-8-N',
-            isDraft: false
-        }
         {
             id: 'test_A1N_' + Date.now(),
             title: '测试问卷 A-1-N',
@@ -347,6 +69,31 @@ async function loadCuriosityData() {
             isDraft: false
         },
         {
+            id: 'test_B4Y_' + Date.now(),
+            title: '测试问卷 B-4-Y',
+            questions: [
+                { id: 't15', text: '你最喜欢的饮品？', type: 'single', options: ['咖啡', '茶', '果汁', '水'], status: 'unanswered' },
+                { id: 't16', text: '你平时几点睡觉？', type: 'single', options: ['22点前', '23点', '0点', '1点后'], status: 'answered' }
+            ],
+            sentTime: Date.now() - 3600000 * 6,
+            status: 'ing',
+            version: 'B-4-Y',
+            isDraft: false
+        },
+        {
+            id: 'test_B8N_' + Date.now(),
+            title: '测试问卷 B-8-N（暂不回答+同问）',
+            questions: [
+                { id: 't17', text: '你最喜欢的运动？', type: 'single', options: ['篮球', '足球', '游泳', '跑步'], status: 'unanswered' },
+                { id: 't18', text: '你最喜欢的电影类型？', type: 'multiple', options: ['科幻', '爱情', '悬疑', '喜剧'], status: 'answered', isSameQuestion: true },
+                { id: 't19', text: '你养过宠物吗？', type: 'single', options: ['养过', '没养过', '想养'], status: 'answered' }
+            ],
+            sentTime: Date.now() - 3600000 * 9,
+            status: 'ing',
+            version: 'B-8-N',
+            isDraft: false
+        },
+        {
             id: 'sample_1_' + Date.now(),
             title: '关于你的一切',
             questions: [
@@ -397,7 +144,7 @@ function saveCuriosityData() {
 
 // ---------- 工具函数 ----------
 function generateCuriosityId() {
-    return 'qst_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+    return 'qst_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 }
 
 // ---------- 版本号工具函数 ----------
@@ -406,7 +153,7 @@ function parseVersion(version) {
     const parts = version.split('-');
     return {
         prefix: parts[0] || 'A',
-        number: parseInt(parts[1], 10) || 0,
+        number: parseInt(parts[1] || '0', 10) || 0,
         suffix: parts[2] || 'N'
     };
 }
@@ -424,11 +171,6 @@ function getVersionSuffix(version) {
 }
 
 function incrementVersionNumber(version) {
-    const parsed = parseVersion(version);
-    return `${parsed.prefix}-${parsed.number + 1}-${parsed.suffix}`;
-}
-
-function incrementVersionNumberOnly(version) {
     const parsed = parseVersion(version);
     return `${parsed.prefix}-${parsed.number + 1}-${parsed.suffix}`;
 }
@@ -484,13 +226,6 @@ function showCuriosityConfirm(options) {
             if (onCancel) onCancel();
         }
     });
-}
-
-// 提取版本号中的数字部分
-function getVersionNumber(version) {
-    if (!version) return 0;
-    const match = version.match(/-(\d+)-/);
-    return match ? parseInt(match[1], 10) : 0;
 }
 
 // 判断编辑权限
@@ -770,8 +505,6 @@ function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
     const questionsContainer = document.getElementById('compose-questions-container');
-    const editBtn = document.getElementById('compose-edit-btn');
-    const deleteBtns = document.querySelectorAll('.compose-question-delete-btn');
     
     // 获取权限
     const permissions = getEditPermissions(editingQuestionnaire.version);
@@ -819,7 +552,6 @@ function renderComposeEditor() {
                 canClick = true; // 【同问】占位，可交互
             }
             // 如果没有编辑权且不是【同问】，则不可点击
-            const clickable = canClick ? 'cursor:pointer;' : 'cursor:default;';
             const hoverEffect = canClick ? 'compose-question-card-hover' : '';
             
             const optionsHtml = (q.options || []).map((opt, oi) => 
@@ -866,7 +598,6 @@ function renderComposeEditor() {
     }
     
     // 控制底部按钮显示
-    const submitBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:first-child');
     const editBtnEl = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2)');
     const archiveBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(3)');
     
@@ -928,8 +659,6 @@ window.composeAction = function(action) {
     showNotification(messages[action] || '功能开发中 ✦', 'info', 2500);
 };
 
-
-// ---------- 投递处理（阶段1 - 修正版） ----------
 // ---------- 投递处理（阶段1 - 修正版） ----------
 function handleSubmitQuestionnaire() {
     const questions = editingQuestionnaire.questions || [];
@@ -1115,7 +844,7 @@ function handleSubmitQuestionnaire() {
         });
     }
 }
-// ---------- 关闭编辑器（核心逻辑） ----------
+
 // ---------- 关闭编辑器 ----------
 window.closeCuriosityCompose = function(skipConfirm) {
     // 如果是从投递成功调用的，跳过确认弹窗
@@ -1419,7 +1148,7 @@ window.saveQuestion = function() {
     }
     
     const questionData = {
-        id: 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
         text: text,
         type: type,
         options: options,
