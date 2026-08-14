@@ -297,6 +297,52 @@ function randomDecision() {
     return randomPick(choices);
 }
 
+// ---------- 卡片状态计算 ----------
+/**
+ * 根据问卷数据计算卡片状态文字（纯文字，无图标）
+ * @param {Object} letter - 问卷数据对象
+ * @returns {string} 状态文字
+ */
+function getCardStatusText(letter) {
+    const isDraft = letter.isDraft === true || letter.status === 'draft' || !letter.id;
+    if (isDraft) {
+        return '草稿';
+    }
+    
+    const version = letter.version || 'A-0-N';
+    const num = getVersionNumber(version);
+    const prefix = getVersionPrefix(version);
+    const suffix = getVersionSuffix(version);
+    const prevVersion = letter.prevVersion || 'A-0-N';
+    const prevPrefix = getVersionPrefix(prevVersion);
+    
+    // 数字为0 → 草稿（但isDraft已处理）
+    if (num === 0) {
+        return '草稿';
+    }
+    
+    // 单数 → 正在投递中
+    if (num % 2 === 1) {
+        return '正在投递中';
+    }
+    
+    // 双数（非0）
+    const questions = letter.questions || [];
+    const total = questions.length;
+    const answeredCount = questions.filter(q => q.status === 'answered').length;
+    const m = answeredCount;
+    const n = total;
+    
+    // 首字母是否有变化（对比上一版本）
+    const prefixChanged = prefix !== prevPrefix;
+    
+    if (prefixChanged || suffix === 'N') {
+        return `已填写.${m}/${n}道已选择`;
+    } else {
+        return `未能传达 ${m}/${n}道已选择`;
+    }
+}
+
 // ---------- 版本号工具函数 ----------
 function parseVersion(version) {
     if (!version) return { prefix: 'A', number: 0, suffix: 'N' };
@@ -544,7 +590,7 @@ function renderCuriosityList(status) {
         const qCount = (letter.questions || []).length;
         const titleHtml = `<div style="font-weight:700;font-size:14px;color:var(--text-primary);">${letter.title || '未命名问卷'}</div>`;
         const statsHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">共${qCount}问 · ${singleCount}道单选 · ${multiCount}道多选</div>`;
-        const statusText = isDraft ? '草稿' : (status === 'ing' ? '⏳ 等待回复中' : '✅ 已归档');
+        const statusText = getCardStatusText(letter);
 
         return `
             <div class="env-letter-item curiosity-letter-item" onclick="viewCuriosityLetter('${status}','${letter.id}')">
@@ -953,8 +999,6 @@ function handleSubmitQuestionnaire() {
             message: `${partnerName} 也在好奇你的答案，思考选择吧 ✦`,
             confirmText: '我知道了',
             onConfirm: () => {
-                // 传入 true 表示同问已弹过
-                proceedWithSameQuestionChecked(true);
             }
         });
         return;
@@ -978,9 +1022,6 @@ function handleSubmitQuestionnaire() {
                     proceedToSend('case3');
                 }
             } else {
-                // 两者都无 → 不可投递
-                // 如果已经弹过同问弹窗，就不再弹不可投递提示
-                if (!hasShownSameQuestion) {
                     showNotDeliverable();
                 }
             }
