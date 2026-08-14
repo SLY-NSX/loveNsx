@@ -9,7 +9,6 @@ let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
 // 默认示例数据（首次打开时自动添加）
-// 测试用示例问卷（强行添加，用于测试版本号和状态显示）
 const TEST_SAMPLES = [
     {
         id: 'test_A1N_' + Date.now(),
@@ -19,29 +18,28 @@ const TEST_SAMPLES = [
                 id: 't1', 
                 text: '你最喜欢的季节？', 
                 type: 'single', 
-                options: ['春天', '夏天', '秋天', '冬天'],
-                // 米白色（未回答）→ 无特殊状态
+                options: ['春天', '夏天', '秋天', '冬天']
             },
             { 
                 id: 't2', 
                 text: '你平时喜欢什么运动？', 
                 type: 'multiple', 
                 options: ['跑步', '游泳', '篮球', '瑜伽'],
-                status: 'answered'  // 绿色
+                status: 'answered'
             },
             { 
                 id: 't3', 
                 text: '你怕黑吗？', 
                 type: 'single', 
                 options: ['怕', '不怕', '看情况'],
-                status: 'rejected'  // 深紫色
+                status: 'rejected'
             },
             { 
                 id: 't4', 
                 text: '你相信一见钟情吗？', 
                 type: 'single', 
                 options: ['相信', '不信', '不确定'],
-                status: 'unanswered'  // 橙色
+                status: 'unanswered'
             }
         ],
         sentTime: Date.now() - 3600000 * 3,
@@ -58,21 +56,21 @@ const TEST_SAMPLES = [
                 text: '你最想去的地方是？', 
                 type: 'single', 
                 options: ['海边', '雪山', '草原', '古城'],
-                status: 'answered'  // 绿色
+                status: 'answered'
             },
             { 
                 id: 't6', 
                 text: '你喜欢什么类型的电影？', 
                 type: 'multiple', 
                 options: ['科幻', '爱情', '悬疑', '喜剧'],
-                status: 'answered'  // 绿色
+                status: 'answered'
             },
             { 
                 id: 't7', 
                 text: '你养过宠物吗？', 
                 type: 'single', 
                 options: ['养过', '没养过', '想养'],
-                status: 'unanswered'  // 橙色
+                status: 'unanswered'
             }
         ],
         sentTime: Date.now() - 3600000 * 5,
@@ -89,28 +87,27 @@ const TEST_SAMPLES = [
                 text: '你最喜欢的颜色是？', 
                 type: 'single', 
                 options: ['红色', '蓝色', '绿色', '紫色'],
-                status: 'rejected'  // 深紫色
+                status: 'rejected'
             },
             { 
                 id: 't9', 
                 text: '你平时周末做什么？', 
                 type: 'multiple', 
                 options: ['看书', '运动', '追剧', '约朋友'],
-                status: 'answered'  // 绿色
+                status: 'answered'
             },
             { 
                 id: 't10', 
                 text: '你喜欢吃辣吗？', 
                 type: 'single', 
                 options: ['超喜欢', '一般', '不吃辣'],
-                status: 'unanswered'  // 橙色
+                status: 'unanswered'
             },
             { 
                 id: 't11', 
                 text: '你相信星座吗？', 
                 type: 'single', 
-                options: ['相信', '不信', '半信半疑'],
-                // 米白色（未回答）
+                options: ['相信', '不信', '半信半疑']
             }
         ],
         sentTime: Date.now() - 3600000 * 8,
@@ -127,29 +124,29 @@ const TEST_SAMPLES = [
                 text: '你最喜欢的音乐类型？', 
                 type: 'single', 
                 options: ['流行', '古典', '摇滚', '电子'],
-                status: 'answered',  // 绿色
-                isSameQuestion: true  // 打上【同问】标签
+                status: 'answered',
+                isSameQuestion: true
             },
             { 
                 id: 't13', 
                 text: '你理想中的旅行目的地？', 
                 type: 'multiple', 
                 options: ['日本', '欧洲', '南极', '非洲'],
-                status: 'answered'  // 绿色
+                status: 'answered'
             },
             { 
                 id: 't14', 
                 text: '你喜欢下雨天吗？', 
                 type: 'single', 
                 options: ['喜欢', '不喜欢', '看心情'],
-                status: 'unanswered'  // 橙色
+                status: 'unanswered'
             }
         ],
         sentTime: Date.now() - 3600000 * 12,
         status: 'ing',
         version: 'C-6-N',
-        isDraft: false,
-        hasSameQuestion: true  // 问卷级别标记
+        isDraft: false
+    },
     {
         id: 'sample_1_' + Date.now(),
         title: '关于你的一切',
@@ -159,7 +156,7 @@ const TEST_SAMPLES = [
             { id: 'q3', text: '你对我的第一印象？', type: 'single', options: ['温柔', '有趣', '高冷', '可爱'] }
         ],
         sentTime: Date.now() - 3600000 * 2,
-        status: 'ing', // 'ing' 或 'archived'
+        status: 'ing',
         version: 'A-0-N',
         isDraft: false
     },
