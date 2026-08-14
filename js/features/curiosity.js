@@ -316,9 +316,12 @@ function renderCuriosityList(status) {
     list.innerHTML = data.slice().reverse().map(letter => {
         // 判断是否为草稿
         const isDraft = letter.isDraft === true || letter.status === 'draft' || !letter.id;
+        const versionDisplay = letter.version || 'A-0-N';
         const dateDisplay = isDraft ? '📝 未投递' : '投递 · ' + new Date(letter.sentTime).toLocaleDateString('zh-CN', {
             month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'
         });
+        // 组合显示：日期 + 版本号（小字）
+        const headerText = dateDisplay + ' <span style="font-size:10px;opacity:0.6;margin-left:4px;">| ' + versionDisplay + '</span>';
         
         let singleCount = 0, multiCount = 0;
         (letter.questions || []).forEach(q => {
@@ -338,7 +341,7 @@ function renderCuriosityList(status) {
                             <rect x="2" y="4" width="20" height="16" rx="2"/>
                             <path d="M22 7l-10 7L2 7"/>
                         </svg>
-                        ${dateDisplay}
+                        ${headerText}
                     </div>
                     <span style="font-size:18px;line-height:1;flex-shrink:0;">📮</span>
                 </div>
