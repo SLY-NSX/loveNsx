@@ -1186,21 +1186,15 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
     while (true) {
         loopCount++;
         console.log(`[回复逻辑二] 大循环 #${loopCount}`);
-        
+    
         // 在 1~30 秒内随机一个数字 d
         const d = randomSeconds(1, 30);
-        console.log(`[回复逻辑二] 随机等待 ${d} 秒...`);
-        await sleep(d * 1000);
-        
-        // 更新已用时间
-        totalElapsed += d;
-        console.log(`[回复逻辑二] 当前已用时间: ${totalElapsed}秒`);
-        
-        // 判断：已用时间 ≥ 时间上限？
-        if (totalElapsed >= timeLimitSeconds) {
-            console.log(`[回复逻辑二] ⏰ 已用时间 ${totalElapsed}秒 ≥ 上限 ${timeLimitSeconds}秒，大循环结束，未进入YES`);
-            // 大循环结束，未进入YES → 跳转到【结束】
-            // 注意：尾字母为Y（因为进入过大循环），首字母不变
+        console.log(`[回复逻辑二] 抽取随机等待: ${d} 秒`);
+        console.log(`[回复逻辑二] 当前已用: ${totalElapsed}秒，加上 ${d} 秒后为 ${totalElapsed + d}秒，上限: ${timeLimitSeconds}秒`);
+    
+        // ⭐ 先判断：已用时间 + d 是否 ≥ 时间上限？
+        if (totalElapsed + d >= timeLimitSeconds) {
+            console.log(`[回复逻辑二] ⏰ 已用时间 ${totalElapsed}秒 + ${d}秒 = ${totalElapsed + d}秒 ≥ 上限 ${timeLimitSeconds}秒，大循环结束，未进入YES`);
             return {
                 enteredBigLoop: true,
                 enteredYes: false,
@@ -1208,11 +1202,17 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
                 prevVersion: questionnaire.version
             };
         }
-        
+    
+        // 未超时，等待 d 秒
+        console.log(`[回复逻辑二] 等待 ${d} 秒...`);
+        await sleep(d * 1000);
+        totalElapsed += d;
+        console.log(`[回复逻辑二] 当前已用时间: ${totalElapsed}秒`);
+    
         // 进入 YES/NO 判断（各50%）
         const yesNo = Math.random() < 0.5 ? 'YES' : 'NO';
         console.log(`[回复逻辑二] YES/NO 判断: ${yesNo}`);
-        
+    
         if (yesNo === 'YES') {
             enteredYes = true;
             console.log('[回复逻辑二] ✅ 进入 YES，开始处理每个问题');
