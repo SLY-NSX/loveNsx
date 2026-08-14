@@ -683,10 +683,9 @@ let editingQuestionnaire = {
     status: 'draft',
     isDraft: true,
     sentTime: null,
-    _sourceStatus: null
-    let isDirty = false; 
+    _sourceStatus: null 
 };
-
+let isDirty = false;
 // 是否正在查看模式（从卡片点击进入）
 let isViewMode = false;
 
