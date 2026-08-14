@@ -1047,6 +1047,10 @@ function proceedToSend(caseType) {
     const newNum = getVersionNumber(newVersion);
     const x = Math.ceil((newNum + 1) / 2);
     
+    // 在函数内部重新获取 title 和 partnerName
+    const title = editingQuestionnaire.title || '未命名问卷';
+    const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+    
     let titleText, messageText;
     if (caseType === 'case1' || caseType === 'case2') {
         titleText = '📬 问卷发出';
@@ -1071,7 +1075,7 @@ function proceedToSend(caseType) {
             editingQuestionnaire.sentTime = Date.now();
             editingQuestionnaire.status = 'ing';
             
-            // 使用统一存储函数保存（传递标题）
+            // 使用统一存储函数保存
             const prevVersion = editingQuestionnaire.version;
             saveQuestionnaireVersion(
                 editingQuestionnaire.id,
@@ -1105,7 +1109,7 @@ function proceedToSend(caseType) {
             }, 300);
         }
     });
-}  // ⭐ 这个 } 关闭 proceedToSend
+}
 
 function showNotDeliverable() {
     showCuriosityConfirm({
@@ -1114,7 +1118,7 @@ function showNotDeliverable() {
         confirmText: '我知道了',
         onConfirm: () => {}
     });
-}  // ⭐ 这个 } 关闭 showNotDeliverable
+}
 
 // ============================================================
 // 阶段3：后台回复逻辑框架（模拟线程）
