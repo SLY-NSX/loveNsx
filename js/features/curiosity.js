@@ -1959,7 +1959,6 @@ window.closeCuriosityCompose = function(skipConfirm) {
             }
             saveCuriosityData();
             renderCuriosityLists();
-            showNotification('📝 草稿已保存', 'success', 1500);
         }
     } else {
         // 非新建模式：询问是否保存修改
@@ -1975,7 +1974,6 @@ window.closeCuriosityCompose = function(skipConfirm) {
                 };
                 saveCuriosityData();
                 renderCuriosityLists();
-                showNotification('已保存修改', 'success', 1500);
             }
         }
     }
