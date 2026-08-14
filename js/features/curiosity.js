@@ -181,6 +181,62 @@ async function loadCuriosityData() {
     // 生成带时间戳的测试数据（每次刷新都重新生成，确保卡片出现）
     const freshTestSamples = [
         {
+            id: 'test_B4Y_' + Date.now(),
+            title: '测试问卷 B-4-Y',
+            questions: [
+                { 
+                    id: 't15', 
+                    text: '你最喜欢的饮品？', 
+                    type: 'single', 
+                    options: ['咖啡', '茶', '果汁', '水'],
+                    status: 'unanswered'  // 暂不回答标记
+                },
+                { 
+                    id: 't16', 
+                    text: '你平时几点睡觉？', 
+                    type: 'single', 
+                    options: ['22点前', '23点', '0点', '1点后'],
+                    status: 'answered'
+                }
+            ],
+            sentTime: Date.now() - 3600000 * 6,
+            status: 'ing',
+            version: 'B-4-Y',
+            isDraft: false
+        },
+        {
+            id: 'test_B8N_' + Date.now(),
+            title: '测试问卷 B-8-N（暂不回答+同问）',
+            questions: [
+                { 
+                    id: 't17', 
+                    text: '你最喜欢的运动？', 
+                    type: 'single', 
+                    options: ['篮球', '足球', '游泳', '跑步'],
+                    status: 'unanswered'  // 暂不回答标记
+                },
+                { 
+                    id: 't18', 
+                    text: '你最喜欢的电影类型？', 
+                    type: 'multiple', 
+                    options: ['科幻', '爱情', '悬疑', '喜剧'],
+                    status: 'answered',
+                    isSameQuestion: true  // 同问标记
+                },
+                { 
+                    id: 't19', 
+                    text: '你养过宠物吗？', 
+                    type: 'single', 
+                    options: ['养过', '没养过', '想养'],
+                    status: 'answered'
+                }
+            ],
+            sentTime: Date.now() - 3600000 * 9,
+            status: 'ing',
+            version: 'B-8-N',
+            isDraft: false
+        }
+        {
             id: 'test_A1N_' + Date.now(),
             title: '测试问卷 A-1-N',
             questions: [
@@ -818,6 +874,7 @@ window.composeAction = function(action) {
 
 
 // ---------- 投递处理（阶段1 - 修正版） ----------
+// ---------- 投递处理（阶段1 - 修正版） ----------
 function handleSubmitQuestionnaire() {
     const questions = editingQuestionnaire.questions || [];
     
@@ -838,46 +895,41 @@ function handleSubmitQuestionnaire() {
     // 关口1：数字是否为0 或 首字母是否为A
     // ============================================================
     if (versionNum === 0 || versionPrefix === 'A') {
-        // 检查标题是否为默认
         const isDefaultTitle = !editingQuestionnaire.title || editingQuestionnaire.title === '未命名问卷';
         if (isDefaultTitle) {
-            // 弹出是否修改标题的确认弹窗
             showCuriosityConfirm({
                 title: '📝 修改标题',
                 message: '当前问卷标题为默认名称，是否修改后再投递？\n\n点击「修改」返回编辑\n点击「继续投递」直接发出',
                 confirmText: '修改标题',
                 cancelText: '继续投递',
                 onConfirm: () => {
-                    // 用户选择修改：留在页面，不投递
                     editComposeTitle();
                 },
                 onCancel: () => {
-                    // 用户选择继续投递 → 关口1放行，直接发出
                     proceedToSend('case1');
                 }
             });
             return;
         } else {
-            // 标题合格，直接放行
             proceedToSend('case1');
             return;
         }
     }
     
     // ============================================================
-    // 关口1不满足 (数字≠0 且 首字母≠A) → 进入后续检查
+    // 关口1不满足 → 进入后续检查
     // ============================================================
     
     // 步骤A：检查是否有【同问】标记
     const hasSameQuestion = questions.some(q => q.isSameQuestion === true);
     if (hasSameQuestion) {
         showCuriosityConfirm({
-            title: '💭 等待回答中',
-            message: `${partnerName} 正在思考这些问题...\n\n请耐心等待对方的回答 ✦`,
+            title: '💭 好奇你的答案',
+            message: `${partnerName} 也在好奇你的答案，思考选择吧 ✦`,
             confirmText: '我知道了',
             onConfirm: () => {
-                // 确认后进入下一步
-                proceedWithSameQuestionChecked();
+                // 传入 true 表示同问已弹过
+                proceedWithSameQuestionChecked(true);
             }
         });
         return;
@@ -889,53 +941,53 @@ function handleSubmitQuestionnaire() {
     // ============================================================
     // 步骤B：根据首字母分支判断
     // ============================================================
-    function proceedWithSameQuestionChecked() {
+    function proceedWithSameQuestionChecked(hasShownSameQuestion) {
         const hasUnanswered = questions.some(q => q.status === 'unanswered');
         const hasInteractiveOne = questions.some(q => q.isInteractiveOne === true);
         
         if (versionPrefix === 'B') {
-            // 首字母为 B
             if (hasUnanswered || hasInteractiveOne) {
                 if (hasUnanswered) {
-                    // 情况2
                     proceedToSend('case2');
                 } else {
-                    // 情况3（无暂不回答，但有同问互动一）
                     proceedToSend('case3');
                 }
             } else {
                 // 两者都无 → 不可投递
-                showNotDeliverable();
+                // 如果已经弹过同问弹窗，就不再弹不可投递提示
+                if (!hasShownSameQuestion) {
+                    showNotDeliverable();
+                }
             }
             return;
         }
         
         // 首字母不是 B（C/D/E...）
         if (hasInteractiveOne) {
-            // 情况4
             proceedToSend('case4');
         } else {
             // 无同问互动一 → 不可投递
-            showNotDeliverable();
+            if (!hasShownSameQuestion) {
+                showNotDeliverable();
+            }
         }
     }
     
     // ============================================================
-    // 发出弹窗（统一处理四种情况）
+    // 发出弹窗
     // ============================================================
     function proceedToSend(caseType) {
-        // 发出前更新版本号：数字+1
         const newVersion = incrementVersionNumber(editingQuestionnaire.version || 'A-0-N');
         const newNum = getVersionNumber(newVersion);
-        const x = Math.ceil((newNum + 1) / 2);  // 根据公式 (数字+1)/2
+        const x = Math.ceil((newNum + 1) / 2);
         
         let titleText, messageText;
         if (caseType === 'case1' || caseType === 'case2') {
             titleText = '📬 问卷发出';
-            messageText = `「${title}」.其${x}\n即将送达 ${partnerName} 处 ✦`;
+            messageText = `「${title}.${x}」\n即将送达 ${partnerName} 处 ✦`;
         } else { // case3 或 case4
             titleText = '📬 回复发出';
-            messageText = `${partnerName} 即将收到你关于「${title}」的回复 ✦`;
+            messageText = `${partnerName} 即将收到你关于「${title}.${x}」的回复 ✦`;
         }
         
         showCuriosityConfirm({
@@ -943,20 +995,16 @@ function handleSubmitQuestionnaire() {
             message: messageText,
             confirmText: '确认',
             onConfirm: () => {
-                // 确认后：更新版本号并保存到数据
                 editingQuestionnaire.version = newVersion;
                 
-                // 生成ID（如果还没有）
                 if (!editingQuestionnaire.id) {
                     editingQuestionnaire.id = generateCuriosityId();
                 }
                 
-                // 标记为非草稿，设置发送时间
                 editingQuestionnaire.isDraft = false;
                 editingQuestionnaire.sentTime = Date.now();
                 editingQuestionnaire.status = 'ing';
                 
-                // 保存到数据
                 const targetArr = curiosityData.ing;
                 const existingIndex = targetArr.findIndex(item => item.id === editingQuestionnaire.id);
                 if (existingIndex > -1) {
@@ -970,7 +1018,6 @@ function handleSubmitQuestionnaire() {
                         status: 'ing'
                     };
                 } else {
-                    // 检查是否在 archived 中
                     const archivedIndex = curiosityData.archived.findIndex(item => item.id === editingQuestionnaire.id);
                     if (archivedIndex > -1) {
                         curiosityData.archived.splice(archivedIndex, 1);
@@ -990,12 +1037,10 @@ function handleSubmitQuestionnaire() {
                 renderCuriosityLists();
                 showNotification(`📬 问卷已投递！版本：${editingQuestionnaire.version}`, 'success', 2000);
                 
-                // 【阶段1占位】后台回复逻辑
                 setTimeout(() => {
                     showNotification('🧠 后台回复逻辑开发中（阶段2），敬请期待 ✦', 'info', 3000);
                 }, 500);
                 
-                // 关闭编辑器，回到主模态框
                 closeCuriosityCompose(true);
                 setTimeout(() => {
                     showModal(document.getElementById('curiosity-modal'));
@@ -1005,17 +1050,12 @@ function handleSubmitQuestionnaire() {
         });
     }
     
-    // ============================================================
-    // 不可投递提示
-    // ============================================================
     function showNotDeliverable() {
         showCuriosityConfirm({
             title: '🚫 不可投递',
             message: '当前情况不可投递，可进行归档',
             confirmText: '我知道了',
-            onConfirm: () => {
-                // 关闭弹窗，不做其他操作
-            }
+            onConfirm: () => {}
         });
     }
 }
