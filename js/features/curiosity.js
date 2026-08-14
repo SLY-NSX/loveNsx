@@ -147,6 +147,83 @@ function generateCuriosityId() {
     return 'qst_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 }
 
+/**
+ * 统一存储问卷最新版本（版本号变化时调用）
+ * 存储完整当前数据 + 上一版本号名称（仅保留名称用于对比）
+ */
+function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, updatedQuestions, status, sentTime) {
+    let targetArr = curiosityData.ing;
+    let index = targetArr.findIndex(item => item.id === questionnaireId);
+    let found = index > -1;
+
+    if (!found) {
+        targetArr = curiosityData.archived;
+        index = targetArr.findIndex(item => item.id === questionnaireId);
+        found = index > -1;
+    }
+
+    if (found) {
+        const existing = targetArr[index];
+        targetArr[index] = {
+            ...existing,
+            version: newVersion,                          // 新版本号
+            prevVersion: prevVersion || existing.version, // 只保留上一版本号名称
+            questions: updatedQuestions,                  // 最新完整数据
+            status: status || existing.status,
+            sentTime: sentTime || existing.sentTime,
+            isDraft: false
+        };
+        saveCuriosityData();
+        renderCuriosityLists();
+        console.log(`[存储] 问卷 ${questionnaireId} 已更新到版本 ${newVersion}，上一版本: ${prevVersion || existing.version}`);
+    } else {
+        console.error(`[存储] 未找到问卷 ${questionnaireId}`);
+    }
+}
+
+// ---------- 随机工具函数 ----------
+/**
+ * 在 min~max 秒之间随机一个整数
+ */
+function randomSeconds(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/**
+ * 随机选择数组中的一个元素
+ */
+function randomPick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+/**
+ * 随机选择一个选项（从选项列表中选择一个索引）
+ */
+function randomSelectOption(options) {
+    return Math.floor(Math.random() * options.length);
+}
+
+/**
+ * 随机选择多个选项（从选项列表中随机选择 count 个）
+ */
+function randomSelectMultiple(options, count) {
+    const shuffled = [...options];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled.slice(0, Math.min(count, shuffled.length)).map((_, idx) => idx);
+}
+
+/**
+ * 三选一判断（概率均等）
+ * @returns {'rejected' | 'unanswered' | 'answered'}
+ */
+function randomDecision() {
+    const choices = ['rejected', 'unanswered', 'answered'];
+    return randomPick(choices);
+}
+
 // ---------- 版本号工具函数 ----------
 function parseVersion(version) {
     if (!version) return { prefix: 'A', number: 0, suffix: 'N' };
@@ -834,95 +911,76 @@ function handleSubmitQuestionnaire() {
         }
     }
     
-    // ============================================================
-    // 发出弹窗
-    // ============================================================
-    function proceedToSend(caseType) {
-        const newVersion = getNextVersionForSend(editingQuestionnaire.version || 'A-0-N');
-        const newNum = getVersionNumber(newVersion);
-        const x = Math.ceil((newNum + 1) / 2);
-        
-        let titleText, messageText;
-        if (caseType === 'case1' || caseType === 'case2') {
-            titleText = '📬 问卷发出';
-            messageText = `「${title}.${x}」\n即将送达 ${partnerName} 处 ✦`;
-        } else { // case3 或 case4
-            titleText = '📬 回复发出';
-            messageText = `${partnerName} 即将收到你关于「${title}.${x}」的回复 ✦`;
-        }
-        
-        showCuriosityConfirm({
-            title: titleText,
-            message: messageText,
-            confirmText: '确认',
-            onConfirm: () => {
-                editingQuestionnaire.version = newVersion;
-                
-                if (!editingQuestionnaire.id) {
-                    editingQuestionnaire.id = generateCuriosityId();
-                }
-                
-                editingQuestionnaire.isDraft = false;
-                editingQuestionnaire.sentTime = Date.now();
-                editingQuestionnaire.status = 'ing';
-                
-                const targetArr = curiosityData.ing;
-                const existingIndex = targetArr.findIndex(item => item.id === editingQuestionnaire.id);
-                if (existingIndex > -1) {
-                    targetArr[existingIndex] = {
-                        ...targetArr[existingIndex],
-                        title: editingQuestionnaire.title,
-                        questions: editingQuestionnaire.questions,
-                        version: editingQuestionnaire.version,
-                        isDraft: false,
-                        sentTime: editingQuestionnaire.sentTime,
-                        status: 'ing'
-                    };
-                } else {
-                    const archivedIndex = curiosityData.archived.findIndex(item => item.id === editingQuestionnaire.id);
-                    if (archivedIndex > -1) {
-                        curiosityData.archived.splice(archivedIndex, 1);
-                    }
-                    targetArr.push({
-                        id: editingQuestionnaire.id,
-                        title: editingQuestionnaire.title,
-                        questions: editingQuestionnaire.questions,
-                        version: editingQuestionnaire.version,
-                        isDraft: false,
-                        sentTime: editingQuestionnaire.sentTime,
-                        status: 'ing'
-                    });
-                }
-                
-                saveCuriosityData();
-                renderCuriosityLists();
-                showNotification(`📬 问卷已投递！版本：${editingQuestionnaire.version}`, 'success', 2000);
-                
-                // 启动后台回复逻辑
-                setTimeout(async () => {
-                    try {
-                        const result = await simulateReplyLogic(
-                            editingQuestionnaire.id,
-                            editingQuestionnaire.version,
-                            caseType
-                        );
-                        console.log('[后台回复] 结果:', result);
-                        // TODO: 阶段7 - 显示正式回复弹窗
-                        // TODO: 阶段7 - 更新卡片状态
-                    } catch (error) {
-                        console.error('[后台回复] 错误:', error);
-                        showNotification('后台回复处理出错，请稍后查看', 'error', 3000);
-                    }
-                }, 500);
-                
-                closeCuriosityCompose(true);
-                setTimeout(() => {
-                    showModal(document.getElementById('curiosity-modal'));
-                    switchCuriosityTab('ing');
-                }, 300);
-            }
-        });
+// ============================================================
+// 发出弹窗（统一存储逻辑）
+// ============================================================
+function proceedToSend(caseType) {
+    const newVersion = getNextVersionForSend(editingQuestionnaire.version || 'A-0-N');
+    const newNum = getVersionNumber(newVersion);
+    const x = Math.ceil((newNum + 1) / 2);
+    
+    let titleText, messageText;
+    if (caseType === 'case1' || caseType === 'case2') {
+        titleText = '📬 问卷发出';
+        messageText = `「${title}.${x}」\n即将送达 ${partnerName} 处 ✦`;
+    } else { // case3 或 case4
+        titleText = '📬 回复发出';
+        messageText = `${partnerName} 即将收到你关于「${title}.${x}」的回复 ✦`;
     }
+    
+    showCuriosityConfirm({
+        title: titleText,
+        message: messageText,
+        confirmText: '确认',
+        onConfirm: () => {
+            // 生成ID（如果还没有）
+            if (!editingQuestionnaire.id) {
+                editingQuestionnaire.id = generateCuriosityId();
+            }
+            
+            // 投递标记
+            editingQuestionnaire.isDraft = false;
+            editingQuestionnaire.sentTime = Date.now();
+            editingQuestionnaire.status = 'ing';
+            
+            // 使用统一存储函数保存
+            const prevVersion = editingQuestionnaire.version; // 投递前的版本
+            saveQuestionnaireVersion(
+                editingQuestionnaire.id,
+                newVersion,
+                prevVersion,
+                editingQuestionnaire.questions,
+                'ing',
+                editingQuestionnaire.sentTime
+            );
+            
+            showNotification(`📬 问卷已投递！版本：${newVersion}`, 'success', 2000);
+            
+            // 启动后台回复逻辑
+            setTimeout(async () => {
+                try {
+                    const result = await simulateReplyLogic(
+                        editingQuestionnaire.id,
+                        newVersion,  // 投递后的版本号作为当前版本
+                        caseType
+                    );
+                    console.log('[后台回复] 结果:', result);
+                    // TODO: 阶段7 - 显示正式回复弹窗
+                    // TODO: 阶段7 - 更新卡片状态
+                } catch (error) {
+                    console.error('[后台回复] 错误:', error);
+                    showNotification('后台回复处理出错，请稍后查看', 'error', 3000);
+                }
+            }, 500);
+            
+            closeCuriosityCompose(true);
+            setTimeout(() => {
+                showModal(document.getElementById('curiosity-modal'));
+                switchCuriosityTab('ing');
+            }, 300);
+        }
+    });
+}
     
     function showNotDeliverable() {
         showCuriosityConfirm({
@@ -951,7 +1009,7 @@ function sleep(ms) {
  * @param {string} questionnaireId - 问卷ID
  * @param {string} currentVersion - 当前版本号（投递时的版本号）
  * @param {string} caseType - 投递情况类型 ('case1' | 'case2' | 'case3' | 'case4')
- * @returns {Promise<Object>} 返回 { enteredBigLoop, enteredYes, updatedQuestions }
+ * @returns {Promise<Object>} 返回 { enteredBigLoop, enteredYes, updatedQuestions, newVersion, prevVersion }
  */
 async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
     console.log(`[后台回复] 开始 - ID: ${questionnaireId}, 版本: ${currentVersion}, 情况: ${caseType}`);
@@ -963,20 +1021,21 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
     let enteredBigLoop = false;
     let enteredYes = false;
     let updatedQuestions = [];
+    let prevVersion = currentVersion;
     
     // ============================================================
     // 前置判断：首字母是否为 A 或 B
     // ============================================================
     if (prefix !== 'A' && prefix !== 'B') {
-        // 首字母非A/B → 执行【回复逻辑一】
+        // 首字母非A/B → 执行【回复逻辑一】（暂未实现，使用占位）
         console.log('[后台回复] 进入【回复逻辑一】（首字母非A/B）');
-        const result = await replyLogicOne(questionnaireId, currentVersion);
-        enteredBigLoop = result.enteredBigLoop;
-        enteredYes = result.enteredYes;
-        updatedQuestions = result.updatedQuestions || [];
+        // 阶段4：暂未实现，返回占位结果
+        enteredBigLoop = false;
+        enteredYes = false;
+        updatedQuestions = [];
     } else {
         // 首字母是A或B → 判断数字
-        const timeLimit = num === 1 ? 5 * 60 * 1000 : 2.5 * 60 * 1000; // 5分钟 或 2.5分钟（毫秒）
+        const timeLimit = num === 1 ? 5 * 60 * 1000 : 2.5 * 60 * 1000;
         console.log(`[后台回复] 大循环时间上限: ${timeLimit / 1000 / 60} 分钟`);
         
         if (prefix === 'A') {
@@ -986,23 +1045,48 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
             enteredBigLoop = result.enteredBigLoop;
             enteredYes = result.enteredYes;
             updatedQuestions = result.updatedQuestions || [];
+            prevVersion = result.prevVersion || currentVersion;
         } else {
-            // 首字母B → 【回复逻辑三】
+            // 首字母B → 【回复逻辑三】（暂未实现）
             console.log('[后台回复] 进入【回复逻辑三】（首字母B）');
-            const result = await replyLogicThree(questionnaireId, currentVersion, timeLimit);
-            enteredBigLoop = result.enteredBigLoop;
-            enteredYes = result.enteredYes;
-            updatedQuestions = result.updatedQuestions || [];
+            // 阶段6：暂未实现，返回占位结果
+            enteredBigLoop = true;
+            enteredYes = false;
+            updatedQuestions = [];
         }
     }
     
-    console.log(`[后台回复] 完成 - enteredBigLoop: ${enteredBigLoop}, enteredYes: ${enteredYes}`);
+    // ============================================================
+    // 更新版本号并保存数据
+    // ============================================================
+    const newVersion = updateVersion(currentVersion, {
+        enteredBigLoop: enteredBigLoop,
+        enteredYes: enteredYes
+    });
+    
+    console.log(`[后台回复] 版本号: ${currentVersion} → ${newVersion}`);
+    console.log(`[后台回复] enteredBigLoop: ${enteredBigLoop}, enteredYes: ${enteredYes}`);
     console.log(`[后台回复] 更新了 ${updatedQuestions.length} 个问题`);
+    
+    // 保存到存储（只有当有更新内容或进入过大循环时才保存）
+    if (updatedQuestions.length > 0 || enteredBigLoop) {
+        saveQuestionnaireVersion(
+            questionnaireId,
+            newVersion,
+            prevVersion,
+            updatedQuestions,
+            'ing'
+        );
+    } else {
+        console.log('[后台回复] 无内容变化，跳过保存');
+    }
     
     return {
         enteredBigLoop,
         enteredYes,
-        updatedQuestions
+        updatedQuestions,
+        newVersion,
+        prevVersion
     };
 }
 
@@ -1046,310 +1130,259 @@ async function replyLogicOne(questionnaireId, currentVersion) {
 async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
     console.log('[回复逻辑二] 开始执行，时间上限:', timeLimit / 1000 / 60, '分钟');
     
-    // 1. 静默倒计时一分钟
-    console.log('[回复逻辑二] 静默倒计时 60 秒...');
-    await sleep(60 * 1000);
-    
-    // 获取当前问卷数据
+    // 从存储中获取当前问卷数据
     let questionnaire = null;
-    let sourceStatus = null;
-    // 从 ing 中查找
-    let found = curiosityData.ing.find(item => item.id === questionnaireId);
-    if (found) {
-        questionnaire = found;
-        sourceStatus = 'ing';
+    let sourceArr = null;
+    let sourceIndex = -1;
+    
+    // 在 ing 中查找
+    const ingIndex = curiosityData.ing.findIndex(item => item.id === questionnaireId);
+    if (ingIndex > -1) {
+        questionnaire = { ...curiosityData.ing[ingIndex] };
+        sourceArr = 'ing';
+        sourceIndex = ingIndex;
     } else {
-        // 从 archived 中查找
-        found = curiosityData.archived.find(item => item.id === questionnaireId);
-        if (found) {
-            questionnaire = found;
-            sourceStatus = 'archived';
+        const archivedIndex = curiosityData.archived.findIndex(item => item.id === questionnaireId);
+        if (archivedIndex > -1) {
+            questionnaire = { ...curiosityData.archived[archivedIndex] };
+            sourceArr = 'archived';
+            sourceIndex = archivedIndex;
         }
     }
     
     if (!questionnaire) {
-        console.error('[回复逻辑二] 问卷不存在:', questionnaireId);
+        console.error('[回复逻辑二] 未找到问卷:', questionnaireId);
         return { enteredBigLoop: false, enteredYes: false, updatedQuestions: [] };
     }
     
-    // 深拷贝问题列表
-    let questions = JSON.parse(JSON.stringify(questionnaire.questions || []));
-    if (questions.length === 0) {
-        console.log('[回复逻辑二] 问卷无问题，结束');
-        return { enteredBigLoop: false, enteredYes: false, updatedQuestions: [] };
-    }
+    const questions = questionnaire.questions || [];
+    const totalQuestions = questions.length;
     
-    const startTime = Date.now();
-    let enteredBigLoop = true;
+    // ============================================================
+    // 步骤1：静默倒计时 60 秒（计入已用时间）
+    // ============================================================
+    console.log('[回复逻辑二] 步骤1：静默倒计时 60 秒...');
+    await sleep(60 * 1000);
+    let elapsedTime = 60; // 已用时间（秒）
+    console.log(`[回复逻辑二] 静默完成，已用时间: ${elapsedTime}秒`);
+    
+    // ============================================================
+    // 步骤2：进入大循环
+    // ============================================================
+    console.log('[回复逻辑二] 步骤2：进入大循环');
     let enteredYes = false;
-    let totalElapsed = 0;
+    let enteredBigLoop = true;
+    const timeLimitSeconds = timeLimit / 1000; // 转换为秒
+    
+    // 保存投递起始时间（用于判断是否超时）
+    let loopStartTime = Date.now();
+    // 已用时间（从投递开始算，包含之前的60秒）
+    let totalElapsed = elapsedTime;
+    
+    // ============================================================
+    // 大循环迭代
+    // ============================================================
     let loopCount = 0;
-    
-    // ============================================================
-    // 步骤2：大循环（YES/NO 判断）
-    // ============================================================
-    console.log('[回复逻辑二] 进入大循环');
-    
     while (true) {
         loopCount++;
-        // 1~30秒随机
-        const d = Math.floor(Math.random() * 30) + 1;
-        console.log(`[回复逻辑二] 第${loopCount}次循环，随机等待 ${d} 秒...`);
+        console.log(`[回复逻辑二] 大循环 #${loopCount}`);
+        
+        // 在 1~30 秒内随机一个数字 d
+        const d = randomSeconds(1, 30);
+        console.log(`[回复逻辑二] 随机等待 ${d} 秒...`);
         await sleep(d * 1000);
         
-        // 判断已用时间
-        totalElapsed = Date.now() - startTime;
-        console.log(`[回复逻辑二] 已用时间: ${(totalElapsed / 1000).toFixed(1)}秒 / ${(timeLimit / 1000).toFixed(0)}秒`);
+        // 更新已用时间
+        totalElapsed += d;
+        console.log(`[回复逻辑二] 当前已用时间: ${totalElapsed}秒`);
         
-        if (totalElapsed >= timeLimit) {
-            console.log('[回复逻辑二] ⏰ 时间上限已到，终止大循环，未进入YES');
-            enteredYes = false;
-            break;
+        // 判断：已用时间 ≥ 时间上限？
+        if (totalElapsed >= timeLimitSeconds) {
+            console.log(`[回复逻辑二] ⏰ 已用时间 ${totalElapsed}秒 ≥ 上限 ${timeLimitSeconds}秒，大循环结束，未进入YES`);
+            // 大循环结束，未进入YES → 跳转到【结束】
+            // 注意：尾字母为Y（因为进入过大循环），首字母不变
+            return {
+                enteredBigLoop: true,
+                enteredYes: false,
+                updatedQuestions: questions,
+                prevVersion: questionnaire.version
+            };
         }
         
-        // YES/NO 判断（各50%）
-        const yesOrNo = Math.random() < 0.5 ? 'YES' : 'NO';
-        console.log(`[回复逻辑二] 判断结果: ${yesOrNo}`);
+        // 进入 YES/NO 判断（各50%）
+        const yesNo = Math.random() < 0.5 ? 'YES' : 'NO';
+        console.log(`[回复逻辑二] YES/NO 判断: ${yesNo}`);
         
-        if (yesOrNo === 'YES') {
+        if (yesNo === 'YES') {
             enteredYes = true;
-            console.log('[回复逻辑二] ✅ 进入YES，开始逐题回答');
+            console.log('[回复逻辑二] ✅ 进入 YES，开始处理每个问题');
             break;
-        }
-        // NO → 继续循环
-        console.log('[回复逻辑二] ❌ 未进入YES，继续循环');
-    }
-    
-    // ============================================================
-    // 如果未进入YES，直接结束
-    // ============================================================
-    if (!enteredYes) {
-        console.log('[回复逻辑二] 未进入YES，直接结束');
-        // 更新版本号（进入了大循环但未进入YES → 首字母不变，尾字母变Y）
-        const newVersion = updateVersion(questionnaire.version, {
-            enteredBigLoop: true,
-            enteredYes: false
-        });
-        questionnaire.version = newVersion;
-        // 保存到存储
-        if (sourceStatus === 'ing') {
-            const idx = curiosityData.ing.findIndex(item => item.id === questionnaireId);
-            if (idx > -1) curiosityData.ing[idx] = questionnaire;
         } else {
-            const idx = curiosityData.archived.findIndex(item => item.id === questionnaireId);
-            if (idx > -1) curiosityData.archived[idx] = questionnaire;
+            console.log('[回复逻辑二] ❌ 进入 NO，继续大循环');
+            // 继续循环
         }
-        saveCuriosityData();
-        renderCuriosityLists();
-        console.log(`[回复逻辑二] 版本号更新为: ${newVersion}（内容未变）`);
-        return { enteredBigLoop: true, enteredYes: false, updatedQuestions: [] };
     }
     
     // ============================================================
-    // 已进入YES → 逐题处理
+    // 分支A：已进入 YES，依次处理每个问题
     // ============================================================
-    console.log('[回复逻辑二] 开始逐题处理，共', questions.length, '题');
+    console.log('[回复逻辑二] 分支A：开始处理每个问题');
+    const updatedQuestions = [...questions];
+    const unansweredList = []; // 记录被标记为"暂不回答"的问题索引
     
-    // 存储第一轮中"暂不回答"的问题索引
-    let unansweredIndices = [];
-    
-    // 第一轮：遍历所有问题
-    for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
-        console.log(`[回复逻辑二] 处理 Q${i+1}: ${q.text}`);
+    for (let i = 0; i < updatedQuestions.length; i++) {
+        const q = updatedQuestions[i];
+        console.log(`[回复逻辑二] 处理问题 Q${i + 1}: "${q.text}"`);
         
-        // 步骤(A)：30秒内随机时间
-        const waitTime = Math.floor(Math.random() * 30) + 1;
-        console.log(`[回复逻辑二] Q${i+1} 等待 ${waitTime} 秒...`);
+        // 步骤(A)：在 1~30 秒内随机一个时间，等待
+        const waitTime = randomSeconds(1, 30);
+        console.log(`[回复逻辑二] Q${i + 1} 等待 ${waitTime} 秒...`);
         await sleep(waitTime * 1000);
         
-        // 三选一（均等）
-        const choice = Math.random();
-        let result = null;
+        // 三选一判断
+        const decision = randomDecision();
+        console.log(`[回复逻辑二] Q${i + 1} 决策: ${decision}`);
         
-        if (choice < 0.33) {
+        // 更新问题状态
+        q.status = decision;
+        q.selectedOptions = [];
+        
+        // 根据决策处理
+        if (decision === 'rejected') {
             // 拒绝回答
-            result = await handleReject(q, i);
-            console.log(`[回复逻辑二] Q${i+1} → 拒绝回答${result.isSameQuestion ? '，标记【同问】' : ''}`);
-        } else if (choice < 0.66) {
-            // 暂不回答 → 加入第二轮列表
-            result = await handleUnanswered(q, i);
-            unansweredIndices.push(i);
-            console.log(`[回复逻辑二] Q${i+1} → 暂不回答（进入第二轮）`);
+            console.log(`[回复逻辑二] Q${i + 1} 拒绝回答`);
+            // 后续统一处理反问
+        } else if (decision === 'unanswered') {
+            // 暂不回答 → 记录到第二轮列表
+            console.log(`[回复逻辑二] Q${i + 1} 暂不回答，加入第二轮`);
+            unansweredList.push(i);
         } else {
-            // 回答
-            result = await handleAnswer(q, i);
-            console.log(`[回复逻辑二] Q${i+1} → 回答，选择了 ${result.selectedOptions?.length || 0} 个选项`);
+            // 回答（decision === 'answered'）
+            console.log(`[回复逻辑二] Q${i + 1} 开始回答`);
+            // 判断是否多选题
+            if (q.type === 'multiple') {
+                // 多选：先随机 1~N（N为选项数）
+                const count = randomSeconds(1, q.options.length);
+                console.log(`[回复逻辑二] Q${i + 1} 多选题，选择 ${count} 个选项`);
+                // 在 40 秒内随机一个时间，等待
+                const waitTime2 = randomSeconds(1, 40);
+                console.log(`[回复逻辑二] Q${i + 1} 等待 ${waitTime2} 秒后选择...`);
+                await sleep(waitTime2 * 1000);
+                // 随机选择 count 个选项
+                q.selectedOptions = randomSelectMultiple(q.options, count);
+                console.log(`[回复逻辑二] Q${i + 1} 选中选项: ${q.selectedOptions.map(idx => q.options[idx]).join(', ')}`);
+            } else {
+                // 单选：在 40 秒内随机一个时间，等待
+                const waitTime2 = randomSeconds(1, 40);
+                console.log(`[回复逻辑二] Q${i + 1} 等待 ${waitTime2} 秒后选择...`);
+                await sleep(waitTime2 * 1000);
+                // 随机选一个选项
+                const selected = randomSelectOption(q.options);
+                q.selectedOptions = [selected];
+                console.log(`[回复逻辑二] Q${i + 1} 选中选项: ${q.options[selected]}`);
+            }
         }
         
-        // 更新问题数据
-        questions[i] = result.question;
+        // ⭐ 静默 15 秒
+        console.log(`[回复逻辑二] Q${i + 1} 静默 15 秒...`);
+        await sleep(15 * 1000);
+        
+        // 投骰子决定是否反问（各50%）
+        const askBack = Math.random() < 0.5;
+        if (askBack) {
+            q.isSameQuestion = true;
+            console.log(`[回复逻辑二] Q${i + 1} 🔄 反问 → 标记【同问】`);
+        } else {
+            q.isSameQuestion = false;
+            console.log(`[回复逻辑二] Q${i + 1} 不反问`);
+        }
+        
+        console.log(`[回复逻辑二] Q${i + 1} 处理完成`);
     }
     
     // ============================================================
-    // 第二轮：处理"暂不回答"的问题
+    // 第二轮：处理所有被标记为「暂不回答」的问题
     // ============================================================
-    if (unansweredIndices.length > 0) {
-        console.log(`[回复逻辑二] 第二轮：处理 ${unansweredIndices.length} 个暂不回答的问题`);
-        
-        for (const idx of unansweredIndices) {
-            const q = questions[idx];
-            console.log(`[回复逻辑二] 第二轮处理 Q${idx+1}: ${q.text}`);
+    if (unansweredList.length > 0) {
+        console.log(`[回复逻辑二] 第二轮：处理 ${unansweredList.length} 个暂不回答的问题`);
+        for (const idx of unansweredList) {
+            const q = updatedQuestions[idx];
+            console.log(`[回复逻辑二] 第二轮 Q${idx + 1}: "${q.text}"`);
             
-            // 重新走步骤(A)
-            const waitTime = Math.floor(Math.random() * 30) + 1;
-            console.log(`[回复逻辑二] Q${idx+1} 第二轮等待 ${waitTime} 秒...`);
+            // 重新走分支A流程
+            const waitTime = randomSeconds(1, 30);
+            console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 等待 ${waitTime} 秒...`);
             await sleep(waitTime * 1000);
             
-            // 三选一（均等），但这次即使选到暂不回答也要判断是否反问
-            const choice = Math.random();
-            let result = null;
+            // 三选一判断（仍然可以选暂不回答，但必须执行反问）
+            const decision = randomDecision();
+            console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 决策: ${decision}`);
             
-            if (choice < 0.33) {
-                // 拒绝回答
-                result = await handleReject(q, idx);
-                console.log(`[回复逻辑二] Q${idx+1} 第二轮 → 拒绝回答${result.isSameQuestion ? '，标记【同问】' : ''}`);
-            } else if (choice < 0.66) {
-                // 暂不回答 → 强制判断是否反问
-                result = await handleUnansweredWithForceAsk(q, idx);
-                console.log(`[回复逻辑二] Q${idx+1} 第二轮 → 暂不回答（强制询问是否反问）`);
+            // 更新问题状态（二轮答案覆盖一轮）
+            q.status = decision;
+            q.selectedOptions = [];
+            
+            if (decision === 'rejected') {
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 拒绝回答`);
+            } else if (decision === 'unanswered') {
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 再次暂不回答`);
+                // 即使再次选到暂不回答，也继续执行反问
             } else {
                 // 回答
-                result = await handleAnswer(q, idx);
-                console.log(`[回复逻辑二] Q${idx+1} 第二轮 → 回答，选择了 ${result.selectedOptions?.length || 0} 个选项`);
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 开始回答`);
+                if (q.type === 'multiple') {
+                    const count = randomSeconds(1, q.options.length);
+                    const waitTime2 = randomSeconds(1, 40);
+                    await sleep(waitTime2 * 1000);
+                    q.selectedOptions = randomSelectMultiple(q.options, count);
+                    console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 选中选项: ${q.selectedOptions.map(i => q.options[i]).join(', ')}`);
+                } else {
+                    const waitTime2 = randomSeconds(1, 40);
+                    await sleep(waitTime2 * 1000);
+                    const selected = randomSelectOption(q.options);
+                    q.selectedOptions = [selected];
+                    console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 选中选项: ${q.options[selected]}`);
+                }
             }
             
-            // 覆盖第一轮的结果
-            questions[idx] = result.question;
+            // ⭐ 静默 15 秒
+            await sleep(15 * 1000);
+            
+            // 投骰子决定是否反问（各50%）
+            const askBack = Math.random() < 0.5;
+            if (askBack) {
+                q.isSameQuestion = true;
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 🔄 反问 → 标记【同问】`);
+            } else {
+                q.isSameQuestion = false;
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 不反问`);
+            }
+            
+            console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 处理完成`);
         }
     } else {
-        console.log('[回复逻辑二] 无暂不回答的问题，跳过第二轮');
+        console.log('[回复逻辑二] 第二轮：无暂不回答的问题，跳过');
     }
     
     // ============================================================
-    // 结束：更新版本号并保存
+    // 【结束】整理数据，返回结果
     // ============================================================
-    console.log('[回复逻辑二] 所有问题处理完毕，结束');
+    const prevVersion = questionnaire.version;
     
-    // 更新版本号（进入了大循环且进入了YES → 首字母递增，尾字母变Y）
-    const finalVersion = updateVersion(questionnaire.version, {
-        enteredBigLoop: true,
-        enteredYes: true
-    });
-    questionnaire.version = finalVersion;
-    questionnaire.questions = questions;
-    
-    // 保存到存储
-    if (sourceStatus === 'ing') {
-        const idx = curiosityData.ing.findIndex(item => item.id === questionnaireId);
-        if (idx > -1) curiosityData.ing[idx] = questionnaire;
-    } else {
-        const idx = curiosityData.archived.findIndex(item => item.id === questionnaireId);
-        if (idx > -1) curiosityData.archived[idx] = questionnaire;
-    }
-    saveCuriosityData();
-    renderCuriosityLists();
-    
-    console.log(`[回复逻辑二] 版本号更新为: ${finalVersion}`);
-    console.log('[回复逻辑二] 完成');
+    // 保存到存储（版本号由主调度器更新）
+    console.log('[回复逻辑二] 执行完成');
+    console.log(`[回复逻辑二] 共处理 ${updatedQuestions.length} 个问题`);
+    console.log(`[回复逻辑二] 已回答: ${updatedQuestions.filter(q => q.status === 'answered').length}`);
+    console.log(`[回复逻辑二] 暂不回答: ${updatedQuestions.filter(q => q.status === 'unanswered').length}`);
+    console.log(`[回复逻辑二] 拒绝回答: ${updatedQuestions.filter(q => q.status === 'rejected').length}`);
+    console.log(`[回复逻辑二] 【同问】标记: ${updatedQuestions.filter(q => q.isSameQuestion).length}`);
     
     return {
         enteredBigLoop: true,
         enteredYes: true,
-        updatedQuestions: questions
+        updatedQuestions: updatedQuestions,
+        prevVersion: prevVersion
     };
-}
-
-// ============================================================
-// 辅助函数：处理"回答"
-// ============================================================
-async function handleAnswer(question, index) {
-    const q = { ...question };
-    const options = q.options || [];
-    const isMultiple = q.type === 'multiple';
-    let selectedOptions = [];
-    
-    // 40秒内随机一个时间（作为思考时间）
-    const thinkTime = Math.floor(Math.random() * 40) + 1;
-    await sleep(thinkTime * 1000);
-    
-    if (isMultiple) {
-        // 多选题：先在40秒内随机一个数 1~N（N为选项数）
-        const count = Math.floor(Math.random() * options.length) + 1;
-        // 再在40秒内随机一个时间
-        const waitTime2 = Math.floor(Math.random() * 40) + 1;
-        await sleep(waitTime2 * 1000);
-        // 随机选择 count 个选项
-        const shuffled = [...options.keys()];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-        }
-        selectedOptions = shuffled.slice(0, count).sort((a, b) => a - b);
-    } else {
-        // 单选题：40秒内随机时间后，随机选一个选项
-        const waitTime2 = Math.floor(Math.random() * 40) + 1;
-        await sleep(waitTime2 * 1000);
-        selectedOptions = [Math.floor(Math.random() * options.length)];
-    }
-    
-    q.status = 'answered';
-    q.selectedOptions = selectedOptions;
-    q.isSameQuestion = false; // 默认不清除，后续判断会覆盖
-    
-    // 判断是否反问（各50%）
-    if (Math.random() < 0.5) {
-        q.isSameQuestion = true;
-    }
-    
-    return { question: q, selectedOptions };
-}
-
-// ============================================================
-// 辅助函数：处理"拒绝回答"
-// ============================================================
-async function handleReject(question, index) {
-    const q = { ...question };
-    q.status = 'rejected';
-    q.selectedOptions = [];
-    q.isSameQuestion = false;
-    
-    // 判断是否反问（各50%）
-    if (Math.random() < 0.5) {
-        q.isSameQuestion = true;
-    }
-    
-    return { question: q, isSameQuestion: q.isSameQuestion };
-}
-
-// ============================================================
-// 辅助函数：处理"暂不回答"（第一轮）
-// ============================================================
-async function handleUnanswered(question, index) {
-    const q = { ...question };
-    q.status = 'unanswered';
-    q.selectedOptions = [];
-    q.isSameQuestion = false;
-    // 第一轮暂不回答不进行反问判断（留到第二轮）
-    
-    return { question: q };
-}
-
-// ============================================================
-// 辅助函数：处理"暂不回答"（第二轮 - 强制判断是否反问）
-// ============================================================
-async function handleUnansweredWithForceAsk(question, index) {
-    const q = { ...question };
-    q.status = 'unanswered';
-    q.selectedOptions =  [];
-    q.isSameQuestion = false;
-    
-    // 强制判断是否反问（各50%）
-    if (Math.random() < 0.5) {
-        q.isSameQuestion = true;
-    }
-    
-    return { question: q, isSameQuestion: q.isSameQuestion };
 }
 
 // ============================================================
