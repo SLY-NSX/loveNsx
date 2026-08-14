@@ -1341,8 +1341,7 @@ async function handleUnanswered(question, index) {
 async function handleUnansweredWithForceAsk(question, index) {
     const q = { ...question };
     q.status = 'unanswered';
-    q.selectedOptions =function sleep(ms) {
- [];
+    q.selectedOptions =  [];
     q.isSameQuestion = false;
     
     // 强制判断是否反问（各50%）
