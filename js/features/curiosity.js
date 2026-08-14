@@ -1071,8 +1071,8 @@ function proceedToSend(caseType) {
             editingQuestionnaire.sentTime = Date.now();
             editingQuestionnaire.status = 'ing';
             
-            // 使用统一存储函数保存（⭐ 传递标题）
-            const prevVersion = editingQuestionnaire.version; // 投递前的版本
+            // 使用统一存储函数保存（传递标题）
+            const prevVersion = editingQuestionnaire.version;
             saveQuestionnaireVersion(
                 editingQuestionnaire.id,
                 newVersion,
@@ -1080,17 +1080,15 @@ function proceedToSend(caseType) {
                 editingQuestionnaire.questions,
                 'ing',
                 editingQuestionnaire.sentTime,
-                editingQuestionnaire.title  // ⭐ 传递标题
+                editingQuestionnaire.title
             );
-            
-            showNotification(`📬 问卷已投递！版本：${newVersion}`, 'success', 2000);
             
             // 启动后台回复逻辑
             setTimeout(async () => {
                 try {
                     const result = await simulateReplyLogic(
                         editingQuestionnaire.id,
-                        newVersion,  // 投递后的版本号作为当前版本
+                        newVersion,
                         caseType
                     );
                     console.log('[后台回复] 结果:', result);
@@ -1107,17 +1105,16 @@ function proceedToSend(caseType) {
             }, 300);
         }
     });
-}
-    
-    function showNotDeliverable() {
-        showCuriosityConfirm({
-            title: '🚫 不可投递',
-            message: '当前情况不可投递，可进行归档',
-            confirmText: '我知道了',
-            onConfirm: () => {}
-        });
-    }
-}
+}  // ⭐ 这个 } 关闭 proceedToSend
+
+function showNotDeliverable() {
+    showCuriosityConfirm({
+        title: '🚫 不可投递',
+        message: '当前情况不可投递，可进行归档',
+        confirmText: '我知道了',
+        onConfirm: () => {}
+    });
+}  // ⭐ 这个 } 关闭 showNotDeliverable
 
 // ============================================================
 // 阶段3：后台回复逻辑框架（模拟线程）
