@@ -8,11 +8,6 @@ let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
-// ---------- 数据模型 ----------
-let curiosityData = { ing: [], archived: [] };
-let currentCuriosityTab = 'ing';
-let editingCuriosityId = null;
-
 // 默认示例数据（首次打开时自动添加）
 const TEST_SAMPLES = [
     {
