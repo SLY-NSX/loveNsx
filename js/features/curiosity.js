@@ -522,8 +522,19 @@ function renderComposeEditor() {
     }
     
     // 设置日期
+    // 设置日期
     if (dateEl) {
-        const now = new Date(editingQuestionnaire.createdTime);
+        // 优先使用 createdTime，如果无效则使用 sentTime，再无效则用当前时间
+        let timeSource = editingQuestionnaire.createdTime || editingQuestionnaire.sentTime || Date.now();
+        // 如果是字符串，尝试转换为数字
+        if (typeof timeSource === 'string') {
+            timeSource = parseInt(timeSource, 10);
+        }
+        // 如果还是无效，使用当前时间
+        if (isNaN(timeSource) || timeSource < 0) {
+            timeSource = Date.now();
+        }
+        const now = new Date(timeSource);
         const y = now.getFullYear();
         const mo = String(now.getMonth() + 1).padStart(2, '0');
         const d = String(now.getDate()).padStart(2, '0');
