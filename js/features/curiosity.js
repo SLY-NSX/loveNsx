@@ -93,6 +93,48 @@ async function loadCuriosityData() {
             version: 'B-8-N',
             isDraft: false
         },
+        // ===== 新增：C-6-Y（含【同问.互动一】标记） =====
+        {
+            id: 'test_C6Y_interactive_' + Date.now(),
+            title: '测试问卷 C-6-Y（含同问互动一）',
+            questions: [
+                { 
+                    id: 't20', 
+                    text: '你最喜欢的书籍类型？', 
+                    type: 'single', 
+                    options: ['文学', '科幻', '历史', '哲学'], 
+                    status: 'answered',
+                    isSameQuestion: false,
+                    isInteractiveOne: true,      // 【同问.互动一】标记
+                    isInteractiveOneDone: false
+                },
+                { 
+                    id: 't21', 
+                    text: '你平时喜欢什么休闲活动？', 
+                    type: 'multiple', 
+                    options: ['阅读', '运动', '音乐', '旅行'], 
+                    status: 'answered',
+                    isSameQuestion: false,
+                    isInteractiveOne: false,
+                    isInteractiveOneDone: false
+                },
+                { 
+                    id: 't22', 
+                    text: '你相信命运吗？', 
+                    type: 'single', 
+                    options: ['相信', '不信', '半信半疑'], 
+                    status: 'unanswered',
+                    isSameQuestion: false,
+                    isInteractiveOne: false,
+                    isInteractiveOneDone: false
+                }
+            ],
+            sentTime: Date.now() - 3600000 * 14,
+            status: 'ing',
+            version: 'C-6-Y',
+            isDraft: false
+        },
+        // ===== 新增结束 =====
         {
             id: 'sample_1_' + Date.now(),
             title: '关于你的一切',
@@ -1027,12 +1069,13 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
     // 前置判断：首字母是否为 A 或 B
     // ============================================================
     if (prefix !== 'A' && prefix !== 'B') {
-        // 首字母非A/B → 执行【回复逻辑一】（暂未实现，使用占位）
+        // 首字母非A/B → 执行【回复逻辑一】
         console.log('[后台回复] 进入【回复逻辑一】（首字母非A/B）');
-        // 阶段4：暂未实现，返回占位结果
-        enteredBigLoop = false;
-        enteredYes = false;
-        updatedQuestions = [];
+        const result = await replyLogicOne(questionnaireId, currentVersion);
+        enteredBigLoop = result.enteredBigLoop;
+        enteredYes = result.enteredYes;
+        updatedQuestions = result.updatedQuestions || [];
+        prevVersion = result.prevVersion || currentVersion;
     } else {
         // 首字母是A或B → 判断数字
         const timeLimit = num === 1 ? 5 * 60 * 1000 : 2.5 * 60 * 1000;
@@ -1057,7 +1100,7 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
     }
     
     // ============================================================
-    // 更新版本号并保存数据
+    // 更新版本号并保存数据（使用实际标志值）
     // ============================================================
     const newVersion = updateVersion(currentVersion, {
         enteredBigLoop: enteredBigLoop,
@@ -1091,39 +1134,92 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
 }
 
 // ============================================================
-// 回复逻辑一（首字母非A/B）
+// 回复逻辑一（首字母非A/B）- 完整实现
 // ============================================================
 async function replyLogicOne(questionnaireId, currentVersion) {
     console.log('[回复逻辑一] 开始执行');
     
-    // 阶段3：占位实现 - 模拟延迟和随机选择
-    // 正式实现将在阶段4完成
+    // 从存储中获取当前问卷数据
+    let questionnaire = null;
+    let sourceArr = null;
+    let sourceIndex = -1;
     
-    // 1. 静默倒计时一分钟
-    console.log('[回复逻辑一] 静默倒计时 60 秒...');
-    await sleep(60 * 1000); // 正式实现会改为真实倒计时
+    // 在 ing 中查找
+    const ingIndex = curiosityData.ing.findIndex(item => item.id === questionnaireId);
+    if (ingIndex > -1) {
+        questionnaire = { ...curiosityData.ing[ingIndex] };
+        sourceArr = 'ing';
+        sourceIndex = ingIndex;
+    } else {
+        const archivedIndex = curiosityData.archived.findIndex(item => item.id === questionnaireId);
+        if (archivedIndex > -1) {
+            questionnaire = { ...curiosityData.archived[archivedIndex] };
+            sourceArr = 'archived';
+            sourceIndex = archivedIndex;
+        }
+    }
     
-    // 2. 在6分钟以内随机选择一个数作为倒计时
-    const randomSeconds = Math.floor(Math.random() * 360); // 0-360秒 = 0-6分钟
-    console.log(`[回复逻辑一] 随机倒计时 ${randomSeconds} 秒...`);
-    await sleep(randomSeconds * 1000);
+    if (!questionnaire) {
+        console.error('[回复逻辑一] 未找到问卷:', questionnaireId);
+        return { enteredBigLoop: false, enteredYes: false, updatedQuestions: [] };
+    }
     
-    // 3. 模拟：将【同问.互动一】变成【同问.互动一.√】
-    // 阶段3暂不实现具体数据更新
+    const questions = questionnaire.questions || [];
+    const prevVersion = questionnaire.version;
     
-    // 阶段3占位：假设进入了循环但未进入YES
-    const enteredBigLoop = true;
-    const enteredYes = false;
+    // ============================================================
+    // 步骤1：静默倒计时 60 秒（1分钟）
+    // ============================================================
+    console.log('[回复逻辑一] 步骤1：静默倒计时 60 秒...');
+    await sleep(60 * 1000);
+    console.log('[回复逻辑一] 静默完成');
     
-    console.log('[回复逻辑一] 执行完成（占位）');
+    // ============================================================
+    // 步骤2：在 0~360 秒（0~6分钟）范围内随机一个数字 R
+    // ============================================================
+    const R = Math.floor(Math.random() * 361); // 0 ~ 360 秒
+    console.log(`[回复逻辑一] 步骤2：随机选择倒计时 ${R} 秒（0~6分钟）`);
+    
+    // ============================================================
+    // 步骤3：等待 R 秒
+    // ============================================================
+    if (R > 0) {
+        console.log(`[回复逻辑一] 步骤3：等待 ${R} 秒...`);
+        await sleep(R * 1000);
+    } else {
+        console.log('[回复逻辑一] 步骤3：无需等待，立即继续');
+    }
+    
+    // ============================================================
+    // 步骤4：检查是否有【同问.互动一】标记的问题
+    // ============================================================
+    const updatedQuestions = questions.map(q => {
+        const newQ = { ...q };
+        if (q.isInteractiveOne === true) {
+            // 将【同问.互动一】变为【同问.互动一.√】
+            newQ.isInteractiveOne = false;
+            newQ.isInteractiveOneDone = true;
+            console.log(`[回复逻辑一] 问题 "${q.text}" 的【同问.互动一】已标记为完成`);
+        }
+        return newQ;
+    });
+    
+    const changedCount = updatedQuestions.filter(q => q.isInteractiveOneDone === true).length;
+    console.log(`[回复逻辑一] 共处理 ${changedCount} 个【同问.互动一】标记`);
+    
+    // ============================================================
+    // 【结束】整理数据，返回结果
+    // ============================================================
+    console.log('[回复逻辑一] 执行完成');
+    console.log(`[回复逻辑一] enteredBigLoop: false, enteredYes: false`);
     
     return {
-        enteredBigLoop,
-        enteredYes,
-        updatedQuestions: []
+        enteredBigLoop: false,   // 未进入大循环
+        enteredYes: false,       // 未进入YES
+        updatedQuestions: updatedQuestions,
+        prevVersion: prevVersion
     };
 }
-
 // ============================================================
 // 回复逻辑二（首字母A）- 完整实现
 // ============================================================
