@@ -2034,7 +2034,6 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                         await sleep(waitAnswer * 1000);
                          q.selectedOptions = randomSelectMultiple(q.options, count);
                         console.log(`[回复逻辑三] Q${idx + 1} 选中选项: ${q.selectedOptions.map(i => q.options[i]).join(', ')}`);
-}
                     } else {
                         const waitAnswer = randomSeconds(10, 1800);
                         console.log(`[回复逻辑三] Q${idx + 1} 单选-开始回答前等待 ${waitAnswer} 秒...`);
@@ -2064,6 +2063,7 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                 console.log(`[回复逻辑三] Q${idx + 1} 处理完成`);
             }
         }
+    }
     }
     } else {
         console.log('[回复逻辑三] 步骤2：无暂不回答的问题，跳过');
