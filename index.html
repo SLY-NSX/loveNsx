@@ -498,9 +498,9 @@
 <!-- ===== 好奇驿站模态框 ===== -->
 <div class="modal" id="curiosity-modal">
     <div class="modal-content" style="max-height:92vh; padding:0; overflow:hidden; background:transparent;">
-        <div class="env-wrapper">
-            <!-- 顶部装饰区 -->
-            <div class="env-header-flap" style="padding:12px 20px 26px;">
+        <div class="env-wrapper" style="display:flex; flex-direction:column; height:100%; max-height:88vh;">
+            <!-- 顶部装饰区（固定） -->
+            <div class="env-header-flap" style="padding:12px 20px 26px; flex-shrink:0;">
                 <svg class="env-header-icon" width="32" height="24" viewBox="0 0 36 28" fill="none" style="display:block;margin:0 auto 4px;">
                     <rect x="2" y="2" width="22" height="22" rx="2" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.6)" stroke-width="1.5"/>
                     <path d="M5 7.5 H21" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
@@ -515,9 +515,10 @@
                 <div class="env-header-subtitle" style="font-size:9px;font-style:italic;letter-spacing:1.5px;margin-top:2px;">Journeys end in lovers meeting</div>
             </div>
 
-            <div class="env-body">
-                <!-- 标签栏 -->
-                <div class="env-tab-bar">
+            <!-- 主体区域（flex列，占剩余空间） -->
+            <div class="env-body" style="flex:1; display:flex; flex-direction:column; overflow:hidden; padding:14px 18px 4px;">
+                <!-- 标签栏（固定） -->
+                <div class="env-tab-bar" style="flex-shrink:0; margin-bottom:14px;">
                     <button class="env-tab-btn active" id="curiosity-tab-ing" onclick="switchCuriosityTab('ing')" style="position:relative;">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align:-1px;margin-right:4px;">
                             <circle cx="12" cy="12" r="10"/>
@@ -539,18 +540,17 @@
                     </button>
                 </div>
 
-                <!-- 问卷ing列表 -->
-                <div id="curiosity-ing-section">
+                <!-- 列表区域（可滚动） -->
+                <div id="curiosity-ing-section" style="flex:1; overflow-y:auto; min-height:0;">
                     <div id="curiosity-ing-list"></div>
                 </div>
 
-                <!-- 已归档列表 -->
-                <div id="curiosity-archived-section" style="display:none;">
+                <div id="curiosity-archived-section" style="display:none; flex:1; overflow-y:auto; min-height:0;">
                     <div id="curiosity-archived-list"></div>
                 </div>
 
-                <!-- 创建问卷表单（占位） -->
-                <div id="curiosity-compose-form" style="display:none;">
+                <!-- 创建问卷表单（占位，隐藏） -->
+                <div id="curiosity-compose-form" style="display:none; flex:1; overflow-y:auto; min-height:0;">
                     <div class="env-compose-paper">
                         <div class="env-compose-heading">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -569,8 +569,8 @@
                 </div>
             </div>
 
-            <!-- 底部固定操作栏：加上笔的图标，但保持高度一致 -->
-            <div class="env-send-area" id="curiosity-main-close-btn" style="display:flex;gap:10px;padding:10px 16px 14px;">
+            <!-- 底部固定操作栏 -->
+            <div class="env-send-area" id="curiosity-main-close-btn" style="display:flex;gap:10px;padding:10px 16px 14px;flex-shrink:0;border-top:1px solid var(--border-color);background:var(--secondary-bg);">
                 <button onclick="openNewCuriosityForm()" style="flex:1;padding:13px 0;font-size:14px;font-weight:600;border:none;border-radius:12px;background:var(--accent-color);color:#fff;cursor:pointer;font-family:var(--font-family);display:flex;align-items:center;justify-content:center;gap:6px;">
                     <i class="fas fa-pen" style="font-size:14px;line-height:1;"></i> 创建问卷
                 </button>
@@ -578,7 +578,6 @@
                     关闭
                 </button>
             </div>
-            <!-- ⬆️ 底部结束 ⬆️ -->
         </div>
     </div>
 </div>
