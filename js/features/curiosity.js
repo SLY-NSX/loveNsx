@@ -765,7 +765,6 @@ function saveQuestionnaireToData(questionnaire, sourceStatus) {
 }
 
 // ---------- 渲染编辑器内容 ----------
-// ---------- 渲染编辑器内容 ----------
 function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
@@ -816,20 +815,45 @@ function renderComposeEditor() {
         questions.forEach((q, index) => {
             const typeLabel = q.type === 'single' ? '单选' : '多选';
             
-            // 判断是否可以点击编辑问题
-            let canClick = permissions.canClickQuestion;
             const isSameQuestion = q.isSameQuestion === true;
-            if (permissions.canDeleteQuestion && !permissions.canClickQuestion && isSameQuestion) {
-                canClick = true;
+            const sameStatus = q.sameQuestionStatus;
+            
+            // ⭐ 判断点击卡片的行为
+            let canClickCard = false;
+            let clickAction = '';
+            let cursorStyle = 'default';
+            let opacityStyle = '';
+            
+            // 有同问标记的问题
+            if (isSameQuestion) {
+                // 【同问】或【同问.已回】→ 可点击进入同问卡片
+                if (sameStatus === null || sameStatus === undefined || sameStatus === 'replied') {
+                    canClickCard = true;
+                    clickAction = `openSameQuestionEditor(${index})`;
+                    cursorStyle = 'pointer';
+                } else {
+                    // 【同问.拒答】、【同问.已回 √】、【同问.拒答 √】→ 不可点击
+                    cursorStyle = 'default';
+                    opacityStyle = 'opacity:0.7;';
+                }
+            } else if (permissions.canClickQuestion) {
+                // 普通问题且有编辑权 → 可点击编辑
+                canClickCard = true;
+                clickAction = `openQuestionEditorForEdit(${index})`;
+                cursorStyle = 'pointer';
+            } else {
+                // 普通问题但无编辑权
+                cursorStyle = 'default';
+                opacityStyle = 'opacity:0.7;';
             }
-            const hoverEffect = canClick ? 'compose-question-card-hover' : '';
+            
+            const hoverEffect = canClickCard ? 'compose-question-card-hover' : '';
             
             // ===== 选项列表（梦角选项 + 我的可选项） =====
-            // 梦角选项：蓝色填充
             const optionsHtml = (q.options || []).map((opt, oi) => {
                 const isSelected = q.selectedOptions && q.selectedOptions.includes(oi);
                 const isAnswered = q.status === 'answered';
-                // 梦角选项：蓝色填充（如果是已回答）
+                // 梦角选项：蓝色填充
                 const partnerFillColor = (isAnswered && isSelected) ? '#4A90D9' : 'transparent';
                 const partnerBorderColor = isSelected ? '#4A90D9' : 'rgba(var(--accent-color-rgb),0.25)';
                 
@@ -837,23 +861,18 @@ function renderComposeEditor() {
                 const mySelected = q.myAnswers && q.myAnswers.includes(oi);
                 const isRejected = q.myRejected === true;
                 
-                // 方框样式
                 let boxHtml = '';
                 if (isSameQuestion) {
-                    // 判断是否有√状态（已处理完成）
                     const isDone = q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done';
                     
                     if (isRejected) {
-                        // 拒答状态：灰色方框 + 横线
                         boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid #bdbdbd;border-radius:3px;flex-shrink:0;position:relative;background:#e0e0e0;opacity:${isDone ? '0.4' : '1'};">
                             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:18px;height:1.5px;background:#9e9e9e;"></span>
                             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);width:18px;height:1.5px;background:#9e9e9e;"></span>
                         </span>`;
                     } else if (mySelected) {
-                        // 已选择：粉紫色 + 粗√
                         boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid #CE93D8;border-radius:3px;flex-shrink:0;background:#CE93D8;color:#fff;font-size:12px;font-weight:900;text-align:center;line-height:14px;opacity:${isDone ? '0.4' : '1'};">✓</span>`;
                     } else {
-                        // 未选择：空白方框
                         boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid ${isDone ? '#bdbdbd' : 'var(--border-color)'};border-radius:3px;flex-shrink:0;opacity:${isDone ? '0.4' : '1'};"></span>`;
                     }
                 }
@@ -865,26 +884,20 @@ function renderComposeEditor() {
                 </div>`;
             }).join('');
             
-            // 同问标签状态
+            // ⭐ 同问标签：只作显示，不可点击
             let sameQuestionLabel = '';
-            let sameQuestionClickable = false;
             if (isSameQuestion) {
                 const status = q.sameQuestionStatus;
                 if (status === null || status === undefined) {
                     sameQuestionLabel = '【同问】';
-                    sameQuestionClickable = true;
                 } else if (status === 'replied') {
                     sameQuestionLabel = '【同问.已回】';
-                    sameQuestionClickable = false;
                 } else if (status === 'rejected') {
                     sameQuestionLabel = '【同问.拒答】';
-                    sameQuestionClickable = false;
                 } else if (status === 'replied_done') {
                     sameQuestionLabel = '【同问.已回 √】';
-                    sameQuestionClickable = false;
                 } else if (status === 'rejected_done') {
                     sameQuestionLabel = '【同问.拒答 √】';
-                    sameQuestionClickable = false;
                 }
             }
             
@@ -898,18 +911,15 @@ function renderComposeEditor() {
             const showDelete = permissions.canDeleteQuestion && questions.length > 1;
             const deleteDisabled = questions.length <= 1;
             
-            // 点击同问标签的事件
-            const onClickLabel = sameQuestionClickable ? `openSameQuestionEditor(${index})` : '';
-            
             html += `
-                <div class="compose-question-card ${hoverEffect}" onclick="${canClick ? `openQuestionEditorForEdit(${index})` : ''}" style="margin-bottom:0;padding:14px 32px 12px 0px;cursor:${canClick ? 'pointer' : 'default'};position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;${!canClick ? 'opacity:0.7;' : ''}">
+                <div class="compose-question-card ${hoverEffect}" onclick="${clickAction}" style="margin-bottom:0;padding:14px 32px 12px 0px;cursor:${cursorStyle};position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;${opacityStyle}">
                     <!-- 第一行 -->
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
                         <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
                         <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;transition:all 0.2s;"></span>
                         <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
                         ${isSameQuestion ? 
-                            `<span onclick="event.stopPropagation();${onClickLabel}" style="font-size:9px;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.12);padding:0 10px;border-radius:20px;border:1.5px solid rgba(var(--accent-color-rgb),0.2);cursor:${sameQuestionClickable ? 'pointer' : 'default'};transition:all 0.2s;display:inline-block;line-height:18px;font-weight:500;${sameQuestionClickable ? 'hover:background:rgba(var(--accent-color-rgb),0.2);' : ''}">${sameQuestionLabel}</span>` 
+                            `<span style="font-size:9px;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.12);padding:0 10px;border-radius:20px;border:1.5px solid rgba(var(--accent-color-rgb),0.2);cursor:default;display:inline-block;line-height:18px;font-weight:500;">${sameQuestionLabel}</span>` 
                             : ''}
                         ${q.isInteractiveOneDone ? `<span style="font-size:9px;color:#6BCB77;background:rgba(107,203,119,0.12);padding:0 6px;border-radius:4px;border:1px solid rgba(107,203,119,0.2);">【互动完成】</span>` : ''}
                     </div>
