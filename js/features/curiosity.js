@@ -1021,7 +1021,7 @@ function renderComposeEditor() {
 }
 
 /**
- * 渲染归档底部内容（纯水印文字，不遮挡信纸）
+ * 渲染归档底部内容（刻印印章样式）
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
@@ -1038,37 +1038,65 @@ function renderArchiveFooter(container) {
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
-    // 构建纯水印HTML（无背景，无边框，只有半透明文字）
     const footerHtml = `
-        <div class="archive-watermark" style="
-            margin-top:36px;
-            text-align:center;
-            width:100%;
-            padding:8px 0;
-            pointer-events:none;
-            user-select:none;
-            -webkit-user-select:none;
-        ">
+        <div class="archive-footer" style="margin-top:36px;text-align:center;width:100%;padding:10px 0 6px;position:relative;">
+            <!-- 印章主体 -->
             <div style="
-                font-size:28px;
-                font-weight:700;
-                color:var(--accent-color);
-                opacity:0.12;
-                letter-spacing:12px;
-                font-family:var(--font-family);
-                line-height:1.4;
-            ">已归档</div>
-            <div style="
-                font-size:13px;
-                color:var(--text-secondary);
-                opacity:0.15;
-                letter-spacing:2px;
-                line-height:1.8;
-                margin-top:4px;
+                display:inline-block;
+                padding:14px 32px 12px;
+                border:2px solid rgba(var(--accent-color-rgb),0.25);
+                border-radius:14px;
+                background:transparent;
+                position:relative;
+                box-shadow: 
+                    inset 0 2px 8px rgba(0,0,0,0.04),
+                    0 1px 2px rgba(0,0,0,0.02);
+                transition:all 0.3s ease;
             ">
-                <div>${formattedDate}</div>
-                <div>归档人：${archivePeople}</div>
+                <!-- 内圈装饰线 -->
+                <div style="
+                    position:absolute;
+                    top:4px;left:4px;right:4px;bottom:4px;
+                    border:1px solid rgba(var(--accent-color-rgb),0.08);
+                    border-radius:10px;
+                    pointer-events:none;
+                "></div>
+                
+                <!-- 文字内容 -->
+                <div style="
+                    font-size:20px;
+                    font-weight:700;
+                    color:rgba(var(--accent-color-rgb),0.35);
+                    letter-spacing:8px;
+                    font-family:var(--font-family);
+                    line-height:1.4;
+                    text-shadow: 
+                        0 0 0 rgba(var(--accent-color-rgb),0),
+                        0 1px 0 rgba(var(--accent-color-rgb),0.04),
+                        inset 0 0 0 rgba(var(--accent-color-rgb),0);
+                ">已归档</div>
+                <div style="
+                    font-size:11px;
+                    color:rgba(var(--text-secondary-rgb,128,128,128),0.25);
+                    letter-spacing:2px;
+                    line-height:1.6;
+                    margin-top:4px;
+                    font-weight:500;
+                ">
+                    <div>${formattedDate}</div>
+                    <div>归档人：${archivePeople}</div>
+                </div>
             </div>
+            
+            <!-- 底部压痕阴影（模拟刻印凹陷） -->
+            <div style="
+                width:80px;
+                height:4px;
+                margin:8px auto 0;
+                background:radial-gradient(ellipse at center, rgba(var(--accent-color-rgb),0.06) 0%, transparent 80%);
+                border-radius:50%;
+                filter:blur(2px);
+            "></div>
         </div>
     `;
     
