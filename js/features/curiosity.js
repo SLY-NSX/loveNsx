@@ -1021,7 +1021,7 @@ function renderComposeEditor() {
 }
 
 /**
- * 渲染归档底部内容（蜡封式圆形印章 + 时间 + 归档人）
+ * 渲染归档底部内容（水印文字方框）
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
@@ -1038,19 +1038,41 @@ function renderArchiveFooter(container) {
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
+    // 构建水印方框HTML
     const footerHtml = `
-        <div class="archive-footer" style="margin-top:28px;padding-top:16px;border-top:1px solid rgba(var(--accent-color-rgb),0.1);display:flex;flex-direction:column;align-items:flex-end;">
-            <!-- 蜡封印章 -->
-            <div style="width:80px;height:80px;border-radius:50%;border:3px solid var(--accent-color);background:radial-gradient(circle at 40% 35%, rgba(var(--accent-color-rgb),0.2), rgba(var(--accent-color-rgb),0.05));display:flex;flex-direction:column;align-items:center;justify-content:center;box-shadow:0 2px 12px rgba(var(--accent-color-rgb),0.15), inset 0 -4px 8px rgba(0,0,0,0.05);margin-bottom:12px;position:relative;">
-                <!-- 中心大字 -->
-                <div style="font-size:34px;font-weight:900;color:var(--accent-color);letter-spacing:2px;font-family:'Noto Serif SC',serif;line-height:1;margin-bottom:0px;">归</div>
-                <!-- 环形小字（下方弧） -->
-                <div style="font-size:7px;letter-spacing:2.5px;color:var(--accent-color);opacity:0.5;margin-top:2px;font-family:monospace;">✦ ARCHIVED ✦</div>
-            </div>
-            <!-- 信息和时间 -->
-            <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.6;line-height:1.8;padding-right:2px;">
-                <div>归档时间：${formattedDate}</div>
-                <div>归档人：${archivePeople}</div>
+        <div class="archive-footer" style="margin-top:32px;padding:0 10px;display:flex;justify-content:center;width:100%;">
+            <div style="
+                display:inline-block;
+                padding:16px 28px 14px;
+                border:1px solid rgba(var(--accent-color-rgb),0.15);
+                border-radius:12px;
+                background:rgba(var(--secondary-bg-rgb),0.3);
+                backdrop-filter:blur(2px);
+                -webkit-backdrop-filter:blur(2px);
+                text-align:center;
+                min-width:200px;
+                opacity:0.55;
+                transition:opacity 0.3s ease;
+                box-shadow:0 2px 8px rgba(0,0,0,0.02);
+            ">
+                <div style="
+                    font-size:20px;
+                    font-weight:700;
+                    color:var(--accent-color);
+                    letter-spacing:6px;
+                    margin-bottom:8px;
+                    font-family:var(--font-family);
+                ">已归档</div>
+                <div style="
+                    font-size:12px;
+                    color:var(--text-secondary);
+                    letter-spacing:1px;
+                    line-height:1.8;
+                    opacity:0.7;
+                ">
+                    <div>${formattedDate}</div>
+                    <div>归档人：${archivePeople}</div>
+                </div>
             </div>
         </div>
     `;
