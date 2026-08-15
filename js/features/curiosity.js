@@ -795,7 +795,7 @@ function renderComposeEditor() {
         }
     }
     
-    // 设置日期（已归档时左侧显示印章，右侧显示日期）
+    // 设置日期
     if (dateEl) {
         let timeSource = editingQuestionnaire.createdTime || editingQuestionnaire.sentTime || Date.now();
         if (typeof timeSource === 'string') {
@@ -809,47 +809,7 @@ function renderComposeEditor() {
         const mo = String(now.getMonth() + 1).padStart(2, '0');
         const d = String(now.getDate()).padStart(2, '0');
         const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-        const dateStr = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
-        
-        // 砖红色参数（印章专用）
-        const sealRed = 170;
-        const sealGreen = 55;
-        const sealBlue = 45;
-        
-        // 如果是已归档状态，在日期行左侧显示"已归档"印章
-        if (isArchived) {
-            const parent = dateEl.parentNode;
-            const wrapper = document.createElement('div');
-            wrapper.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
-            
-            // 左侧砖红色印章
-            const seal = document.createElement('span');
-            seal.textContent = '已归档';
-            seal.style.cssText = `
-                font-size:10px;
-                font-weight:600;
-                color:rgba(${sealRed},${sealGreen},${sealBlue},0.4);
-                border:1px solid rgba(${sealRed},${sealGreen},${sealBlue},0.2);
-                border-radius:4px;
-                padding:1px 10px;
-                letter-spacing:2px;
-                font-family:var(--font-family);
-                opacity:0.7;
-            `;
-            
-            // 右侧日期（保持原有样式）
-            dateEl.textContent = dateStr;
-            dateEl.style.cssText = 'font-size:11px;color:var(--text-secondary);letter-spacing:1px;opacity:0.8;font-style:italic;margin:0;';
-            dateEl.id = 'compose-date-line';
-            
-            wrapper.appendChild(seal);
-            wrapper.appendChild(dateEl);
-            parent.replaceChild(wrapper, dateEl);
-        } else {
-            // 非归档状态：正常显示日期
-            dateEl.textContent = dateStr;
-            dateEl.style.cssText = 'font-size:11px;color:var(--text-secondary);text-align:right;margin-bottom:16px;letter-spacing:1px;opacity:0.8;font-style:italic;';
-        }
+        dateEl.textContent = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
     }
     
     // 渲染题目列表
@@ -1062,11 +1022,11 @@ function renderComposeEditor() {
 }
 
 /**
- * 渲染归档底部内容（右下角：时间 + 人名，砖红色）
+ * 渲染归档底部内容（图片 + 归档时间 + 归档人）
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
-    // 获取归档时间
+    // 获取归档时间（使用 sentTime 或当前时间）
     const archiveTime = editingQuestionnaire.sentTime || editingQuestionnaire.createdTime || Date.now();
     const date = new Date(archiveTime);
     const year = date.getFullYear();
@@ -1074,25 +1034,30 @@ function renderArchiveFooter(container) {
     const day = String(date.getDate()).padStart(2, '0');
     const formattedDate = `${year}年${month}月${day}日`;
     
-    // 获取归档人名字
+    // 获取归档人名字（从设置读取，但固定保存时不变）
     const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
-    // 砖红色参数
-    const red = 170;
-    const green = 55;
-    const blue = 45;
-    
+    // 构建归档底部HTML
     const footerHtml = `
-        <div class="archive-footer" style="margin-top:8px;text-align:right;padding:0 4px;">
-            <div style="font-size:12px;color:rgba(${red},${green},${blue},0.35);line-height:1.8;letter-spacing:0.5px;font-weight:500;">
+        <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
+            <!-- 图片：偏右放置 -->
+            <div style="text-align:right;margin-bottom:12px;">
+                    <img src="${ARCHIVE_IMAGE_URL}" 
+                    alt="归档纪念" 
+                    style="width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;"
+                    onerror="this.style.display='none'">
+            </div>
+            <!-- 归档时间和归档人：右下角 -->
+            <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.7;line-height:1.8;padding-right:4px;">
                 <div>归档时间：${formattedDate}</div>
                 <div>归档人：${archivePeople}</div>
             </div>
         </div>
     `;
     
+    // 追加到容器末尾
     container.insertAdjacentHTML('beforeend', footerHtml);
 }
 
