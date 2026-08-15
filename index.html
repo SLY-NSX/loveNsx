@@ -518,13 +518,14 @@
             <div class="env-body">
                 <!-- 标签栏 -->
                 <div class="env-tab-bar">
-                    <button class="env-tab-btn active" id="curiosity-tab-ing" onclick="switchCuriosityTab('ing')">
+                    <button class="env-tab-btn active" id="curiosity-tab-ing" onclick="switchCuriosityTab('ing')" style="position:relative;">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" style="vertical-align:-1px;margin-right:4px;">
                             <circle cx="12" cy="12" r="10"/>
                             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
                             <line x1="12" y1="17" x2="12.01" y2="17"/>
                         </svg>
                         问卷ing
+                        <span id="curiosity-ing-badge" style="position:absolute;top:-4px;right:-6px;background:#ff4757;color:#fff;border-radius:10px;font-size:10px;padding:0 5px;min-width:16px;text-align:center;line-height:16px;border:2px solid var(--secondary-bg);display:none;font-weight:600;">0</span>
                     </button>
                     <button class="env-tab-btn" id="curiosity-tab-archived" onclick="switchCuriosityTab('archived')">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px;">
