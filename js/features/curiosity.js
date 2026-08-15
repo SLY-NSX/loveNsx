@@ -810,17 +810,17 @@ if (dateEl) {
     const dateStr = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
     
     // ⭐ 已归档时：在日期行左侧添加"已归档"印章
+    // ⭐ 已归档时：在日期行左侧添加"已归档"方框印章（朱红色，显眼）
     if (isArchived) {
         dateEl.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
-                <span style="font-size:14px;font-weight:700;color:rgba(180,50,50,0.25);letter-spacing:6px;font-family:var(--font-family);">已归档</span>
+                <span style="display:inline-block;padding:2px 16px 2px 14px;border:2px solid rgba(200,60,50,0.5);border-radius:6px;font-size:14px;font-weight:700;color:rgba(200,60,50,0.7);letter-spacing:6px;font-family:var(--font-family);background:rgba(200,60,50,0.06);">已归档</span>
                 <span style="font-size:11px;color:var(--text-secondary);opacity:0.8;font-style:italic;">${dateStr}</span>
             </div>
         `;
     } else {
         dateEl.textContent = dateStr;
     }
-}
     
     // 渲染题目列表
     if (questionsContainer) {
@@ -1053,7 +1053,7 @@ function renderArchiveFooter(container) {
 const footerHtml = `
     <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
         <!-- 归档时间和归档人：右下角 -->
-        <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.6;line-height:1.8;padding-right:4px;">
+        <div style="text-align:right;font-size:12px;color:var(--text-primary);opacity:0.7;line-height:1.8;padding-right:4px;">
             <div>归档时间：${formattedDate}</div>
             <div>归档人：${archivePeople}</div>
         </div>
