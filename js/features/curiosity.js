@@ -1021,7 +1021,7 @@ function renderComposeEditor() {
 }
 
 /**
- * 渲染归档底部内容（水印文字方框）
+ * 渲染归档底部内容（纯水印文字，不遮挡信纸）
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
@@ -1038,41 +1038,36 @@ function renderArchiveFooter(container) {
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
-    // 构建水印方框HTML
+    // 构建纯水印HTML（无背景，无边框，只有半透明文字）
     const footerHtml = `
-        <div class="archive-footer" style="margin-top:32px;padding:0 10px;display:flex;justify-content:center;width:100%;">
+        <div class="archive-watermark" style="
+            margin-top:36px;
+            text-align:center;
+            width:100%;
+            padding:8px 0;
+            pointer-events:none;
+            user-select:none;
+            -webkit-user-select:none;
+        ">
             <div style="
-                display:inline-block;
-                padding:16px 28px 14px;
-                border:1px solid rgba(var(--accent-color-rgb),0.15);
-                border-radius:12px;
-                background:rgba(var(--secondary-bg-rgb),0.3);
-                backdrop-filter:blur(2px);
-                -webkit-backdrop-filter:blur(2px);
-                text-align:center;
-                min-width:200px;
-                opacity:0.55;
-                transition:opacity 0.3s ease;
-                box-shadow:0 2px 8px rgba(0,0,0,0.02);
+                font-size:28px;
+                font-weight:700;
+                color:var(--accent-color);
+                opacity:0.12;
+                letter-spacing:12px;
+                font-family:var(--font-family);
+                line-height:1.4;
+            ">已归档</div>
+            <div style="
+                font-size:13px;
+                color:var(--text-secondary);
+                opacity:0.15;
+                letter-spacing:2px;
+                line-height:1.8;
+                margin-top:4px;
             ">
-                <div style="
-                    font-size:20px;
-                    font-weight:700;
-                    color:var(--accent-color);
-                    letter-spacing:6px;
-                    margin-bottom:8px;
-                    font-family:var(--font-family);
-                ">已归档</div>
-                <div style="
-                    font-size:12px;
-                    color:var(--text-secondary);
-                    letter-spacing:1px;
-                    line-height:1.8;
-                    opacity:0.7;
-                ">
-                    <div>${formattedDate}</div>
-                    <div>归档人：${archivePeople}</div>
-                </div>
+                <div>${formattedDate}</div>
+                <div>归档人：${archivePeople}</div>
             </div>
         </div>
     `;
