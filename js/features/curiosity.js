@@ -8,7 +8,7 @@ let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
-const ARCHIVE_IMAGE_URL = 'https://img.tofaka.com/autoupload/f/ikeej/20260815/U4IP/2278X1280/%E5%B7%B2%E5%BD%92%E6%A1%A3%E5%9B%BE%E6%A0%87%E5%80%BE%E6%96%9C.png';
+const ARCHIVE_IMAGE_URL = './images/archive-banner.png';
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
@@ -1044,10 +1044,10 @@ function renderArchiveFooter(container) {
         <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
             <!-- 图片：偏右放置 -->
             <div style="text-align:right;margin-bottom:12px;">
-                <img src="${ARCHIVE_IMAGE_URL}" 
-                     alt="归档纪念" 
-                     style="max-width:85%;height:auto;max-height:200px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;"
-                     onerror="this.style.display='none'">
+                    <img src="${ARCHIVE_IMAGE_URL}" 
+                    alt="归档纪念" 
+                    style="width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;"
+                    onerror="this.style.display='none'">
             </div>
             <!-- 归档时间和归档人：右下角 -->
             <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.7;line-height:1.8;padding-right:4px;">
