@@ -1021,7 +1021,7 @@ function renderComposeEditor() {
 }
 
 /**
- * 渲染归档底部内容（刻印印章样式）
+ * 渲染归档底部内容（红色印章效果）
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
@@ -1038,64 +1038,94 @@ function renderArchiveFooter(container) {
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
+    // 红色印章参数（可调）
+    const red = 180;
+    const green = 50;
+    const blue = 50;
+    const borderOpacity = 0.35;
+    const textOpacity = 0.45;
+    
     const footerHtml = `
         <div class="archive-footer" style="margin-top:36px;text-align:center;width:100%;padding:10px 0 6px;position:relative;">
             <!-- 印章主体 -->
             <div style="
                 display:inline-block;
-                padding:14px 32px 12px;
-                border:2px solid rgba(var(--accent-color-rgb),0.25);
-                border-radius:14px;
-                background:transparent;
+                padding:16px 34px 14px;
+                border:2.5px solid rgba(${red},${green},${blue},${borderOpacity});
+                border-radius:16px;
+                background: 
+                    radial-gradient(circle at 30% 40%, rgba(${red},${green},${blue},0.04) 0%, transparent 60%),
+                    radial-gradient(circle at 80% 70%, rgba(${red},${green},${blue},0.03) 0%, transparent 40%),
+                    radial-gradient(circle at 50% 50%, rgba(${red},${green},${blue},0.02) 0%, transparent 70%);
                 position:relative;
                 box-shadow: 
-                    inset 0 2px 8px rgba(0,0,0,0.04),
-                    0 1px 2px rgba(0,0,0,0.02);
+                    inset 0 2px 12px rgba(${red},${green},${blue},0.05),
+                    0 1px 4px rgba(${red},${green},${blue},0.03),
+                    0 0 0 1px rgba(${red},${green},${blue},0.02);
                 transition:all 0.3s ease;
             ">
                 <!-- 内圈装饰线 -->
                 <div style="
                     position:absolute;
-                    top:4px;left:4px;right:4px;bottom:4px;
-                    border:1px solid rgba(var(--accent-color-rgb),0.08);
-                    border-radius:10px;
+                    top:5px;left:5px;right:5px;bottom:5px;
+                    border:1px solid rgba(${red},${green},${blue},0.08);
+                    border-radius:12px;
                     pointer-events:none;
+                "></div>
+                
+                <!-- 油墨颗粒纹理（模拟印章不均匀感） -->
+                <div style="
+                    position:absolute;
+                    top:0;left:0;right:0;bottom:0;
+                    border-radius:16px;
+                    background-image: 
+                        radial-gradient(ellipse at 20% 30%, rgba(${red},${green},${blue},0.06) 0%, transparent 30%),
+                        radial-gradient(ellipse at 80% 60%, rgba(${red},${green},${blue},0.04) 0%, transparent 25%),
+                        radial-gradient(ellipse at 45% 80%, rgba(${red},${green},${blue},0.05) 0%, transparent 20%),
+                        radial-gradient(ellipse at 10% 70%, rgba(${red},${green},${blue},0.03) 0%, transparent 15%),
+                        radial-gradient(ellipse at 90% 20%, rgba(${red},${green},${blue},0.03) 0%, transparent 15%);
+                    pointer-events:none;
+                    z-index:1;
                 "></div>
                 
                 <!-- 文字内容 -->
                 <div style="
-                    font-size:20px;
-                    font-weight:700;
-                    color:rgba(var(--accent-color-rgb),0.35);
-                    letter-spacing:8px;
-                    font-family:var(--font-family);
-                    line-height:1.4;
-                    text-shadow: 
-                        0 0 0 rgba(var(--accent-color-rgb),0),
-                        0 1px 0 rgba(var(--accent-color-rgb),0.04),
-                        inset 0 0 0 rgba(var(--accent-color-rgb),0);
-                ">已归档</div>
-                <div style="
-                    font-size:11px;
-                    color:rgba(var(--text-secondary-rgb,128,128,128),0.25);
-                    letter-spacing:2px;
-                    line-height:1.6;
-                    margin-top:4px;
-                    font-weight:500;
+                    position:relative;
+                    z-index:2;
                 ">
-                    <div>${formattedDate}</div>
-                    <div>归档人：${archivePeople}</div>
+                    <div style="
+                        font-size:22px;
+                        font-weight:700;
+                        color:rgba(${red},${green},${blue},${textOpacity});
+                        letter-spacing:10px;
+                        font-family:var(--font-family);
+                        line-height:1.4;
+                        text-shadow: 
+                            0 0 2px rgba(${red},${green},${blue},0.05),
+                            0 0 8px rgba(${red},${green},${blue},0.02);
+                    ">已归档</div>
+                    <div style="
+                        font-size:11.5px;
+                        color:rgba(${red},${green},${blue},${textOpacity - 0.1});
+                        letter-spacing:2.5px;
+                        line-height:1.7;
+                        margin-top:5px;
+                        font-weight:500;
+                    ">
+                        <div>${formattedDate}</div>
+                        <div>归档人：${archivePeople}</div>
+                    </div>
                 </div>
             </div>
             
-            <!-- 底部压痕阴影（模拟刻印凹陷） -->
+            <!-- 底部压痕阴影 -->
             <div style="
-                width:80px;
-                height:4px;
-                margin:8px auto 0;
-                background:radial-gradient(ellipse at center, rgba(var(--accent-color-rgb),0.06) 0%, transparent 80%);
+                width:90px;
+                height:5px;
+                margin:10px auto 0;
+                background:radial-gradient(ellipse at center, rgba(${red},${green},${blue},0.08) 0%, transparent 75%);
                 border-radius:50%;
-                filter:blur(2px);
+                filter:blur(3px);
             "></div>
         </div>
     `;
