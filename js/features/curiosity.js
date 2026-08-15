@@ -765,6 +765,7 @@ function saveQuestionnaireToData(questionnaire, sourceStatus) {
 }
 
 // ---------- 渲染编辑器内容 ----------
+// ---------- 渲染编辑器内容 ----------
 function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
@@ -777,21 +778,16 @@ function renderComposeEditor() {
     // 设置标题
     if (titleEl) {
         titleEl.textContent = editingQuestionnaire.title || '未命名问卷';
-        // 改名权限
         titleEl.style.cursor = permissions.canRename ? 'pointer' : 'default';
         titleEl.style.opacity = permissions.canRename ? '1' : '0.6';
     }
     
     // 设置日期
-    // 设置日期
     if (dateEl) {
-        // 优先使用 createdTime，如果无效则使用 sentTime，再无效则用当前时间
         let timeSource = editingQuestionnaire.createdTime || editingQuestionnaire.sentTime || Date.now();
-        // 如果是字符串，尝试转换为数字
         if (typeof timeSource === 'string') {
             timeSource = parseInt(timeSource, 10);
         }
-        // 如果还是无效，使用当前时间
         if (isNaN(timeSource) || timeSource < 0) {
             timeSource = Date.now();
         }
@@ -819,48 +815,102 @@ function renderComposeEditor() {
         let html = '';
         questions.forEach((q, index) => {
             const typeLabel = q.type === 'single' ? '单选' : '多选';
-            // 判断是否可以点击编辑问题（权限 + 双数特殊情况）
+            
+            // 判断是否可以点击编辑问题
             let canClick = permissions.canClickQuestion;
-            // 双数特殊情况：标记【同问】的问题可交互（占位）
             const isSameQuestion = q.isSameQuestion === true;
             if (permissions.canDeleteQuestion && !permissions.canClickQuestion && isSameQuestion) {
-                canClick = true; // 【同问】占位，可交互
+                canClick = true;
             }
-            // 如果没有编辑权且不是【同问】，则不可点击
             const hoverEffect = canClick ? 'compose-question-card-hover' : '';
             
-            // ⭐ 阶段7：根据状态决定选项圆点颜色（蓝色填充）
+            // ===== 选项列表（梦角选项 + 我的可选项） =====
+            // 梦角选项：蓝色填充
             const optionsHtml = (q.options || []).map((opt, oi) => {
                 const isSelected = q.selectedOptions && q.selectedOptions.includes(oi);
                 const isAnswered = q.status === 'answered';
-                // 蓝色填充：已回答且该选项被选中
-                const fillColor = (isAnswered && isSelected) ? 'var(--accent-color)' : 'transparent';
-                const borderColor = isSelected ? 'var(--accent-color)' : 'rgba(var(--accent-color-rgb),0.25)';
+                // 梦角选项：蓝色填充（如果是已回答）
+                const partnerFillColor = (isAnswered && isSelected) ? '#4A90D9' : 'transparent';
+                const partnerBorderColor = isSelected ? '#4A90D9' : 'rgba(var(--accent-color-rgb),0.25)';
+                
+                // 我的可选项（方框）
+                const mySelected = q.myAnswers && q.myAnswers.includes(oi);
+                const isRejected = q.myRejected === true;
+                
+                // 方框样式
+                let boxHtml = '';
+                if (isSameQuestion) {
+                    // 判断是否有√状态（已处理完成）
+                    const isDone = q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done';
+                    
+                    if (isRejected) {
+                        // 拒答状态：灰色方框 + 横线
+                        boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid #bdbdbd;border-radius:3px;flex-shrink:0;position:relative;background:#e0e0e0;opacity:${isDone ? '0.4' : '1'};">
+                            <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:18px;height:1.5px;background:#9e9e9e;"></span>
+                            <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);width:18px;height:1.5px;background:#9e9e9e;"></span>
+                        </span>`;
+                    } else if (mySelected) {
+                        // 已选择：粉紫色 + 粗√
+                        boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid #CE93D8;border-radius:3px;flex-shrink:0;background:#CE93D8;color:#fff;font-size:12px;font-weight:900;text-align:center;line-height:14px;opacity:${isDone ? '0.4' : '1'};">✓</span>`;
+                    } else {
+                        // 未选择：空白方框
+                        boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid ${isDone ? '#bdbdbd' : 'var(--border-color)'};border-radius:3px;flex-shrink:0;opacity:${isDone ? '0.4' : '1'};"></span>`;
+                    }
+                }
+                
                 return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 6px;font-size:13px;color:var(--text-secondary);">
-                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid ${borderColor};background:${fillColor};flex-shrink:0;transition:all 0.2s;"></span>
+                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid ${partnerBorderColor};background:${partnerFillColor};flex-shrink:0;transition:all 0.2s;"></span>
+                    ${isSameQuestion ? boxHtml : ''}
                     <span>${escapeHtml(opt)}</span>
                 </div>`;
             }).join('');
             
+            // 同问标签状态
+            let sameQuestionLabel = '';
+            let sameQuestionClickable = false;
+            if (isSameQuestion) {
+                const status = q.sameQuestionStatus;
+                if (status === null || status === undefined) {
+                    sameQuestionLabel = '【同问】';
+                    sameQuestionClickable = true;
+                } else if (status === 'replied') {
+                    sameQuestionLabel = '【同问.已回】';
+                    sameQuestionClickable = false;
+                } else if (status === 'rejected') {
+                    sameQuestionLabel = '【同问.拒答】';
+                    sameQuestionClickable = false;
+                } else if (status === 'replied_done') {
+                    sameQuestionLabel = '【同问.已回 √】';
+                    sameQuestionClickable = false;
+                } else if (status === 'rejected_done') {
+                    sameQuestionLabel = '【同问.拒答 √】';
+                    sameQuestionClickable = false;
+                }
+            }
+            
+            // 状态圆点颜色
+            let dotColor = 'rgba(var(--accent-color-rgb),0.5)';
+            if (q.status === 'answered') dotColor = '#4CAF50';
+            else if (q.status === 'unanswered') dotColor = '#FF9800';
+            else if (q.status === 'rejected') dotColor = '#9C27B0';
+            
             // 是否显示删除按钮
             const showDelete = permissions.canDeleteQuestion && questions.length > 1;
-            // 如果只有一个问题，禁止删除
             const deleteDisabled = questions.length <= 1;
             
-            // ⭐ 阶段7：状态圆点颜色
-            let dotColor = 'rgba(var(--accent-color-rgb),0.5)'; // 默认：米白色
-            if (q.status === 'answered') dotColor = '#4CAF50';      // 绿色
-            else if (q.status === 'unanswered') dotColor = '#FF9800';    // 橙色
-            else if (q.status === 'rejected') dotColor = '#9C27B0';      // 深紫色
+            // 点击同问标签的事件
+            const onClickLabel = sameQuestionClickable ? `openSameQuestionEditor(${index})` : '';
             
             html += `
                 <div class="compose-question-card ${hoverEffect}" onclick="${canClick ? `openQuestionEditorForEdit(${index})` : ''}" style="margin-bottom:0;padding:14px 32px 12px 0px;cursor:${canClick ? 'pointer' : 'default'};position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;${!canClick ? 'opacity:0.7;' : ''}">
-                    <!-- 第一行：Q1 + 小圆点 + 类型标签 -->
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                    <!-- 第一行 -->
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
                         <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
                         <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;transition:all 0.2s;"></span>
                         <span style="font-size:10px;color:var(--text-secondary);opacity:0.7;background:rgba(var(--accent-color-rgb),0.06);padding:0 8px;border-radius:10px;border:1px solid rgba(var(--accent-color-rgb),0.08);">${typeLabel}</span>
-                        ${isSameQuestion ? `<span style="font-size:9px;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.12);padding:0 6px;border-radius:4px;border:1px solid rgba(var(--accent-color-rgb),0.2);">【同问】</span>` : ''}
+                        ${isSameQuestion ? 
+                            `<span onclick="event.stopPropagation();${onClickLabel}" style="font-size:9px;color:var(--accent-color);background:rgba(var(--accent-color-rgb),0.12);padding:0 10px;border-radius:20px;border:1.5px solid rgba(var(--accent-color-rgb),0.2);cursor:${sameQuestionClickable ? 'pointer' : 'default'};transition:all 0.2s;display:inline-block;line-height:18px;font-weight:500;${sameQuestionClickable ? 'hover:background:rgba(var(--accent-color-rgb),0.2);' : ''}">${sameQuestionLabel}</span>` 
+                            : ''}
                         ${q.isInteractiveOneDone ? `<span style="font-size:9px;color:#6BCB77;background:rgba(107,203,119,0.12);padding:0 6px;border-radius:4px;border:1px solid rgba(107,203,119,0.2);">【互动完成】</span>` : ''}
                     </div>
                     <!-- 第二行：题目 -->
@@ -889,7 +939,6 @@ function renderComposeEditor() {
     const editBtnEl = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2)');
     const archiveBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(3)');
     
-    // 根据权限控制"提问"按钮（编辑按钮）
     if (editBtnEl) {
         if (!permissions.canEdit && !isDraft) {
             editBtnEl.style.opacity = '0.4';
@@ -905,7 +954,6 @@ function renderComposeEditor() {
         }
     }
     
-    // 控制"归档"按钮
     if (archiveBtn) {
         if (isDraft || isViewMode) {
             archiveBtn.style.display = 'flex';
@@ -948,6 +996,7 @@ window.composeAction = function(action) {
     showNotification(messages[action] || '功能开发中 ✦', 'info', 2500);
 };
 
+// ---------- 投递处理（阶段1 - 修正版） ----------
 // ---------- 投递处理（阶段1 - 修正版） ----------
 function handleSubmitQuestionnaire() {
     const questions = editingQuestionnaire.questions || [];
@@ -994,26 +1043,27 @@ function handleSubmitQuestionnaire() {
     // 关口1不满足 → 进入后续检查
     // ============================================================
     
-    // 步骤A：检查是否有【同问】标记
-    const hasSameQuestion = questions.some(q => q.isSameQuestion === true);
+    // ⭐ 步骤A：检查是否有【同问】标记（状态为 null 的，即未互动过的）
+    const hasSameQuestion = questions.some(q => q.isSameQuestion === true && (q.sameQuestionStatus === null || q.sameQuestionStatus === undefined));
     if (hasSameQuestion) {
         showCuriosityConfirm({
             title: '💭 好奇你的答案',
             message: `${partnerName} 也在好奇你的答案，思考选择吧 ✦`,
             confirmText: '我知道了',
             onConfirm: () => {
+                // 只关闭弹窗，不继续投递
             }
         });
-        return;
+        return; // ⭐ 直接拦截
     }
     
-    // 没有【同问】，直接进入下一步
+    // 没有【同问】或已有【同问.已回/拒答】，进入下一步
     proceedWithSameQuestionChecked();
     
     // ============================================================
     // 步骤B：根据首字母分支判断
     // ============================================================
-    function proceedWithSameQuestionChecked(hasShownSameQuestion) {
+    function proceedWithSameQuestionChecked() {
         const hasUnanswered = questions.some(q => q.status === 'unanswered');
         const hasInteractiveOne = questions.some(q => q.isInteractiveOne === true);
         
@@ -1025,8 +1075,7 @@ function handleSubmitQuestionnaire() {
                     proceedToSend('case3');
                 }
             } else {
-                    showNotDeliverable();
-                }
+                showNotDeliverable();
             }
             return;
         }
@@ -1035,12 +1084,10 @@ function handleSubmitQuestionnaire() {
         if (hasInteractiveOne) {
             proceedToSend('case4');
         } else {
-            // 无同问互动一 → 不可投递
-            if (!hasShownSameQuestion) {
-                showNotDeliverable();
-            }
+            showNotDeliverable();
         }
     }
+}
     
 // ============================================================
 // 发出弹窗（统一存储逻辑）
@@ -1320,21 +1367,13 @@ async function replyLogicOne(questionnaireId, currentVersion) {
     
     // 从存储中获取当前问卷数据
     let questionnaire = null;
-    let sourceArr = null;
-    let sourceIndex = -1;
-    
-    // 在 ing 中查找
     const ingIndex = curiosityData.ing.findIndex(item => item.id === questionnaireId);
     if (ingIndex > -1) {
         questionnaire = { ...curiosityData.ing[ingIndex] };
-        sourceArr = 'ing';
-        sourceIndex = ingIndex;
     } else {
         const archivedIndex = curiosityData.archived.findIndex(item => item.id === questionnaireId);
         if (archivedIndex > -1) {
             questionnaire = { ...curiosityData.archived[archivedIndex] };
-            sourceArr = 'archived';
-            sourceIndex = archivedIndex;
         }
     }
     
@@ -1347,16 +1386,16 @@ async function replyLogicOne(questionnaireId, currentVersion) {
     const prevVersion = questionnaire.version;
     
     // ============================================================
-    // 步骤1：静默倒计时 60 秒（1分钟）
+    // 步骤1：静默倒计时 60 秒
     // ============================================================
     console.log('[回复逻辑一] 步骤1：静默倒计时 60 秒...');
     await sleep(60 * 1000);
     console.log('[回复逻辑一] 静默完成');
     
     // ============================================================
-    // 步骤2：在 0~360 秒（0~6分钟）范围内随机一个数字 R
+    // 步骤2：在 0~360 秒范围内随机一个数字 R
     // ============================================================
-    const R = Math.floor(Math.random() * 361); // 0 ~ 360 秒
+    const R = Math.floor(Math.random() * 361);
     console.log(`[回复逻辑一] 步骤2：随机选择倒计时 ${R} 秒（0~6分钟）`);
     
     // ============================================================
@@ -1375,7 +1414,6 @@ async function replyLogicOne(questionnaireId, currentVersion) {
     const updatedQuestions = questions.map(q => {
         const newQ = { ...q };
         if (q.isInteractiveOne === true) {
-            // 将【同问.互动一】变为【同问.互动一.√】
             newQ.isInteractiveOne = false;
             newQ.isInteractiveOneDone = true;
             console.log(`[回复逻辑一] 问题 "${q.text}" 的【同问.互动一】已标记为完成`);
@@ -1393,8 +1431,8 @@ async function replyLogicOne(questionnaireId, currentVersion) {
     console.log(`[回复逻辑一] enteredBigLoop: false, enteredYes: false`);
     
     return {
-        enteredBigLoop: false,   // 未进入大循环
-        enteredYes: false,       // 未进入YES
+        enteredBigLoop: false,
+        enteredYes: false,
         updatedQuestions: updatedQuestions,
         prevVersion: prevVersion
     };
@@ -1668,21 +1706,13 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     
     // 从存储中获取当前问卷数据
     let questionnaire = null;
-    let sourceArr = null;
-    let sourceIndex = -1;
-    
-    // 在 ing 中查找
     const ingIndex = curiosityData.ing.findIndex(item => item.id === questionnaireId);
     if (ingIndex > -1) {
         questionnaire = { ...curiosityData.ing[ingIndex] };
-        sourceArr = 'ing';
-        sourceIndex = ingIndex;
     } else {
         const archivedIndex = curiosityData.archived.findIndex(item => item.id === questionnaireId);
         if (archivedIndex > -1) {
             questionnaire = { ...curiosityData.archived[archivedIndex] };
-            sourceArr = 'archived';
-            sourceIndex = archivedIndex;
         }
     }
     
@@ -1699,7 +1729,7 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     // ============================================================
     console.log('[回复逻辑三] 步骤1：静默倒计时 60 秒...');
     await sleep(60 * 1000);
-    let elapsedTime = 60; // 已用时间（秒）
+    let elapsedTime = 60;
     console.log(`[回复逻辑三] 静默完成，已用时间: ${elapsedTime}秒`);
     
     // ============================================================
@@ -1714,7 +1744,6 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     const hasUnanswered = unansweredIndices.length > 0;
     console.log(`[回复逻辑三] 步骤2：暂不回答的问题数量: ${unansweredIndices.length}`);
     
-    // 初始化标志
     let enteredBigLoop = false;
     let enteredYes = false;
     let updatedQuestions = [...questions];
@@ -1725,37 +1754,29 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     if (hasUnanswered) {
         console.log('[回复逻辑三] 进入大循环处理暂不回答的问题');
         enteredBigLoop = true;
-        const timeLimitSeconds = timeLimit / 1000; // 转换为秒
+        const timeLimitSeconds = timeLimit / 1000;
         let totalElapsed = elapsedTime;
         let loopCount = 0;
         let hasEnteredYes = false;
         
-        // ============================================================
-        // 大循环迭代（只针对暂不回答列表）
-        // ============================================================
         while (true) {
             loopCount++;
             console.log(`[回复逻辑三] 大循环 #${loopCount}`);
-            
-            // 在 1~30 秒内随机一个数字 d
             const d = randomSeconds(1, 30);
             console.log(`[回复逻辑三] 抽取随机等待: ${d} 秒`);
             console.log(`[回复逻辑三] 当前已用: ${totalElapsed}秒，加上 ${d} 秒后为 ${totalElapsed + d}秒，上限: ${timeLimitSeconds}秒`);
             
-            // 先判断：已用时间 + d 是否 ≥ 时间上限？
             if (totalElapsed + d >= timeLimitSeconds) {
-                console.log(`[回复逻辑三] ⏰ 已用时间 ${totalElapsed}秒 + ${d}秒 = ${totalElapsed + d}秒 ≥ 上限 ${timeLimitSeconds}秒，大循环结束，未进入YES`);
+                console.log(`[回复逻辑三] ⏰ 已用时间 ${totalElapsed}秒 + ${d}秒 ≥ 上限 ${timeLimitSeconds}秒，大循环结束，未进入YES`);
                 enteredYes = false;
                 break;
             }
             
-            // 未超时，等待 d 秒
             console.log(`[回复逻辑三] 等待 ${d} 秒...`);
             await sleep(d * 1000);
             totalElapsed += d;
             console.log(`[回复逻辑三] 当前已用时间: ${totalElapsed}秒`);
             
-            // 进入 YES/NO 判断（各50%）
             const yesNo = Math.random() < 0.5 ? 'YES' : 'NO';
             console.log(`[回复逻辑三] YES/NO 判断: ${yesNo}`);
             
@@ -1766,13 +1787,10 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                 break;
             } else {
                 console.log('[回复逻辑三] ❌ 进入 NO，继续大循环');
-                // 继续循环
             }
         }
         
-        // ============================================================
         // 分支A：已进入 YES，处理所有暂不回答的问题（一轮定结果）
-        // ============================================================
         if (hasEnteredYes) {
             console.log(`[回复逻辑三] 分支A：处理 ${unansweredIndices.length} 个暂不回答的问题`);
             
@@ -1780,16 +1798,13 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                 const q = updatedQuestions[idx];
                 console.log(`[回复逻辑三] 处理暂不回答问题 Q${idx + 1}: "${q.text}"`);
                 
-                // 步骤(A)：在 1~30 秒内随机一个时间，等待
                 const waitTime = randomSeconds(1, 30);
                 console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime} 秒...`);
                 await sleep(waitTime * 1000);
                 
-                // 三选一判断
                 const decision = randomDecision();
                 console.log(`[回复逻辑三] Q${idx + 1} 决策: ${decision}`);
                 
-                // 更新问题状态（覆盖原来的暂不回答）
                 q.status = decision;
                 q.selectedOptions = [];
                 
@@ -1797,9 +1812,7 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                     console.log(`[回复逻辑三] Q${idx + 1} 拒绝回答`);
                 } else if (decision === 'unanswered') {
                     console.log(`[回复逻辑三] Q${idx + 1} 再次暂不回答`);
-                    // ⭐ 即使再次选到暂不回答，也要继续执行反问
                 } else {
-                    // 回答
                     console.log(`[回复逻辑三] Q${idx + 1} 开始回答`);
                     if (q.type === 'multiple') {
                         const count = randomSeconds(1, q.options.length);
@@ -1819,17 +1832,19 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                     }
                 }
                 
-                // ⭐ 静默 15 秒
                 console.log(`[回复逻辑三] Q${idx + 1} 静默 15 秒...`);
                 await sleep(15 * 1000);
                 
-                // 投骰子决定是否反问（各50%）
                 const askBack = Math.random() < 0.5;
                 if (askBack) {
                     q.isSameQuestion = true;
+                    q.sameQuestionStatus = null;
+                    q.myAnswers = [];
+                    q.myRejected = false;
                     console.log(`[回复逻辑三] Q${idx + 1} 🔄 反问 → 标记【同问】`);
                 } else {
                     q.isSameQuestion = false;
+                    q.sameQuestionStatus = null;
                     console.log(`[回复逻辑三] Q${idx + 1} 不反问`);
                 }
                 
@@ -1841,7 +1856,7 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     }
     
     // ============================================================
-    // 步骤3：等待 30 秒（无论步骤2是否执行，都等待）
+    // 步骤3：等待 30 秒
     // ============================================================
     console.log('[回复逻辑三] 步骤3：等待 30 秒...');
     await sleep(30 * 1000);
@@ -1854,7 +1869,6 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     const finalQuestions = updatedQuestions.map(q => {
         const newQ = { ...q };
         if (q.isInteractiveOne === true) {
-            // 将【同问.互动一】变为【同问.互动一.√】
             newQ.isInteractiveOne = false;
             newQ.isInteractiveOneDone = true;
             interactiveOneCount++;
@@ -1865,13 +1879,24 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     console.log(`[回复逻辑三] 步骤4：共处理 ${interactiveOneCount} 个【同问.互动一】标记`);
     
     // ============================================================
+    // ⭐ 步骤5：处理同问状态转换（【同问.已回】→【同问.已回 √】，【同问.拒答】→【同问.拒答 √】）
+    // ============================================================
+    finalQuestions.forEach(q => {
+        if (q.isSameQuestion && q.sameQuestionStatus === 'replied') {
+            q.sameQuestionStatus = 'replied_done';
+            console.log(`[回复逻辑三] 问题 "${q.text}" 同问状态变为 【同问.已回 √】`);
+        } else if (q.isSameQuestion && q.sameQuestionStatus === 'rejected') {
+            q.sameQuestionStatus = 'rejected_done';
+            console.log(`[回复逻辑三] 问题 "${q.text}" 同问状态变为 【同问.拒答 √】`);
+        }
+    });
+    
+    // ============================================================
     // 【结束】整理数据，返回结果
     // ============================================================
     console.log('[回复逻辑三] 执行完成');
     console.log(`[回复逻辑三] enteredBigLoop: ${enteredBigLoop}, enteredYes: ${enteredYes}`);
-    console.log(`[回复逻辑三] 共处理 ${unansweredIndices.length} 个暂不回答的问题`);
-    console.log(`[回复逻辑三] 【同问】标记新增: ${finalQuestions.filter(q => q.isSameQuestion === true).length}`);
-    console.log(`[回复逻辑三] 【同问.互动一.√】新增: ${interactiveOneCount}`);
+    console.log(`[回复逻辑三] 【同问.已回 √/拒答 √】转换完成`);
     
     return {
         enteredBigLoop: enteredBigLoop,
@@ -2252,4 +2277,249 @@ window.deleteQuestion = function(index) {
     isDirty = true;
     renderComposeEditor();
     showNotification('问题已删除', 'success', 1500);
+};
+
+// ============================================================
+// 同问板块 - 同问卡片
+// ============================================================
+
+// 当前正在编辑的同问问题索引
+let editingSameQuestionIndex = -1;
+// 同问卡片的临时数据
+let tempSameQuestionData = {
+    myAnswers: [],
+    myRejected: false
+};
+
+/**
+ * 打开同问卡片
+ */
+window.openSameQuestionEditor = function(index) {
+    const q = editingQuestionnaire.questions[index];
+    if (!q || !q.isSameQuestion) {
+        showNotification('该问题没有同问标记', 'info', 2000);
+        return;
+    }
+    
+    // 如果是已完成状态（√），不允许再编辑
+    if (q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done') {
+        showNotification('该问题已完成互动，不可修改', 'info', 2000);
+        return;
+    }
+    
+    editingSameQuestionIndex = index;
+    tempSameQuestionData = {
+        myAnswers: [...(q.myAnswers || [])],
+        myRejected: q.myRejected === true
+    };
+    
+    renderSameQuestionCard();
+    showModal(document.getElementById('same-question-modal'));
+};
+
+/**
+ * 渲染同问卡片
+ */
+function renderSameQuestionCard() {
+    const q = editingQuestionnaire.questions[editingSameQuestionIndex];
+    if (!q) return;
+    
+    const container = document.getElementById('sq-options-container');
+    const titleEl = document.getElementById('sq-question-text');
+    const typeEl = document.getElementById('sq-question-type');
+    const isRejected = tempSameQuestionData.myRejected;
+    const selectedAnswers = tempSameQuestionData.myAnswers || [];
+    const isSingle = q.type === 'single';
+    
+    // 设置标题和类型
+    if (titleEl) titleEl.textContent = q.text || '（未填写题目）';
+    if (typeEl) typeEl.textContent = q.type === 'single' ? '单选' : '多选';
+    
+    if (!container) return;
+    
+    let html = '';
+    (q.options || []).forEach((opt, oi) => {
+        const isMySelected = selectedAnswers.includes(oi);
+        const isPartnerSelected = q.selectedOptions && q.selectedOptions.includes(oi);
+        const isPartnerAnswered = q.status === 'answered';
+        
+        // 梦角选项：蓝色填充
+        const partnerFillColor = (isPartnerAnswered && isPartnerSelected) ? '#4A90D9' : 'transparent';
+        const partnerBorderColor = isPartnerSelected ? '#4A90D9' : 'rgba(var(--accent-color-rgb),0.25)';
+        
+        // 我的方框：拒答时灰色横线
+        let boxHtml = '';
+        if (isRejected) {
+            boxHtml = `<span style="display:inline-block;width:18px;height:18px;border:1.5px solid #bdbdbd;border-radius:3px;flex-shrink:0;position:relative;background:#e0e0e0;">
+                <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:20px;height:2px;background:#9e9e9e;"></span>
+                <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);width:20px;height:2px;background:#9e9e9e;"></span>
+            </span>`;
+        } else if (isMySelected) {
+            boxHtml = `<span style="display:inline-block;width:18px;height:18px;border:1.5px solid #CE93D8;border-radius:3px;flex-shrink:0;background:#CE93D8;color:#fff;font-size:13px;font-weight:900;text-align:center;line-height:16px;cursor:pointer;" onclick="toggleSameQuestionOption(${oi})">✓</span>`;
+        } else {
+            boxHtml = `<span style="display:inline-block;width:18px;height:18px;border:1.5px solid var(--border-color);border-radius:3px;flex-shrink:0;cursor:pointer;" onclick="toggleSameQuestionOption(${oi})"></span>`;
+        }
+        
+        html += `
+            <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+                <span style="display:inline-block;width:14px;height:14px;border-radius:50%;border:1.5px solid ${partnerBorderColor};background:${partnerFillColor};flex-shrink:0;"></span>
+                ${boxHtml}
+                <span style="font-size:14px;color:var(--text-primary);">${escapeHtml(opt)}</span>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // 更新拒答按钮状态
+    const rejectBtn = document.getElementById('sq-reject-btn');
+    if (rejectBtn) {
+        if (isRejected) {
+            rejectBtn.style.background = '#e0e0e0';
+            rejectBtn.style.color = '#9e9e9e';
+            rejectBtn.style.cursor = 'default';
+            rejectBtn.textContent = '已拒答';
+        } else {
+            rejectBtn.style.background = 'var(--accent-color)';
+            rejectBtn.style.color = '#fff';
+            rejectBtn.style.cursor = 'pointer';
+            rejectBtn.textContent = '拒答';
+        }
+    }
+    
+    // 更新保存按钮状态（至少选一个或拒答）
+    const saveBtn = document.getElementById('sq-save-btn');
+    if (saveBtn) {
+        const hasSelection = selectedAnswers.length > 0 || isRejected;
+        saveBtn.style.opacity = hasSelection ? '1' : '0.5';
+        saveBtn.style.cursor = hasSelection ? 'pointer' : 'default';
+    }
+}
+
+/**
+ * 切换同问选项（我的可选项）
+ */
+window.toggleSameQuestionOption = function(optionIndex) {
+    const q = editingQuestionnaire.questions[editingSameQuestionIndex];
+    if (!q) return;
+    
+    // 如果已拒答或已完成，不允许操作
+    if (tempSameQuestionData.myRejected) {
+        showNotification('已拒答，不可选择', 'warning', 1500);
+        return;
+    }
+    if (q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done') {
+        showNotification('该问题已完成互动，不可修改', 'info', 1500);
+        return;
+    }
+    
+    const isSingle = q.type === 'single';
+    const selected = tempSameQuestionData.myAnswers || [];
+    
+    if (isSingle) {
+        // 单选：点击切换选中/取消
+        if (selected.includes(optionIndex)) {
+            tempSameQuestionData.myAnswers = [];
+        } else {
+            tempSameQuestionData.myAnswers = [optionIndex];
+        }
+    } else {
+        // 多选：切换选中/取消
+        if (selected.includes(optionIndex)) {
+            tempSameQuestionData.myAnswers = selected.filter(i => i !== optionIndex);
+        } else {
+            tempSameQuestionData.myAnswers = [...selected, optionIndex];
+        }
+    }
+    
+    renderSameQuestionCard();
+};
+
+/**
+ * 拒答同问
+ */
+window.rejectSameQuestion = function() {
+    const q = editingQuestionnaire.questions[editingSameQuestionIndex];
+    if (!q) return;
+    
+    if (tempSameQuestionData.myRejected) {
+        showNotification('已拒答', 'info', 1500);
+        return;
+    }
+    if (q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done') {
+        showNotification('该问题已完成互动，不可修改', 'info', 1500);
+        return;
+    }
+    
+    // 二次确认
+    if (!confirm('确定拒答此问题？\n\n选择拒答后不可取消。')) {
+        return;
+    }
+    
+    tempSameQuestionData.myRejected = true;
+    tempSameQuestionData.myAnswers = [];
+    renderSameQuestionCard();
+};
+
+/**
+ * 保存同问答案
+ */
+window.saveSameQuestion = function() {
+    const q = editingQuestionnaire.questions[editingSameQuestionIndex];
+    if (!q) return;
+    
+    const hasSelection = tempSameQuestionData.myAnswers.length > 0 || tempSameQuestionData.myRejected;
+    if (!hasSelection) {
+        showNotification('至少选择一个选项或拒答', 'warning', 2000);
+        return;
+    }
+    
+    // 检查是否已完成状态
+    if (q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done') {
+        showNotification('该问题已完成互动，不可修改', 'info', 1500);
+        return;
+    }
+    
+    // 保存到问题数据
+    q.myAnswers = [...tempSameQuestionData.myAnswers];
+    q.myRejected = tempSameQuestionData.myRejected;
+    
+    // 更新状态标签
+    if (q.myRejected) {
+        q.sameQuestionStatus = 'rejected';
+    } else if (q.myAnswers.length > 0) {
+        q.sameQuestionStatus = 'replied';
+    }
+    
+    // 标记为脏数据（用于关闭时的保存判断）
+    isDirty = true;
+    
+    // 关闭卡片
+    hideModal(document.getElementById('same-question-modal'));
+    
+    // 重新渲染信纸
+    renderComposeEditor();
+    
+    showNotification('已保存', 'success', 1500);
+};
+
+/**
+ * 关闭同问卡片（不保存）
+ */
+window.closeSameQuestion = function() {
+    // 如果有内容变化，提醒用户
+    const q = editingQuestionnaire.questions[editingSameQuestionIndex];
+    if (!q) {
+        hideModal(document.getElementById('same-question-modal'));
+        return;
+    }
+    
+    const hasChange = tempSameQuestionData.myAnswers.length > 0 || tempSameQuestionData.myRejected;
+    if (hasChange) {
+        if (!confirm('确定关闭吗？未保存的修改将丢失。')) {
+            return;
+        }
+    }
+    
+    hideModal(document.getElementById('same-question-modal'));
 };
