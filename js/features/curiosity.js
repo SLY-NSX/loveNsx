@@ -2063,8 +2063,6 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                 console.log(`[回复逻辑三] Q${idx + 1} 处理完成`);
             }
         }
-    }
-    }
     } else {
         console.log('[回复逻辑三] 步骤2：无暂不回答的问题，跳过');
     }
