@@ -11997,3 +11997,25 @@ html[data-theme="dark"] #comp-records-title-icon {
 .qe-add-option-btn svg {
     flex-shrink: 0;
 }
+.qe-option-input {
+    flex: 1 1 0;  /* ⭐ 改为 flex: 1 1 0，允许收缩到0 */
+    min-width: 0;  /* ⭐ 允许收缩到内容宽度以下 */
+    max-width: 100%;
+    padding: 8px 10px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--primary-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: var(--font-family);
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;  /* ⭐ 确保 padding 包含在宽度内 */
+}
+.qe-option-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    min-width: 0;  /* ⭐ 关键：允许 flex 子元素收缩 */
+}
