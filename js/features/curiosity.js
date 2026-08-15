@@ -1023,10 +1023,11 @@ function renderComposeEditor() {
 
 /**
  * 渲染归档底部内容（图片 + 归档时间 + 归档人）
+ * 使用 Canvas 提取红色通道，只保留红色部分，其他完全透明
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
-    // 获取归档时间（使用 sentTime 或当前时间）
+    // 获取归档时间和归档人信息
     const archiveTime = editingQuestionnaire.sentTime || editingQuestionnaire.createdTime || Date.now();
     const date = new Date(archiveTime);
     const year = date.getFullYear();
@@ -1034,31 +1035,95 @@ function renderArchiveFooter(container) {
     const day = String(date.getDate()).padStart(2, '0');
     const formattedDate = `${year}年${month}月${day}日`;
     
-    // 获取归档人名字（从设置读取，但固定保存时不变）
     const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
-    // 构建归档底部HTML
-    const footerHtml = `
-        <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
-            <!-- 图片：偏右放置，使用 multiply 混合模式 -->
-            <div style="text-align:right;margin-bottom:12px;">
-                <img src="${ARCHIVE_IMAGE_URL}" 
-                     alt="归档纪念" 
-                     style="width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;mix-blend-mode:multiply;"
-                     onerror="this.style.display='none'">
-            </div>
-            <!-- 归档时间和归档人：右下角 -->
-            <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.7;line-height:1.8;padding-right:4px;">
-                <div>归档时间：${formattedDate}</div>
-                <div>归档人：${archivePeople}</div>
-            </div>
-        </div>
-    `;
+    // 创建归档容器的整体结构
+    const footerDiv = document.createElement('div');
+    footerDiv.className = 'archive-footer';
+    footerDiv.style.cssText = 'margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);';
     
-    // 追加到容器末尾
-    container.insertAdjacentHTML('beforeend', footerHtml);
+    // 创建图片容器（占位，后续异步填充）
+    const imageContainer = document.createElement('div');
+    imageContainer.style.cssText = 'text-align:right;margin-bottom:12px;';
+    footerDiv.appendChild(imageContainer);
+    
+    // 创建信息和时间容器
+    const infoDiv = document.createElement('div');
+    infoDiv.style.cssText = 'text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.7;line-height:1.8;padding-right:4px;';
+    infoDiv.innerHTML = `<div>归档时间：${formattedDate}</div><div>归档人：${archivePeople}</div>`;
+    footerDiv.appendChild(infoDiv);
+    
+    // 将整个 footer 追加到容器
+    container.appendChild(footerDiv);
+    
+    // --- 异步加载图片并提取红色 ---
+    const img = new Image();
+    img.crossOrigin = 'anonymous'; // 如果图片跨域，需要设置
+    
+    img.onload = function() {
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            
+            // 遍历像素，只保留红色通道，其他置零并设置透明度
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+                // 判断是否为红色区域：r > 阈值，且 r 明显大于 g 和 b
+                // 根据你的砖红色印章，阈值设为 40 应该合适
+                if (r > 40 && r > g * 1.2 && r > b * 1.2) {
+                    // 红色区域：保留原色，完全不透明
+                    // 为了颜色更鲜艳，可以适当增强红色饱和度，但这里保留原色
+                    data[i+3] = 255; // 不透明
+                    // 保留原始 RGB（已经存在，无需修改）
+                } else {
+                    // 非红色区域：完全透明
+                    data[i] = 0;
+                    data[i+1] = 0;
+                    data[i+2] = 0;
+                    data[i+3] = 0;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+            const redImageDataUrl = canvas.toDataURL('image/png');
+            
+            // 创建真正的 img 元素显示
+            const redImg = document.createElement('img');
+            redImg.src = redImageDataUrl;
+            redImg.style.cssText = 'width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;display:block;margin-left:auto;';
+            redImg.alt = '归档纪念';
+            // 清空容器并添加新图片
+            imageContainer.innerHTML = '';
+            imageContainer.appendChild(redImg);
+        } catch (e) {
+            console.warn('[归档] 提取红色失败，使用原图:', e);
+            // 如果提取失败，直接显示原图（但可能会看到白底）
+            const fallbackImg = document.createElement('img');
+            fallbackImg.src = ARCHIVE_IMAGE_URL;
+            fallbackImg.style.cssText = 'width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;display:block;margin-left:auto;mix-blend-mode:multiply;';
+            fallbackImg.alt = '归档纪念';
+            imageContainer.innerHTML = '';
+            imageContainer.appendChild(fallbackImg);
+        }
+    };
+    
+    img.onerror = function() {
+        // 图片加载失败，显示文字提示
+        imageContainer.innerHTML = '<div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.5;padding:10px;">📜 已归档</div>';
+    };
+    
+    // 开始加载图片
+    img.src = ARCHIVE_IMAGE_URL;
 }
 
 // ---------- 标题点击编辑 ----------
