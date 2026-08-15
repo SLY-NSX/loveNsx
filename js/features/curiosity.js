@@ -8,7 +8,7 @@ let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
-const ARCHIVE_IMAGE_URL = 'https://img.tofaka.com/autoupload/f/ikeej/20260815/Ltnk/2278X1280/%E5%B7%B2%E5%BD%92%E6%A1%A3.jpg';
+const ARCHIVE_IMAGE_URL = 'https://img.tofaka.com/autoupload/f/ikeej/20260815/U4IP/2278X1280/%E5%B7%B2%E5%BD%92%E6%A1%A3%E5%9B%BE%E6%A0%87%E5%80%BE%E6%96%9C.png';
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
