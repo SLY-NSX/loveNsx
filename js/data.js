@@ -837,180 +837,267 @@ document.addEventListener('DOMContentLoaded', function() {
     // 更好的方式：在 window.exportAllData 执行后，我们手动合并
     // 但由于 exportAllData 是定义在别处，我们使用 Monkey Patch
 
-    // 安全地增强全量导出
-    (function enhanceFullBackup() {
-        const origExport = window.exportAllData;
-        if (typeof origExport === 'function') {
-            window.exportAllData = function () {
-                // 收集所有陪伴数据
-                var companionData = {
-                    records: [],
-                    musicList: [],
-                    session: null,
-                    accident: null
-                };
+// 安全地增强全量导出
+(function enhanceFullBackup() {
+    // 需要额外备份的 localforage 键名列表（不含 APP_PREFIX）
+    const EXTRA_KEYS = [
+        'envelopeData',    // 信封投递
+        'customReplies',   // 自定义回复库
+        'customPokes',     // 自定义拍一拍
+        'myStickers',      // 贴纸/表情包
+        'favorites'        // 收藏消息
+    ];
 
-                // 从 localStorage 读取陪伴数据
-                try {
-                    var recordsRaw = localStorage.getItem('companion_records');
-                    if (recordsRaw) companionData.records = JSON.parse(recordsRaw);
-                } catch (e) {}
+    // 获取带前缀的存储键名（如果 getStorageKey 可用）
+    function getStorageKey(key) {
+        if (typeof window.getStorageKey === 'function') {
+            return window.getStorageKey(key);
+        }
+        return (window.APP_PREFIX || '') + key;
+    }
 
-                try {
-                    var musicRaw = localStorage.getItem('companion_music_list');
-                    if (musicRaw) companionData.musicList = JSON.parse(musicRaw);
-                } catch (e) {}
-
-                try {
-                    var sessionRaw = localStorage.getItem('companion_session');
-                    if (sessionRaw) companionData.session = JSON.parse(sessionRaw);
-                } catch (e) {}
-
-                try {
-                    companionData.accident = localStorage.getItem('companionAccident') || null;
-                } catch (e) {}
-
-                // 构建导出数据
-                var allData = {
-                    companion: companionData,
-                    _exportedAt: new Date().toISOString(),
-                    _version: '2.0'
-                };
-
-                // 获取聊天记录
-                if (typeof messages !== 'undefined' && Array.isArray(messages)) {
-                    allData.messages = messages.map(function (m) {
-                        return Object.assign({}, m, {
-                            timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
+    // 新的异步导出函数
+    window.exportAllData = async function () {
+    // ========== 新增拦截逻辑 ==========
+    try {
+        const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
+        const curiosityData = await localforage.getItem(curiosityKey);
+        if (curiosityData && curiosityData.ing && curiosityData.ing.length > 0) {
+            // 检查是否有奇数版本号（数字为单数）
+            const hasOdd = curiosityData.ing.some(item => {
+                // 使用全局函数 getVersionNumber（来自 curiosity.js）
+                const num = typeof getVersionNumber === 'function' ? getVersionNumber(item.version) : 0;
+                return num % 2 === 1;
+            });
+            if (hasOdd) {
+                // 弹出友好提示，阻止备份
+                if (typeof showCuriosityConfirm === 'function') {
+                    await new Promise((resolve) => {
+                        showCuriosityConfirm({
+                            title: '⏳ 暂不能备份',
+                            message: '当前有问卷正在等待回复（版本号为单数），请等待回复完成后再备份 ✦',
+                            confirmText: '我知道了',
+                            onConfirm: () => resolve()
                         });
                     });
+                } else {
+                    // 降级方案
+                    alert('当前有问卷正在等待回复，请稍后再备份');
                 }
+                return; // 🛑 直接终止导出
+            }
+        }
+    } catch (e) {
+        console.warn('[exportAllData] 检查好奇驿站状态失败:', e);
+        // 检查失败时可以选择继续（或阻断），这里建议继续，因为可能只是临时读取错误
+    }
 
-                // 获取设置
-                if (typeof settings !== 'undefined') {
-                    allData.settings = settings;
-                }
+        var allData = {
+            _exportedAt: new Date().toISOString(),
+            _version: '2.2'  // 版本号升级，包含更多数据
+        };
 
-                // 导出 JSON 文件
-                var json = JSON.stringify(allData, null, 2);
-                var blob = new Blob([json], { type: 'application/json' });
-                var url = URL.createObjectURL(blob);
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = 'backup_full_' + new Date().toISOString().split('T')[0] + '.json';
-                a.click();
-                URL.revokeObjectURL(url);
-
-                if (typeof showNotification === 'function') {
-                    showNotification('全量备份导出成功 ✓', 'success');
-                }
-            };
-            console.log('[data.js] 全量备份已增强，包含陪伴记录、音乐列表、会话状态');
+        // ---- 同步获取聊天记录 ----
+        if (typeof messages !== 'undefined' && Array.isArray(messages)) {
+            allData.messages = messages.map(function (m) {
+                return Object.assign({}, m, {
+                    timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
+                });
+            });
         }
 
-        // 增强导入
-        const origImport = window.importAllData;
-        if (typeof origImport === 'function') {
-            window.importAllData = function (file) {
-                var reader = new FileReader();
-                reader.onload = function (e) {
+        // ---- 同步获取设置 ----
+        if (typeof settings !== 'undefined') {
+            allData.settings = settings;
+        }
+
+        // ---- 异步获取好奇驿站数据 ----
+        try {
+            const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
+            const curiosityData = await localforage.getItem(curiosityKey);
+            if (curiosityData) {
+                allData.curiosity = curiosityData;
+            }
+        } catch (e) {
+            console.warn('[exportAllData] 无法读取好奇驿站数据:', e);
+        }
+
+        // ---- 异步获取额外数据（信封投递、回复库、拍一拍、贴纸、收藏） ----
+        for (var i = 0; i < EXTRA_KEYS.length; i++) {
+            var key = EXTRA_KEYS[i];
+            try {
+                var fullKey = getStorageKey(key);
+                var data = await localforage.getItem(fullKey);
+                if (data !== null && data !== undefined) {
+                    allData[key] = data;
+                }
+            } catch (e) {
+                console.warn('[exportAllData] 无法读取 ' + key + ':', e);
+            }
+        }
+
+        // ---- 同步获取陪伴数据（localStorage） ----
+        var companionData = {
+            records: [],
+            musicList: [],
+            session: null,
+            accident: null
+        };
+        try {
+            var recordsRaw = localStorage.getItem('companion_records');
+            if (recordsRaw) companionData.records = JSON.parse(recordsRaw);
+        } catch (e) {}
+        try {
+            var musicRaw = localStorage.getItem('companion_music_list');
+            if (musicRaw) companionData.musicList = JSON.parse(musicRaw);
+        } catch (e) {}
+        try {
+            var sessionRaw = localStorage.getItem('companion_session');
+            if (sessionRaw) companionData.session = JSON.parse(sessionRaw);
+        } catch (e) {}
+        try {
+            companionData.accident = localStorage.getItem('companionAccident') || null;
+        } catch (e) {}
+        allData.companion = companionData;
+
+        // ---- 导出 JSON 文件 ----
+        var json = JSON.stringify(allData, null, 2);
+        var blob = new Blob([json], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'backup_full_' + new Date().toISOString().split('T')[0] + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        if (typeof showNotification === 'function') {
+            showNotification('全量备份导出成功 ✓', 'success');
+        }
+    };
+
+    // 新的异步导入函数
+    window.importAllData = function (file) {
+        var reader = new FileReader();
+        reader.onload = async function (e) {
+            try {
+                var data = JSON.parse(e.target.result);
+
+                // ---- 导入好奇驿站数据 ----
+                if (data.curiosity) {
                     try {
-                        var data = JSON.parse(e.target.result);
-
-                        // ---- 导入陪伴数据 ----
-                        if (data.companion) {
-                            var comp = data.companion;
-
-                            // 导入陪伴记录
-                            if (comp.records && Array.isArray(comp.records)) {
-                                try {
-                                    localStorage.setItem('companion_records', JSON.stringify(comp.records));
-                                    // 更新内存中的记录
-                                    if (typeof window._companionRecords !== 'undefined') {
-                                        window._companionRecords = comp.records;
-                                    }
-                                    if (typeof loadCompanionRecordsData === 'function') {
-                                        loadCompanionRecordsData();
-                                    }
-                                } catch (e) {
-                                    console.warn('[data.js] 导入陪伴记录失败:', e);
-                                }
-                            }
-
-                            // 导入音乐列表
-                            if (comp.musicList && Array.isArray(comp.musicList)) {
-                                try {
-                                    localStorage.setItem('companion_music_list', JSON.stringify(comp.musicList));
-                                } catch (e) {
-                                    console.warn('[data.js] 导入音乐列表失败:', e);
-                                }
-                            }
-
-                            // 导入会话状态
-                            if (comp.session) {
-                                try {
-                                    localStorage.setItem('companion_session', JSON.stringify(comp.session));
-                                } catch (e) {
-                                    console.warn('[data.js] 导入会话状态失败:', e);
-                                }
-                            }
-
-                            // 导入遗言
-                            if (comp.accident !== undefined && comp.accident !== null) {
-                                try {
-                                    localStorage.setItem('companionAccident', comp.accident);
-                                } catch (e) {
-                                    console.warn('[data.js] 导入遗言失败:', e);
-                                }
-                            }
-
-                            if (typeof showNotification === 'function') {
-                                showNotification('陪伴数据导入成功 ✓', 'success');
-                            }
+                        const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
+                        await localforage.setItem(curiosityKey, data.curiosity);
+                        if (typeof loadCuriosityData === 'function') {
+                            await loadCuriosityData();
                         }
-
-                        // ---- 导入聊天记录（兼容旧版） ----
-                        if (data.messages && Array.isArray(data.messages) && typeof messages !== 'undefined') {
-                            try {
-                                messages = data.messages.map(function (m) {
-                                    return Object.assign({}, m, {
-                                        timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
-                                    });
-                                });
-                                if (typeof renderMessages === 'function') renderMessages();
-                                if (typeof throttledSaveData === 'function') throttledSaveData();
-                            } catch (e) {
-                                console.warn('[data.js] 导入聊天记录失败:', e);
-                            }
+                        if (typeof renderCuriosityLists === 'function') {
+                            renderCuriosityLists();
                         }
-
-                        // ---- 导入设置（兼容旧版） ----
-                        if (data.settings && typeof settings !== 'undefined') {
-                            try {
-                                Object.assign(settings, data.settings);
-                                if (typeof updateUI === 'function') updateUI();
-                                if (typeof throttledSaveData === 'function') throttledSaveData();
-                            } catch (e) {
-                                console.warn('[data.js] 导入设置失败:', e);
-                            }
-                        }
-
                         if (typeof showNotification === 'function') {
-                            showNotification('全量导入完成', 'success');
+                            showNotification('好奇驿站数据导入成功 ✓', 'success');
                         }
-
                     } catch (err) {
-                        console.error('[data.js] 导入失败:', err);
-                        if (typeof showNotification === 'function') {
-                            showNotification('文件解析失败，请检查文件格式', 'error');
+                        console.warn('[importAllData] 导入好奇驿站失败:', err);
+                    }
+                }
+
+                // ---- 导入额外数据（信封投递、回复库、拍一拍、贴纸、收藏） ----
+                for (var i = 0; i < EXTRA_KEYS.length; i++) {
+                    var key = EXTRA_KEYS[i];
+                    if (data[key] !== undefined && data[key] !== null) {
+                        try {
+                            var fullKey = getStorageKey(key);
+                            await localforage.setItem(fullKey, data[key]);
+                            console.log('[importAllData] 已导入 ' + key);
+                        } catch (err) {
+                            console.warn('[importAllData] 导入 ' + key + ' 失败:', err);
                         }
                     }
-                };
-                reader.readAsText(file);
-            };
-            console.log('[data.js] 全量恢复已增强，支持所有陪伴数据');
-        }
-    })();
+                }
+
+                // 导入完成后，如果有对应函数，重新加载数据
+                if (data.envelopeData && typeof loadEnvelopeData === 'function') {
+                    try { await loadEnvelopeData(); } catch(e) {}
+                }
+                if (data.customReplies && typeof renderReplyLibrary === 'function') {
+                    try { renderReplyLibrary(); } catch(e) {}
+                }
+                if (data.favorites && typeof renderFavoritesList === 'function') {
+                    try { renderFavoritesList(); } catch(e) {}
+                }
+
+                // ---- 导入陪伴数据（同步） ----
+                if (data.companion) {
+                    var comp = data.companion;
+                    if (comp.records && Array.isArray(comp.records)) {
+                        try {
+                            localStorage.setItem('companion_records', JSON.stringify(comp.records));
+                            if (typeof window._companionRecords !== 'undefined') {
+                                window._companionRecords = comp.records;
+                            }
+                            if (typeof loadCompanionRecordsData === 'function') {
+                                loadCompanionRecordsData();
+                            }
+                        } catch (e) {}
+                    }
+                    if (comp.musicList && Array.isArray(comp.musicList)) {
+                        try {
+                            localStorage.setItem('companion_music_list', JSON.stringify(comp.musicList));
+                        } catch (e) {}
+                    }
+                    if (comp.session) {
+                        try {
+                            localStorage.setItem('companion_session', JSON.stringify(comp.session));
+                        } catch (e) {}
+                    }
+                    if (comp.accident !== undefined && comp.accident !== null) {
+                        try {
+                            localStorage.setItem('companionAccident', comp.accident);
+                        } catch (e) {}
+                    }
+                    if (typeof showNotification === 'function') {
+                        showNotification('陪伴数据导入成功 ✓', 'success');
+                    }
+                }
+
+                // ---- 导入聊天记录 ----
+                if (data.messages && Array.isArray(data.messages) && typeof messages !== 'undefined') {
+                    try {
+                        messages = data.messages.map(function (m) {
+                            return Object.assign({}, m, {
+                                timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+                            });
+                        });
+                        if (typeof renderMessages === 'function') renderMessages();
+                        if (typeof throttledSaveData === 'function') throttledSaveData();
+                    } catch (e) {}
+                }
+
+                // ---- 导入设置 ----
+                if (data.settings && typeof settings !== 'undefined') {
+                    try {
+                        Object.assign(settings, data.settings);
+                        if (typeof updateUI === 'function') updateUI();
+                        if (typeof throttledSaveData === 'function') throttledSaveData();
+                    } catch (e) {}
+                }
+
+                if (typeof showNotification === 'function') {
+                    showNotification('全量导入完成', 'success');
+                }
+
+            } catch (err) {
+                console.error('[importAllData] 导入失败:', err);
+                if (typeof showNotification === 'function') {
+                    showNotification('文件解析失败，请检查文件格式', 'error');
+                }
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    console.log('[data.js] 全量备份已增强，包含好奇驿站、信封投递、自定义回复、拍一拍、贴纸、收藏');
+})();
 
     console.log('[data.js] 陪伴记录存储模块已加载');
 
