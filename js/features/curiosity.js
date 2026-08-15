@@ -821,6 +821,7 @@ if (dateEl) {
     } else {
         dateEl.textContent = dateStr;
     }
+} 
     
     // 渲染题目列表
     if (questionsContainer) {
