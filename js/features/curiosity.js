@@ -8,6 +8,7 @@ let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
+const ARCHIVE_IMAGE_URL = './images/archive-banner.png';
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
@@ -794,9 +795,8 @@ function renderComposeEditor() {
         }
     }
     
-    // ---- 日期行处理（安全替换，无 replaceChild） ----
+    // 设置日期（已归档时左侧显示印章，右侧显示日期）
     if (dateEl) {
-        // 计算日期字符串
         let timeSource = editingQuestionnaire.createdTime || editingQuestionnaire.sentTime || Date.now();
         if (typeof timeSource === 'string') {
             timeSource = parseInt(timeSource, 10);
@@ -811,56 +811,48 @@ function renderComposeEditor() {
         const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
         const dateStr = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
         
-        const parent = dateEl.parentNode;
-        // 检查是否已有日期行容器
-        let dateRow = parent.querySelector('.date-row-wrapper');
-        if (!dateRow) {
-            dateRow = document.createElement('div');
-            dateRow.className = 'date-row-wrapper';
-            // 将 dateEl 移动到 dateRow 中
-            parent.insertBefore(dateRow, dateEl);
-            dateRow.appendChild(dateEl);
-        }
-        // 清空 dateRow 中除了 dateEl 以外的子元素（旧的印章）
-        Array.from(dateRow.children).forEach(child => {
-            if (child !== dateEl) child.remove();
-        });
+        // 砖红色参数（印章专用）
+        const sealRed = 170;
+        const sealGreen = 55;
+        const sealBlue = 45;
         
+        // 如果是已归档状态，在日期行左侧显示"已归档"印章
         if (isArchived) {
-            // 归档状态：flex 左印章 + 右日期
-            dateRow.style.display = 'flex';
-            dateRow.style.justifyContent = 'space-between';
-            dateRow.style.alignItems = 'center';
-            dateRow.style.marginBottom = '16px';
+            const parent = dateEl.parentNode;
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
             
-            // 创建印章
+            // 左侧砖红色印章
             const seal = document.createElement('span');
             seal.textContent = '已归档';
             seal.style.cssText = `
                 font-size:10px;
                 font-weight:600;
-                color:rgba(180,50,50,0.35);
-                border:1px solid rgba(180,50,50,0.18);
+                color:rgba(${sealRed},${sealGreen},${sealBlue},0.4);
+                border:1px solid rgba(${sealRed},${sealGreen},${sealBlue},0.2);
                 border-radius:4px;
                 padding:1px 10px;
                 letter-spacing:2px;
                 font-family:var(--font-family);
                 opacity:0.7;
             `;
-            dateRow.insertBefore(seal, dateEl);
             
+            // 右侧日期（保持原有样式）
+            dateEl.textContent = dateStr;
             dateEl.style.cssText = 'font-size:11px;color:var(--text-secondary);letter-spacing:1px;opacity:0.8;font-style:italic;margin:0;';
+            dateEl.id = 'compose-date-line';
+            
+            wrapper.appendChild(seal);
+            wrapper.appendChild(dateEl);
+            parent.replaceChild(wrapper, dateEl);
         } else {
-            // 非归档：普通块级右对齐
-            dateRow.style.display = 'block';
-            dateRow.style.textAlign = 'right';
-            dateRow.style.marginBottom = '16px';
-            dateEl.style.cssText = 'font-size:11px;color:var(--text-secondary);letter-spacing:1px;opacity:0.8;font-style:italic;margin:0;';
+            // 非归档状态：正常显示日期
+            dateEl.textContent = dateStr;
+            dateEl.style.cssText = 'font-size:11px;color:var(--text-secondary);text-align:right;margin-bottom:16px;letter-spacing:1px;opacity:0.8;font-style:italic;';
         }
-        dateEl.textContent = dateStr;
     }
     
-    // ---- 渲染题目列表 ----
+    // 渲染题目列表
     if (questionsContainer) {
         const questions = editingQuestionnaire.questions || [];
         
@@ -870,30 +862,33 @@ function renderComposeEditor() {
                     Deepen mutual understanding<br>and bring each other closer
                 </div>
             `;
+            // 如果是归档状态，追加归档内容
             if (isArchived) {
                 renderArchiveFooter(questionsContainer);
             }
-            // 控制底部按钮（后续统一处理）
-            controlBottomButtons(isArchived, permissions, isDraft);
             return;
         }
         
         let html = '';
         questions.forEach((q, index) => {
             const typeLabel = q.type === 'single' ? '单选' : '多选';
+            
             const isSameQuestion = q.isSameQuestion === true;
             const sameStatus = q.sameQuestionStatus;
             
+            // ⭐ 判断点击卡片的行为（包含归档判断）
             let canClickCard = false;
             let clickAction = '';
             let cursorStyle = 'default';
             let opacityStyle = '';
             
             if (isArchived) {
+                // 已归档：所有问题不可点击
                 canClickCard = false;
                 cursorStyle = 'default';
                 opacityStyle = 'opacity:0.7;';
             } else if (isSameQuestion) {
+                // 【同问】或【同问.已回】→ 可点击进入同问卡片
                 if (sameStatus === null || sameStatus === undefined || sameStatus === 'replied') {
                     canClickCard = true;
                     clickAction = `openSameQuestionEditor(${index})`;
@@ -903,6 +898,7 @@ function renderComposeEditor() {
                     opacityStyle = 'opacity:0.7;';
                 }
             } else if (permissions.canClickQuestion) {
+                // 普通问题且有编辑权 → 可点击编辑
                 canClickCard = true;
                 clickAction = `openQuestionEditorForEdit(${index})`;
                 cursorStyle = 'pointer';
@@ -913,18 +909,22 @@ function renderComposeEditor() {
             
             const hoverEffect = canClickCard ? 'compose-question-card-hover' : '';
             
-            // 选项列表
+            // ===== 选项列表（梦角选项 + 我的可选项） =====
             const optionsHtml = (q.options || []).map((opt, oi) => {
                 const isSelected = q.selectedOptions && q.selectedOptions.includes(oi);
                 const isAnswered = q.status === 'answered';
+                // 梦角选项：蓝色填充
                 const partnerFillColor = (isAnswered && isSelected) ? '#4A90D9' : 'transparent';
                 const partnerBorderColor = isSelected ? '#4A90D9' : 'rgba(var(--accent-color-rgb),0.25)';
                 
+                // 我的可选项（方框）
                 const mySelected = q.myAnswers && q.myAnswers.includes(oi);
                 const isRejected = q.myRejected === true;
+                
                 let boxHtml = '';
                 if (isSameQuestion) {
                     const isDone = q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done';
+                    
                     if (isRejected) {
                         boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid #bdbdbd;border-radius:3px;flex-shrink:0;position:relative;background:#e0e0e0;opacity:${isDone ? '0.4' : '1'};">
                             <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(45deg);width:18px;height:1.5px;background:#9e9e9e;"></span>
@@ -936,6 +936,7 @@ function renderComposeEditor() {
                         boxHtml = `<span style="display:inline-block;width:16px;height:16px;border:1.5px solid ${isDone ? '#bdbdbd' : 'var(--border-color)'};border-radius:3px;flex-shrink:0;opacity:${isDone ? '0.4' : '1'};"></span>`;
                     }
                 }
+                
                 return `<div style="display:flex;align-items:center;gap:6px;padding:2px 0 2px 6px;font-size:13px;color:var(--text-secondary);">
                     <span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:1.5px solid ${partnerBorderColor};background:${partnerFillColor};flex-shrink:0;transition:all 0.2s;"></span>
                     ${isSameQuestion ? boxHtml : ''}
@@ -943,15 +944,21 @@ function renderComposeEditor() {
                 </div>`;
             }).join('');
             
-            // 同问标签（仅显示）
+            // ⭐ 同问标签：只作显示，不可点击
             let sameQuestionLabel = '';
             if (isSameQuestion) {
                 const status = q.sameQuestionStatus;
-                if (status === null || status === undefined) sameQuestionLabel = '【同问】';
-                else if (status === 'replied') sameQuestionLabel = '【同问.已回】';
-                else if (status === 'rejected') sameQuestionLabel = '【同问.拒答】';
-                else if (status === 'replied_done') sameQuestionLabel = '【同问.已回 √】';
-                else if (status === 'rejected_done') sameQuestionLabel = '【同问.拒答 √】';
+                if (status === null || status === undefined) {
+                    sameQuestionLabel = '【同问】';
+                } else if (status === 'replied') {
+                    sameQuestionLabel = '【同问.已回】';
+                } else if (status === 'rejected') {
+                    sameQuestionLabel = '【同问.拒答】';
+                } else if (status === 'replied_done') {
+                    sameQuestionLabel = '【同问.已回 √】';
+                } else if (status === 'rejected_done') {
+                    sameQuestionLabel = '【同问.拒答 √】';
+                }
             }
             
             // 状态圆点颜色
@@ -960,11 +967,13 @@ function renderComposeEditor() {
             else if (q.status === 'unanswered') dotColor = '#FF9800';
             else if (q.status === 'rejected') dotColor = '#9C27B0';
             
+            // 是否显示删除按钮
             const showDelete = !isArchived && permissions.canDeleteQuestion && questions.length > 1;
             const deleteDisabled = questions.length <= 1;
             
             html += `
                 <div class="compose-question-card ${hoverEffect}" onclick="${clickAction}" style="margin-bottom:0;padding:14px 32px 12px 0px;cursor:${cursorStyle};position:relative;border-bottom:1.5px dashed rgba(var(--accent-color-rgb),0.15);overflow:visible;${opacityStyle}">
+                    <!-- 第一行 -->
                     <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;">
                         <span style="font-size:13px;font-weight:700;color:var(--accent-color);letter-spacing:0.5px;">Q${index + 1}</span>
                         <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;transition:all 0.2s;"></span>
@@ -974,12 +983,15 @@ function renderComposeEditor() {
                             : ''}
                         ${q.isInteractiveOneDone ? `<span style="font-size:9px;color:#6BCB77;background:rgba(107,203,119,0.12);padding:0 6px;border-radius:4px;border:1px solid rgba(107,203,119,0.2);">【互动完成】</span>` : ''}
                     </div>
+                    <!-- 第二行：题目 -->
                     <div style="font-size:14px;font-weight:500;color:var(--text-primary);line-height:1.5;padding-left:16px;margin-bottom:4px;">
                         ${escapeHtml(q.text)}
                     </div>
+                    <!-- 选项列表 -->
                     <div style="padding-left:16px;margin-top:2px;">
                         ${optionsHtml}
                     </div>
+                    <!-- 删除按钮 -->
                     ${showDelete ? `
                         <button class="compose-question-delete-btn" onclick="event.stopPropagation();deleteQuestion(${index})" style="position:absolute;top:12px;right:4px;background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:11px;opacity:0.25;padding:4px;transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='0.25'">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -992,25 +1004,22 @@ function renderComposeEditor() {
         });
         questionsContainer.innerHTML = html;
         
+        // ⭐ 如果是归档状态，在最后追加归档内容
         if (isArchived) {
             renderArchiveFooter(questionsContainer);
         }
     }
     
-    // ---- 控制底部按钮 ----
-    controlBottomButtons(isArchived, permissions, isDraft);
-}
-
-/**
- * 控制底部按钮显示
- */
-function controlBottomButtons(isArchived, permissions, isDraft) {
+    // ============================================================
+    // 控制底部按钮显示
+    // ============================================================
     const editBtnEl = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2)');
     const archiveBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(3)');
     const submitBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(1)');
     const closeBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(4)');
 
     if (isArchived) {
+        // 已归档：隐藏所有按钮，只保留"关闭"
         if (submitBtn) submitBtn.style.display = 'none';
         if (editBtnEl) editBtnEl.style.display = 'none';
         if (archiveBtn) archiveBtn.style.display = 'none';
@@ -1022,7 +1031,7 @@ function controlBottomButtons(isArchived, permissions, isDraft) {
         return;
     }
 
-    // 非归档
+    // 非已归档：正常显示按钮
     if (submitBtn) submitBtn.style.display = 'flex';
     if (closeBtn) {
         closeBtn.style.display = 'flex';
@@ -1030,6 +1039,7 @@ function controlBottomButtons(isArchived, permissions, isDraft) {
         closeBtn.textContent = '关闭';
     }
 
+    // 根据权限控制"提问"按钮（编辑按钮）
     if (editBtnEl) {
         if (!permissions.canEdit && !isDraft) {
             editBtnEl.style.opacity = '0.4';
@@ -1045,12 +1055,14 @@ function controlBottomButtons(isArchived, permissions, isDraft) {
         }
     }
 
+    // 控制"归档"按钮
     if (archiveBtn) {
         archiveBtn.style.display = 'flex';
     }
 }
+
 /**
- * 渲染归档底部内容（右下角：时间 + 人名）
+ * 渲染归档底部内容（右下角：时间 + 人名，砖红色）
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
@@ -1067,9 +1079,14 @@ function renderArchiveFooter(container) {
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
+    // 砖红色参数
+    const red = 170;
+    const green = 55;
+    const blue = 45;
+    
     const footerHtml = `
         <div class="archive-footer" style="margin-top:8px;text-align:right;padding:0 4px;">
-            <div style="font-size:12px;color:var(--text-secondary);opacity:0.5;line-height:1.8;letter-spacing:0.5px;">
+            <div style="font-size:12px;color:rgba(${red},${green},${blue},0.35);line-height:1.8;letter-spacing:0.5px;font-weight:500;">
                 <div>归档时间：${formattedDate}</div>
                 <div>归档人：${archivePeople}</div>
             </div>
