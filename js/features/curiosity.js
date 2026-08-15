@@ -163,6 +163,12 @@ async function loadCuriosityData() {
 
     if (saved) {
         curiosityData = saved;
+        // ⭐ 为 ing 列表中的每个问卷添加 lastViewedVersion（如果不存在）
+        curiosityData.ing.forEach(item => {
+            if (item.lastViewedVersion === undefined) {
+                item.lastViewedVersion = null;
+            }
+        });
         // 强制合并测试数据（每次都覆盖或追加）
         curiosityData.ing = curiosityData.ing.filter(item => !item.id.startsWith('test_'));
         curiosityData.ing = [...freshTestSamples.filter(s => s.status === 'ing'), ...curiosityData.ing];
@@ -172,8 +178,13 @@ async function loadCuriosityData() {
     } else {
         curiosityData = { ing: [], archived: [] };
         freshTestSamples.forEach(sample => {
-            if (sample.status === 'ing') curiosityData.ing.push(sample);
-            else curiosityData.archived.push(sample);
+            if (sample.status === 'ing') {
+                sample.lastViewedVersion = null; // ⭐ 新增
+                curiosityData.ing.push(sample);
+            } else {
+                sample.lastViewedVersion = null; // ⭐ 新增
+                curiosityData.archived.push(sample);
+            }
         });
     }
     await saveCuriosityData();
@@ -302,6 +313,26 @@ function weightedRandomDecision() {
     } else {
         return 'unanswered'; // 30%
     }
+}
+
+/**
+ * 判断问卷是否需要显示红点（版本号为偶数且未查看）
+ */
+function shouldShowRedDot(letter) {
+    if (!letter || letter.status === 'archived') return false;
+    const version = letter.version || 'A-0-N';
+    const num = getVersionNumber(version);
+    // 版本号数字为偶数（2,4,6...）且不为0
+    if (num === 0 || num % 2 !== 0) return false;
+    // 如果 lastViewedVersion 不存在或与当前版本不同，显示红点
+    return letter.lastViewedVersion !== version;
+}
+
+/**
+ * 计算未读数量
+ */
+function getUnreadCount() {
+    return curiosityData.ing.filter(item => shouldShowRedDot(item)).length;
 }
 
 // ---------- 卡片状态计算 ----------
@@ -549,6 +580,18 @@ window.switchCuriosityTab = function(tab) {
 function renderCuriosityLists() {
     renderCuriosityList('ing');
     renderCuriosityList('archived');
+    
+    // ⭐ 更新标签页红点
+    const unreadCount = getUnreadCount();
+    const ingBadge = document.getElementById('curiosity-ing-badge');
+    if (ingBadge) {
+        if (unreadCount > 0) {
+            ingBadge.textContent = unreadCount;
+            ingBadge.style.display = 'inline-block';
+        } else {
+            ingBadge.style.display = 'none';
+        }
+    }
 }
 
 function renderCuriosityList(status) {
@@ -597,7 +640,7 @@ function renderCuriosityList(status) {
         const statsHtml = `<div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">共${qCount}问 · ${singleCount}道单选 · ${multiCount}道多选</div>`;
         const statusText = getCardStatusText(letter);
 
-        return `
+            return `
             <div class="env-letter-item curiosity-letter-item" onclick="viewCuriosityLetter('${status}','${letter.id}')">
                 <div class="env-letter-header curiosity-compact-header">
                     <div class="env-letter-header-from">
@@ -607,7 +650,12 @@ function renderCuriosityList(status) {
                         </svg>
                         ${headerText}
                     </div>
-                    <span style="font-size:18px;line-height:1;flex-shrink:0;">📮</span>
+                    <div style="display:flex;align-items:center;gap:4px;">
+                        ${status === 'ing' && shouldShowRedDot(letter) ? 
+                             `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff4757;flex-shrink:0;box-shadow:0 0 6px rgba(255,71,87,0.4);"></span>` 
+                             : ''}
+                        <span style="font-size:18px;line-height:1;flex-shrink:0;">📮</span>
+                    </div>
                 </div>
                 <div class="env-letter-body" style="padding:8px 12px 8px;">
                     ${titleHtml}
@@ -642,6 +690,12 @@ window.viewCuriosityLetter = function(status, id) {
     if (!questionnaire) {
         showNotification('问卷不存在', 'error');
         return;
+    }
+    // ⭐ 标记已读：记录当前版本号
+    if (sourceStatus === 'ing' && questionnaire.version) {
+        questionnaire.lastViewedVersion = questionnaire.version;
+        saveCuriosityData();
+        renderCuriosityLists();
     }
     // 关闭主模态框，打开详情页
     hideModal(document.getElementById('curiosity-modal'));
@@ -1052,7 +1106,7 @@ function renderArchiveFooter(container) {
     
     // 构建归档底部HTML
 const footerHtml = `
-    <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
+    <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:2px solid rgba(var(--accent-color-rgb),0.12);">
         <!-- 归档时间和归档人：右下角 -->
         <div style="text-align:right;font-size:12px;color:var(--text-primary);opacity:0.7;line-height:1.8;padding-right:4px;">
             <div>归档时间：${formattedDate}</div>
