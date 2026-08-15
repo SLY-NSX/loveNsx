@@ -7,8 +7,6 @@
 let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
-
-const ARCHIVE_IMAGE_URL = './images/archive-banner.png';
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
@@ -795,22 +793,34 @@ function renderComposeEditor() {
         }
     }
     
-    // 设置日期
-    if (dateEl) {
-        let timeSource = editingQuestionnaire.createdTime || editingQuestionnaire.sentTime || Date.now();
-        if (typeof timeSource === 'string') {
-            timeSource = parseInt(timeSource, 10);
-        }
-        if (isNaN(timeSource) || timeSource < 0) {
-            timeSource = Date.now();
-        }
-        const now = new Date(timeSource);
-        const y = now.getFullYear();
-        const mo = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-        dateEl.textContent = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
+// 设置日期
+if (dateEl) {
+    let timeSource = editingQuestionnaire.createdTime || editingQuestionnaire.sentTime || Date.now();
+    if (typeof timeSource === 'string') {
+        timeSource = parseInt(timeSource, 10);
     }
+    if (isNaN(timeSource) || timeSource < 0) {
+        timeSource = Date.now();
+    }
+    const now = new Date(timeSource);
+    const y = now.getFullYear();
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    const dateStr = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
+    
+    // ⭐ 已归档时：在日期行左侧添加"已归档"印章
+    if (isArchived) {
+        dateEl.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                <span style="font-size:14px;font-weight:700;color:rgba(180,50,50,0.25);letter-spacing:6px;font-family:var(--font-family);">已归档</span>
+                <span style="font-size:11px;color:var(--text-secondary);opacity:0.8;font-style:italic;">${dateStr}</span>
+            </div>
+        `;
+    } else {
+        dateEl.textContent = dateStr;
+    }
+}
     
     // 渲染题目列表
     if (questionsContainer) {
@@ -1040,22 +1050,15 @@ function renderArchiveFooter(container) {
     const archivePeople = `${myName} & ${partnerName}`;
     
     // 构建归档底部HTML
-    const footerHtml = `
-        <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
-            <!-- 图片：偏右放置 -->
-            <div style="text-align:right;margin-bottom:12px;">
-                    <img src="${ARCHIVE_IMAGE_URL}" 
-                    alt="归档纪念" 
-                    style="width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;"
-                    onerror="this.style.display='none'">
-            </div>
-            <!-- 归档时间和归档人：右下角 -->
-            <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.7;line-height:1.8;padding-right:4px;">
-                <div>归档时间：${formattedDate}</div>
-                <div>归档人：${archivePeople}</div>
-            </div>
+const footerHtml = `
+    <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
+        <!-- 归档时间和归档人：右下角 -->
+        <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.6;line-height:1.8;padding-right:4px;">
+            <div>归档时间：${formattedDate}</div>
+            <div>归档人：${archivePeople}</div>
         </div>
-    `;
+    </div>
+`;
     
     // 追加到容器末尾
     container.insertAdjacentHTML('beforeend', footerHtml);
