@@ -771,7 +771,6 @@ function saveQuestionnaireToData(questionnaire, sourceStatus) {
 }
 
 // ---------- 渲染编辑器内容 ----------
-// ---------- 渲染编辑器内容 ----------
 function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
@@ -794,7 +793,7 @@ function renderComposeEditor() {
         }
     }
     
-    // 设置日期
+    // 设置日期行（包含左侧印章和右侧日期）
     if (dateEl) {
         let timeSource = editingQuestionnaire.createdTime || editingQuestionnaire.sentTime || Date.now();
         if (typeof timeSource === 'string') {
@@ -808,7 +807,44 @@ function renderComposeEditor() {
         const mo = String(now.getMonth() + 1).padStart(2, '0');
         const d = String(now.getDate()).padStart(2, '0');
         const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-        dateEl.textContent = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
+        const dateStr = `${y}/${mo}/${d} 星期${weekdays[now.getDay()]}`;
+        
+        // 如果是已归档状态，在日期行左侧显示"已归档"印章
+        if (isArchived) {
+            const parent = dateEl.parentNode;
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;';
+            
+            // 左侧印章
+            const seal = document.createElement('span');
+            seal.textContent = '已归档';
+            seal.style.cssText = `
+                font-size:10px;
+                font-weight:600;
+                color:rgba(180,50,50,0.35);
+                border:1px solid rgba(180,50,50,0.18);
+                border-radius:4px;
+                padding:1px 10px;
+                letter-spacing:2px;
+                font-family:var(--font-family);
+                opacity:0.7;
+            `;
+            
+            // 右侧日期（保留原样式）
+            dateEl.textContent = dateStr;
+            dateEl.style.cssText = 'font-size:11px;color:var(--text-secondary);letter-spacing:1px;opacity:0.8;font-style:italic;margin:0;';
+            dateEl.id = 'compose-date-line';
+            
+            wrapper.appendChild(seal);
+            wrapper.appendChild(dateEl);
+            if (parent) {
+                parent.replaceChild(wrapper, dateEl);
+            }
+        } else {
+            // 非归档状态：正常显示日期
+            dateEl.textContent = dateStr;
+            dateEl.style.cssText = 'font-size:11px;color:var(--text-secondary);text-align:right;margin-bottom:16px;letter-spacing:1px;opacity:0.8;font-style:italic;';
+        }
     }
     
     // 渲染题目列表
@@ -825,6 +861,8 @@ function renderComposeEditor() {
             if (isArchived) {
                 renderArchiveFooter(questionsContainer);
             }
+            // 控制底部按钮
+            controlBottomButtons(isArchived, permissions, isDraft, titleEl);
             return;
         }
         
@@ -972,6 +1010,13 @@ function renderComposeEditor() {
     // ============================================================
     // 控制底部按钮显示
     // ============================================================
+    controlBottomButtons(isArchived, permissions, isDraft, titleEl);
+}
+
+/**
+ * 控制底部按钮显示
+ */
+function controlBottomButtons(isArchived, permissions, isDraft, titleEl) {
     const editBtnEl = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2)');
     const archiveBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(3)');
     const submitBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(1)');
@@ -1019,9 +1064,8 @@ function renderComposeEditor() {
         archiveBtn.style.display = 'flex';
     }
 }
-
 /**
- * 渲染归档底部内容（红色印章效果）
+ * 渲染归档底部内容（右下角：时间 + 人名）
  * @param {HTMLElement} container - 父容器元素
  */
 function renderArchiveFooter(container) {
@@ -1038,95 +1082,12 @@ function renderArchiveFooter(container) {
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
     const archivePeople = `${myName} & ${partnerName}`;
     
-    // 红色印章参数（可调）
-    const red = 180;
-    const green = 50;
-    const blue = 50;
-    const borderOpacity = 0.35;
-    const textOpacity = 0.45;
-    
     const footerHtml = `
-        <div class="archive-footer" style="margin-top:36px;text-align:center;width:100%;padding:10px 0 6px;position:relative;">
-            <!-- 印章主体 -->
-            <div style="
-                display:inline-block;
-                padding:16px 34px 14px;
-                border:2.5px solid rgba(${red},${green},${blue},${borderOpacity});
-                border-radius:16px;
-                background: 
-                    radial-gradient(circle at 30% 40%, rgba(${red},${green},${blue},0.04) 0%, transparent 60%),
-                    radial-gradient(circle at 80% 70%, rgba(${red},${green},${blue},0.03) 0%, transparent 40%),
-                    radial-gradient(circle at 50% 50%, rgba(${red},${green},${blue},0.02) 0%, transparent 70%);
-                position:relative;
-                box-shadow: 
-                    inset 0 2px 12px rgba(${red},${green},${blue},0.05),
-                    0 1px 4px rgba(${red},${green},${blue},0.03),
-                    0 0 0 1px rgba(${red},${green},${blue},0.02);
-                transition:all 0.3s ease;
-            ">
-                <!-- 内圈装饰线 -->
-                <div style="
-                    position:absolute;
-                    top:5px;left:5px;right:5px;bottom:5px;
-                    border:1px solid rgba(${red},${green},${blue},0.08);
-                    border-radius:12px;
-                    pointer-events:none;
-                "></div>
-                
-                <!-- 油墨颗粒纹理（模拟印章不均匀感） -->
-                <div style="
-                    position:absolute;
-                    top:0;left:0;right:0;bottom:0;
-                    border-radius:16px;
-                    background-image: 
-                        radial-gradient(ellipse at 20% 30%, rgba(${red},${green},${blue},0.06) 0%, transparent 30%),
-                        radial-gradient(ellipse at 80% 60%, rgba(${red},${green},${blue},0.04) 0%, transparent 25%),
-                        radial-gradient(ellipse at 45% 80%, rgba(${red},${green},${blue},0.05) 0%, transparent 20%),
-                        radial-gradient(ellipse at 10% 70%, rgba(${red},${green},${blue},0.03) 0%, transparent 15%),
-                        radial-gradient(ellipse at 90% 20%, rgba(${red},${green},${blue},0.03) 0%, transparent 15%);
-                    pointer-events:none;
-                    z-index:1;
-                "></div>
-                
-                <!-- 文字内容 -->
-                <div style="
-                    position:relative;
-                    z-index:2;
-                ">
-                    <div style="
-                        font-size:22px;
-                        font-weight:700;
-                        color:rgba(${red},${green},${blue},${textOpacity});
-                        letter-spacing:10px;
-                        font-family:var(--font-family);
-                        line-height:1.4;
-                        text-shadow: 
-                            0 0 2px rgba(${red},${green},${blue},0.05),
-                            0 0 8px rgba(${red},${green},${blue},0.02);
-                    ">已归档</div>
-                    <div style="
-                        font-size:11.5px;
-                        color:rgba(${red},${green},${blue},${textOpacity - 0.1});
-                        letter-spacing:2.5px;
-                        line-height:1.7;
-                        margin-top:5px;
-                        font-weight:500;
-                    ">
-                        <div>${formattedDate}</div>
-                        <div>归档人：${archivePeople}</div>
-                    </div>
-                </div>
+        <div class="archive-footer" style="margin-top:8px;text-align:right;padding:0 4px;">
+            <div style="font-size:12px;color:var(--text-secondary);opacity:0.5;line-height:1.8;letter-spacing:0.5px;">
+                <div>归档时间：${formattedDate}</div>
+                <div>归档人：${archivePeople}</div>
             </div>
-            
-            <!-- 底部压痕阴影 -->
-            <div style="
-                width:90px;
-                height:5px;
-                margin:10px auto 0;
-                background:radial-gradient(ellipse at center, rgba(${red},${green},${blue},0.08) 0%, transparent 75%);
-                border-radius:50%;
-                filter:blur(3px);
-            "></div>
         </div>
     `;
     
