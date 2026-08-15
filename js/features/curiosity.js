@@ -8,6 +8,7 @@ let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 
+const ARCHIVE_IMAGE_URL = 'https://img.tofaka.com/autoupload/f/ikeej/20260815/Ltnk/2278X1280/%E5%B7%B2%E5%BD%92%E6%A1%A3.jpg';
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
@@ -306,16 +307,14 @@ function weightedRandomDecision() {
 }
 
 // ---------- 卡片状态计算 ----------
-/**
- * 根据问卷数据计算卡片状态文字（纯文字，无图标）
- * @param {Object} letter - 问卷数据对象
- * @returns {string} 状态文字
- */
 function getCardStatusText(letter) {
-    // ⭐ 先检查是否已归档
     if (letter.status === 'archived') {
-        return '已归档';
+        const questions = letter.questions || [];
+        const total = questions.length;
+        const answeredCount = questions.filter(q => q.status === 'answered').length;
+        return `已归档 已选择${answeredCount}/${total}道`;
     }
+    
     const isDraft = letter.isDraft === true || letter.status === 'draft' || !letter.id;
     if (isDraft) {
         return '草稿';
@@ -328,24 +327,20 @@ function getCardStatusText(letter) {
     const prevVersion = letter.prevVersion || 'A-0-N';
     const prevPrefix = getVersionPrefix(prevVersion);
     
-    // 数字为0 → 草稿（但isDraft已处理）
     if (num === 0) {
         return '草稿';
     }
     
-    // 单数 → 正在投递中
     if (num % 2 === 1) {
         return '正在投递中';
     }
     
-    // 双数（非0）
     const questions = letter.questions || [];
     const total = questions.length;
     const answeredCount = questions.filter(q => q.status === 'answered').length;
     const m = answeredCount;
     const n = total;
     
-    // 首字母是否有变化（对比上一版本）
     const prefixChanged = prefix !== prevPrefix;
     
     if (prefixChanged || suffix === 'N') {
@@ -777,6 +772,7 @@ function saveQuestionnaireToData(questionnaire, sourceStatus) {
 }
 
 // ---------- 渲染编辑器内容 ----------
+// ---------- 渲染编辑器内容 ----------
 function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
     const dateEl = document.getElementById('compose-date-line');
@@ -785,12 +781,18 @@ function renderComposeEditor() {
     // 获取权限
     const permissions = getEditPermissions(editingQuestionnaire.version);
     const isDraft = isDraftQuestionnaire(editingQuestionnaire);
+    const isArchived = editingQuestionnaire.status === 'archived';
     
     // 设置标题
     if (titleEl) {
         titleEl.textContent = editingQuestionnaire.title || '未命名问卷';
-        titleEl.style.cursor = permissions.canRename ? 'pointer' : 'default';
-        titleEl.style.opacity = permissions.canRename ? '1' : '0.6';
+        if (isArchived) {
+            titleEl.style.cursor = 'default';
+            titleEl.style.opacity = '0.6';
+        } else {
+            titleEl.style.cursor = permissions.canRename ? 'pointer' : 'default';
+            titleEl.style.opacity = permissions.canRename ? '1' : '0.6';
+        }
     }
     
     // 设置日期
@@ -820,6 +822,10 @@ function renderComposeEditor() {
                     Deepen mutual understanding<br>and bring each other closer
                 </div>
             `;
+            // 如果是归档状态，追加归档内容
+            if (isArchived) {
+                renderArchiveFooter(questionsContainer);
+            }
             return;
         }
         
@@ -830,21 +836,24 @@ function renderComposeEditor() {
             const isSameQuestion = q.isSameQuestion === true;
             const sameStatus = q.sameQuestionStatus;
             
-            // ⭐ 判断点击卡片的行为
+            // ⭐ 判断点击卡片的行为（包含归档判断）
             let canClickCard = false;
             let clickAction = '';
             let cursorStyle = 'default';
             let opacityStyle = '';
             
-            // 有同问标记的问题
-            if (isSameQuestion) {
+            if (isArchived) {
+                // 已归档：所有问题不可点击
+                canClickCard = false;
+                cursorStyle = 'default';
+                opacityStyle = 'opacity:0.7;';
+            } else if (isSameQuestion) {
                 // 【同问】或【同问.已回】→ 可点击进入同问卡片
                 if (sameStatus === null || sameStatus === undefined || sameStatus === 'replied') {
                     canClickCard = true;
                     clickAction = `openSameQuestionEditor(${index})`;
                     cursorStyle = 'pointer';
                 } else {
-                    // 【同问.拒答】、【同问.已回 √】、【同问.拒答 √】→ 不可点击
                     cursorStyle = 'default';
                     opacityStyle = 'opacity:0.7;';
                 }
@@ -854,7 +863,6 @@ function renderComposeEditor() {
                 clickAction = `openQuestionEditorForEdit(${index})`;
                 cursorStyle = 'pointer';
             } else {
-                // 普通问题但无编辑权
                 cursorStyle = 'default';
                 opacityStyle = 'opacity:0.7;';
             }
@@ -920,7 +928,7 @@ function renderComposeEditor() {
             else if (q.status === 'rejected') dotColor = '#9C27B0';
             
             // 是否显示删除按钮
-            const showDelete = permissions.canDeleteQuestion && questions.length > 1;
+            const showDelete = !isArchived && permissions.canDeleteQuestion && questions.length > 1;
             const deleteDisabled = questions.length <= 1;
             
             html += `
@@ -955,16 +963,20 @@ function renderComposeEditor() {
             `;
         });
         questionsContainer.innerHTML = html;
+        
+        // ⭐ 如果是归档状态，在最后追加归档内容
+        if (isArchived) {
+            renderArchiveFooter(questionsContainer);
+        }
     }
     
+    // ============================================================
     // 控制底部按钮显示
+    // ============================================================
     const editBtnEl = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2)');
     const archiveBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(3)');
     const submitBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(1)');
     const closeBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(4)');
-
-    // ⭐ 检查是否已归档
-    const isArchived = editingQuestionnaire.status === 'archived';
 
     if (isArchived) {
         // 已归档：隐藏所有按钮，只保留"关闭"
@@ -976,12 +988,7 @@ function renderComposeEditor() {
             closeBtn.style.flex = '1';
             closeBtn.textContent = '关闭';
         }
-        // 禁用标题编辑
-        if (titleEl) {
-            titleEl.style.cursor = 'default';
-            titleEl.style.opacity = '0.6';
-        }
-        return; // 提前返回，不需要后面的权限控制
+        return;
     }
 
     // 非已归档：正常显示按钮
@@ -1012,6 +1019,46 @@ function renderComposeEditor() {
     if (archiveBtn) {
         archiveBtn.style.display = 'flex';
     }
+}
+
+/**
+ * 渲染归档底部内容（图片 + 归档时间 + 归档人）
+ * @param {HTMLElement} container - 父容器元素
+ */
+function renderArchiveFooter(container) {
+    // 获取归档时间（使用 sentTime 或当前时间）
+    const archiveTime = editingQuestionnaire.sentTime || editingQuestionnaire.createdTime || Date.now();
+    const date = new Date(archiveTime);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const formattedDate = `${year}年${month}月${day}日`;
+    
+    // 获取归档人名字（从设置读取，但固定保存时不变）
+    const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
+    const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+    const archivePeople = `${myName} & ${partnerName}`;
+    
+    // 构建归档底部HTML
+    const footerHtml = `
+        <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
+            <!-- 图片：偏右放置 -->
+            <div style="text-align:right;margin-bottom:12px;">
+                <img src="${ARCHIVE_IMAGE_URL}" 
+                     alt="归档纪念" 
+                     style="max-width:85%;height:auto;max-height:200px;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;"
+                     onerror="this.style.display='none'">
+            </div>
+            <!-- 归档时间和归档人：右下角 -->
+            <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.7;line-height:1.8;padding-right:4px;">
+                <div>归档时间：${formattedDate}</div>
+                <div>归档人：${archivePeople}</div>
+            </div>
+        </div>
+    `;
+    
+    // 追加到容器末尾
+    container.insertAdjacentHTML('beforeend', footerHtml);
 }
 
 // ---------- 标题点击编辑 ----------
@@ -1046,9 +1093,13 @@ window.composeAction = function(action) {
 };
 // ---------- 投递处理（阶段1 - 修正版） ----------
 function handleSubmitQuestionnaire() {
-    // ⭐ 检查是否已归档
     if (editingQuestionnaire.status === 'archived') {
-        showNotification('已归档的问卷不可投递 ✦', 'warning', 2500);
+        showCuriosityConfirm({
+            title: '📦 已归档',
+            message: '已归档的问卷不可投递 ✦',
+            confirmText: '我知道了',
+            onConfirm: () => {}
+        });
         return;
     }
     const questions = editingQuestionnaire.questions || [];
