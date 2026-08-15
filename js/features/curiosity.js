@@ -288,13 +288,21 @@ function randomSelectMultiple(options, count) {
     return shuffled.slice(0, Math.min(count, shuffled.length)).map((_, idx) => idx);
 }
 
+// ---------- 随机工具函数（新增） ----------
 /**
- * 三选一判断（概率均等）
- * @returns {'rejected' | 'unanswered' | 'answered'}
+ * 加权三选一判断
+ * 回答：50% | 拒绝：20% | 暂不回答：30%
+ * @returns {'answered' | 'rejected' | 'unanswered'}
  */
-function randomDecision() {
-    const choices = ['rejected', 'unanswered', 'answered'];
-    return randomPick(choices);
+function weightedRandomDecision() {
+    const rand = Math.random() * 100; // 0~100
+    if (rand < 50) {
+        return 'answered';   // 50%
+    } else if (rand < 70) {
+        return 'rejected';   // 20%
+    } else {
+        return 'unanswered'; // 30%
+    }
 }
 
 // ---------- 卡片状态计算 ----------
@@ -304,6 +312,10 @@ function randomDecision() {
  * @returns {string} 状态文字
  */
 function getCardStatusText(letter) {
+    // ⭐ 先检查是否已归档
+    if (letter.status === 'archived') {
+        return '已归档';
+    }
     const isDraft = letter.isDraft === true || letter.status === 'draft' || !letter.id;
     if (isDraft) {
         return '草稿';
@@ -948,7 +960,39 @@ function renderComposeEditor() {
     // 控制底部按钮显示
     const editBtnEl = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(2)');
     const archiveBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(3)');
-    
+    const submitBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(1)');
+    const closeBtn = document.querySelector('#curiosity-compose-modal .env-wrapper > div > div:last-child button:nth-child(4)');
+
+    // ⭐ 检查是否已归档
+    const isArchived = editingQuestionnaire.status === 'archived';
+
+    if (isArchived) {
+        // 已归档：隐藏所有按钮，只保留"关闭"
+        if (submitBtn) submitBtn.style.display = 'none';
+        if (editBtnEl) editBtnEl.style.display = 'none';
+        if (archiveBtn) archiveBtn.style.display = 'none';
+        if (closeBtn) {
+            closeBtn.style.display = 'flex';
+            closeBtn.style.flex = '1';
+            closeBtn.textContent = '关闭';
+        }
+        // 禁用标题编辑
+        if (titleEl) {
+            titleEl.style.cursor = 'default';
+            titleEl.style.opacity = '0.6';
+        }
+        return; // 提前返回，不需要后面的权限控制
+    }
+
+    // 非已归档：正常显示按钮
+    if (submitBtn) submitBtn.style.display = 'flex';
+    if (closeBtn) {
+        closeBtn.style.display = 'flex';
+        closeBtn.style.flex = '1';
+        closeBtn.textContent = '关闭';
+    }
+
+    // 根据权限控制"提问"按钮（编辑按钮）
     if (editBtnEl) {
         if (!permissions.canEdit && !isDraft) {
             editBtnEl.style.opacity = '0.4';
@@ -963,13 +1007,10 @@ function renderComposeEditor() {
             editBtnEl.onclick = openQuestionEditor;
         }
     }
-    
+
+    // 控制"归档"按钮
     if (archiveBtn) {
-        if (isDraft || isViewMode) {
-            archiveBtn.style.display = 'flex';
-        } else {
-            archiveBtn.style.display = 'flex';
-        }
+        archiveBtn.style.display = 'flex';
     }
 }
 
@@ -997,18 +1038,19 @@ window.composeAction = function(action) {
         return;
     }
     if (action === 'confirm') {
-        showNotification('📦 归档功能开发中，敬请期待 ✦', 'info', 2500);
+        handleArchiveQuestionnaire();
         return;
     }
-    const messages = {
-        'draft': '📝 草稿保存功能开发中，敬请期待 ✦'
-    };
-    showNotification(messages[action] || '功能开发中 ✦', 'info', 2500);
+    // 其他情况（实际上不会触发）
+    showNotification('操作未识别', 'warning', 2000);
 };
-
-// ---------- 投递处理（阶段1 - 修正版） ----------
 // ---------- 投递处理（阶段1 - 修正版） ----------
 function handleSubmitQuestionnaire() {
+    // ⭐ 检查是否已归档
+    if (editingQuestionnaire.status === 'archived') {
+        showNotification('已归档的问卷不可投递 ✦', 'warning', 2500);
+        return;
+    }
     const questions = editingQuestionnaire.questions || [];
     
     // 基础检查：至少1个问题
@@ -1563,7 +1605,7 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
         await sleep(waitTime * 1000);
         
         // 三选一判断
-        const decision = randomDecision();
+        const decision = weightedRandomDecision();
         console.log(`[回复逻辑二] Q${i + 1} 决策: ${decision}`);
         
         // 更新问题状态
@@ -1638,7 +1680,7 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
             await sleep(waitTime * 1000);
             
             // 三选一判断（仍然可以选暂不回答，但必须执行反问）
-            const decision = randomDecision();
+            const decision = weightedRandomDecision();
             console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 决策: ${decision}`);
             
             // 更新问题状态（二轮答案覆盖一轮）
@@ -1812,7 +1854,7 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                 console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime} 秒...`);
                 await sleep(waitTime * 1000);
                 
-                const decision = randomDecision();
+                const decision = weightedRandomDecision();
                 console.log(`[回复逻辑三] Q${idx + 1} 决策: ${decision}`);
                 
                 q.status = decision;
@@ -1916,8 +1958,157 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     };
 }
 
+// ============================================================
+// 归档功能
+// ============================================================
+
+function handleArchiveQuestionnaire() {
+    const questions = editingQuestionnaire.questions || [];
+    const currentVersion = editingQuestionnaire.version || 'A-0-N';
+    const versionNum = getVersionNumber(currentVersion);
+    const versionPrefix = getVersionPrefix(currentVersion);
+    const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+    const title = editingQuestionnaire.title || '未命名问卷';
+    
+    // 1. 检查版本号是否为0
+    if (versionNum === 0) {
+        showCuriosityConfirm({
+            title: '📦 无法归档',
+            message: '没有投递的问卷不可以归档哦 ✦',
+            confirmText: '我知道了',
+            onConfirm: () => {}
+        });
+        return;
+    }
+    
+    // 2. 检查问卷是否已归档
+    if (editingQuestionnaire.status === 'archived') {
+        showNotification('该问卷已归档，不可重复归档', 'info', 2000);
+        return;
+    }
+    
+    // 3. 检查各种标记状态
+    const hasSameQuestionTag = questions.some(q => 
+        q.isSameQuestion === true && 
+        (q.sameQuestionStatus === null || q.sameQuestionStatus === undefined || q.sameQuestionStatus === 'replied' || q.sameQuestionStatus === 'rejected')
+    );
+    const hasUnanswered = questions.some(q => q.status === 'unanswered');
+    
+    let confirmMessage = '';
+    let shouldConfirm = false;
+    
+    // 版本号为 A 或 B
+    if (versionPrefix === 'A' || versionPrefix === 'B') {
+        if (hasSameQuestionTag && hasUnanswered) {
+            confirmMessage = `归档后无法再投递，确定不再与 ${partnerName} 相互提问吗？`;
+            shouldConfirm = true;
+        } else if (hasSameQuestionTag) {
+            confirmMessage = `归档后无法再投递，确认不再询问 ${partnerName} 吗？`;
+            shouldConfirm = true;
+        } else if (hasUnanswered) {
+            confirmMessage = `归档后无法再投递，确定不让 ${partnerName} 了解你的选择吗？`;
+            shouldConfirm = true;
+        }
+    } else {
+        // 版本号不是 A 或 B，只检查同问标签
+        if (hasSameQuestionTag) {
+            confirmMessage = `归档后无法再投递，确认不再询问 ${partnerName} 吗？`;
+            shouldConfirm = true;
+        }
+    }
+    
+    // 如果有需要确认的情况，弹窗确认
+    if (shouldConfirm) {
+        showCuriosityConfirm({
+            title: '📦 确认归档',
+            message: confirmMessage,
+            confirmText: '确定归档',
+            cancelText: '取消',
+            onConfirm: () => {
+                executeArchive(title);
+            },
+            onCancel: () => {
+                showNotification('已取消归档', 'info', 1500);
+            }
+        });
+        return;
+    }
+    
+    // 无需确认，直接归档
+    executeArchive(title);
+}
+
+function executeArchive(title) {
+    // 确保有ID
+    if (!editingQuestionnaire.id) {
+        editingQuestionnaire.id = generateCuriosityId();
+    }
+    
+    // 从 ing 列表中移除
+    const ingIndex = curiosityData.ing.findIndex(item => item.id === editingQuestionnaire.id);
+    if (ingIndex > -1) {
+        const archivedItem = {
+            ...curiosityData.ing[ingIndex],
+            status: 'archived',
+            isDraft: false
+        };
+        // 添加到 archived 列表
+        curiosityData.archived.push(archivedItem);
+        // 从 ing 移除
+        curiosityData.ing.splice(ingIndex, 1);
+    } else {
+        // 如果已在 archived 中，更新状态
+        const archivedIndex = curiosityData.archived.findIndex(item => item.id === editingQuestionnaire.id);
+        if (archivedIndex > -1) {
+            curiosityData.archived[archivedIndex].status = 'archived';
+            curiosityData.archived[archivedIndex].isDraft = false;
+        } else {
+            // 极端情况：找不到，直接添加
+            curiosityData.archived.push({
+                ...editingQuestionnaire,
+                status: 'archived',
+                isDraft: false
+            });
+        }
+    }
+    
+    saveCuriosityData();
+    renderCuriosityLists();
+    
+    // 弹窗提示归档完成
+    showCuriosityConfirm({
+        title: '📦 归档完成',
+        message: `「${title}」已完成归档 ✦`,
+        confirmText: '好的',
+        onConfirm: () => {
+            // 关闭编辑器，回到主模态框，切换到已归档标签
+            closeCuriosityCompose(true);
+            setTimeout(() => {
+                showModal(document.getElementById('curiosity-modal'));
+                switchCuriosityTab('archived');
+            }, 300);
+        }
+    });
+}
+
 // ---------- 关闭编辑器（基于 isDirty 判断是否需要保存） ----------
 window.closeCuriosityCompose = function(skipConfirm) {
+    if (skipConfirm) {
+        hideModal(document.getElementById('curiosity-compose-modal'));
+        return;
+    }
+    
+    // ⭐ 如果已归档，直接关闭不询问
+    if (editingQuestionnaire.status === 'archived') {
+        hideModal(document.getElementById('curiosity-compose-modal'));
+        if (isViewMode) {
+            setTimeout(() => {
+                showModal(document.getElementById('curiosity-modal'));
+            }, 300);
+        }
+        return;
+    }
+
     // 如果是从投递成功调用的，跳过所有确认，直接关闭
     if (skipConfirm) {
         hideModal(document.getElementById('curiosity-compose-modal'));
@@ -2517,19 +2708,25 @@ window.saveSameQuestion = function() {
  * 关闭同问卡片（不保存）
  */
 window.closeSameQuestion = function() {
-    // 如果有内容变化，提醒用户
     const q = editingQuestionnaire.questions[editingSameQuestionIndex];
     if (!q) {
         hideModal(document.getElementById('same-question-modal'));
         return;
     }
     
+    // 检查是否有未保存的修改
     const hasChange = tempSameQuestionData.myAnswers.length > 0 || tempSameQuestionData.myRejected;
     if (hasChange) {
-        if (!confirm('确定关闭吗？未保存的修改将丢失。')) {
-            return;
+        // 询问用户是否保存
+        if (confirm('是否保存修改？\n\n点击「确定」保存\n点击「取消」放弃修改')) {
+            // 用户选择保存 → 调用保存逻辑
+            saveSameQuestion();
+        } else {
+            // 用户放弃修改，丢弃临时数据
+            hideModal(document.getElementById('same-question-modal'));
         }
+    } else {
+        // 无修改，直接关闭
+        hideModal(document.getElementById('same-question-modal'));
     }
-    
-    hideModal(document.getElementById('same-question-modal'));
 };
