@@ -876,6 +876,38 @@ if (dateEl) {
         dateEl.textContent = dateStr;
     }
 } 
+// 更新邮戳（动态显示名字首字 + 双箭头 + 次数）
+const stampContainer = document.getElementById('curiosity-stamp-container');
+if (stampContainer) {
+    // 获取名字首字
+    const myName = (typeof settings !== 'undefined' && settings.myName) || '我';
+    const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
+    const myInitial = myName.charAt(0) || '我';
+    const partnerInitial = partnerName.charAt(0) || '梦';
+    
+    // 计算版本号对应的次数
+    const version = editingQuestionnaire.version || 'A-0-N';
+    const num = getVersionNumber(version);
+    let timesText = '';
+    if (num === 0) {
+        timesText = '零次';
+    } else {
+        const count = Math.floor((num + 1) / 2);
+        const numMap = ['零','一','二','三','四','五','六','七','八','九','十'];
+        if (count <= 10) {
+            timesText = numMap[count] + '次';
+        } else {
+            timesText = count + '次';
+        }
+    }
+    
+    // 使用双向箭头（⇄）表示“我 ↔ 梦角”
+    stampContainer.innerHTML = `
+        <span style="font-size:7px;color:white;letter-spacing:0.5px;">${myInitial} ⇄ ${partnerInitial}</span>
+        <span style="font-size:8px;color:white;font-weight:600;">${timesText}</span>
+        <span style="font-size:6px;color:white;opacity:0.8;">ANSWER</span>
+    `;
+}
     
     // 渲染题目列表
     if (questionsContainer) {
