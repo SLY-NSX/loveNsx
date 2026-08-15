@@ -1042,12 +1042,12 @@ function renderArchiveFooter(container) {
     // 构建归档底部HTML
     const footerHtml = `
         <div class="archive-footer" style="margin-top:24px;padding-top:12px;border-top:1px dashed rgba(var(--accent-color-rgb),0.15);">
-            <!-- 图片：偏右放置 -->
+            <!-- 图片：偏右放置，使用 multiply 混合模式 -->
             <div style="text-align:right;margin-bottom:12px;">
-                    <img src="${ARCHIVE_IMAGE_URL}" 
-                    alt="归档纪念" 
-                    style="width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;"
-                    onerror="this.style.display='none'">
+                <img src="${ARCHIVE_IMAGE_URL}" 
+                     alt="归档纪念" 
+                     style="width:45%;height:auto;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.08);object-fit:contain;mix-blend-mode:multiply;"
+                     onerror="this.style.display='none'">
             </div>
             <!-- 归档时间和归档人：右下角 -->
             <div style="text-align:right;font-size:12px;color:var(--text-secondary);opacity:0.7;line-height:1.8;padding-right:4px;">
