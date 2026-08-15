@@ -1407,7 +1407,7 @@ async function simulateReplyLogic(questionnaireId, currentVersion, caseType) {
         prevVersion = result.prevVersion || currentVersion;
     } else {
         // 首字母是A或B → 判断数字
-        const timeLimit = num === 1 ? 5 * 60 * 1000 : 2.5 * 60 * 1000;
+        const timeLimit = num === 1 ? 10 * 60 * 60 * 1000 : 5 * 60 * 60 * 1000;
         console.log(`[后台回复] 大循环时间上限: ${timeLimit / 1000 / 60} 分钟`);
         
         if (prefix === 'A') {
@@ -1581,15 +1581,15 @@ async function replyLogicOne(questionnaireId, currentVersion) {
     // ============================================================
     // 步骤1：静默倒计时 60 秒
     // ============================================================
-    console.log('[回复逻辑一] 步骤1：静默倒计时 60 秒...');
-    await sleep(60 * 1000);
+    console.log('[回复逻辑一] 步骤1：静默倒计时 1~90 分钟...');
+    await sleep(randomSeconds(60, 5400) * 1000);
     console.log('[回复逻辑一] 静默完成');
     
     // ============================================================
     // 步骤2：在 0~360 秒范围内随机一个数字 R
     // ============================================================
-    const R = Math.floor(Math.random() * 361);
-    console.log(`[回复逻辑一] 步骤2：随机选择倒计时 ${R} 秒（0~6分钟）`);
+    const R = Math.floor(Math.random() * (21600 - 900 + 1)) + 900;
+    console.log(`[回复逻辑一] 步骤2：随机选择倒计时 ${R} 秒（15分钟~6小时）`);
     
     // ============================================================
     // 步骤3：等待 R 秒
@@ -1604,18 +1604,22 @@ async function replyLogicOne(questionnaireId, currentVersion) {
     // ============================================================
     // 步骤4：检查是否有【同问.互动一】标记的问题
     // ============================================================
-    const updatedQuestions = questions.map(q => {
-        const newQ = { ...q };
-        if (q.isInteractiveOne === true) {
-            newQ.isInteractiveOne = false;
-            newQ.isInteractiveOneDone = true;
-            console.log(`[回复逻辑一] 问题 "${q.text}" 的【同问.互动一】已标记为完成`);
-        }
-        return newQ;
-    });
-    
-    const changedCount = updatedQuestions.filter(q => q.isInteractiveOneDone === true).length;
-    console.log(`[回复逻辑一] 共处理 ${changedCount} 个【同问.互动一】标记`);
+// ============================================================
+// 步骤4：处理同问状态转换（【同问.已回】→【同问.已回 √】，【同问.拒答】→【同问.拒答 √】）
+// ============================================================
+const updatedQuestions = questions.map(q => ({ ...q }));
+
+updatedQuestions.forEach(q => {
+    if (q.isSameQuestion && q.sameQuestionStatus === 'replied') {
+        q.sameQuestionStatus = 'replied_done';
+        console.log(`[回复逻辑一] 问题 "${q.text}" 同问状态变为 【同问.已回 √】`);
+    } else if (q.isSameQuestion && q.sameQuestionStatus === 'rejected') {
+        q.sameQuestionStatus = 'rejected_done';
+        console.log(`[回复逻辑一] 问题 "${q.text}" 同问状态变为 【同问.拒答 √】`);
+    }
+});
+
+console.log('[回复逻辑一] 步骤4：同问状态转换完成');
     
     // ============================================================
     // 【结束】整理数据，返回结果
@@ -1667,10 +1671,10 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
     // ============================================================
     // 步骤1：静默倒计时 60 秒（计入已用时间）
     // ============================================================
-    console.log('[回复逻辑二] 步骤1：静默倒计时 60 秒...');
-    await sleep(60 * 1000);
-    let elapsedTime = 60; // 已用时间（秒）
-    console.log(`[回复逻辑二] 静默完成，已用时间: ${elapsedTime}秒`);
+    console.log('[回复逻辑二] 步骤1：静默倒计时 1~90 分钟...');
+    await sleep(randomSeconds(60, 5400) * 1000);
+    let elapsedTime = 7200;
+    console.log(`[回复逻辑二] 静默完成，已用时间: ${elapsedTime}秒（${elapsedTime/3600}小时）`);
     
     // ============================================================
     // 步骤2：进入大循环
@@ -1694,8 +1698,8 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
         console.log(`[回复逻辑二] 大循环 #${loopCount}`);
     
         // 在 1~30 秒内随机一个数字 d
-        const d = randomSeconds(1, 30);
-        console.log(`[回复逻辑二] 抽取随机等待: ${d} 秒`);
+        const d = randomSeconds(900, 4500);
+        console.log(`[回复逻辑二] 抽取随机等待: ${d} 秒（${d/60} 分钟）`);
         console.log(`[回复逻辑二] 当前已用: ${totalElapsed}秒，加上 ${d} 秒后为 ${totalElapsed + d}秒，上限: ${timeLimitSeconds}秒`);
     
         // ⭐ 先判断：已用时间 + d 是否 ≥ 时间上限？
@@ -1741,8 +1745,8 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
         console.log(`[回复逻辑二] 处理问题 Q${i + 1}: "${q.text}"`);
         
         // 步骤(A)：在 1~30 秒内随机一个时间，等待
-        const waitTime = randomSeconds(1, 30);
-        console.log(`[回复逻辑二] Q${i + 1} 等待 ${waitTime} 秒...`);
+        const waitTime = randomSeconds(180, 1800);
+        console.log(`[回复逻辑二] Q${i + 1} A1等待 ${waitTime} 秒（${waitTime/60} 分钟）...`);
         await sleep(waitTime * 1000);
         
         // 三选一判断
@@ -1768,20 +1772,27 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
             // 判断是否多选题
             if (q.type === 'multiple') {
                 // 多选：先随机 1~N（N为选项数）
+                // 多选
+                // 先等待 10秒~5分钟（抽取数量前）
+                const waitCount = randomSeconds(10, 300);
+                console.log(`[回复逻辑二] Q${i + 1} 多选-抽取数量前等待 ${waitCount} 秒...`);
+                await sleep(waitCount * 1000);
+
                 const count = randomSeconds(1, q.options.length);
                 console.log(`[回复逻辑二] Q${i + 1} 多选题，选择 ${count} 个选项`);
-                // 在 40 秒内随机一个时间，等待
-                const waitTime2 = randomSeconds(1, 40);
-                console.log(`[回复逻辑二] Q${i + 1} 等待 ${waitTime2} 秒后选择...`);
-                await sleep(waitTime2 * 1000);
-                // 随机选择 count 个选项
+
+                // 再等待 10秒~30分钟（开始回答前）
+                const waitAnswer = randomSeconds(10, 1800);
+                console.log(`[回复逻辑二] Q${i + 1} 多选-开始回答前等待 ${waitAnswer} 秒...`);
+                await sleep(waitAnswer * 1000);
+
                 q.selectedOptions = randomSelectMultiple(q.options, count);
                 console.log(`[回复逻辑二] Q${i + 1} 选中选项: ${q.selectedOptions.map(idx => q.options[idx]).join(', ')}`);
             } else {
                 // 单选：在 40 秒内随机一个时间，等待
-                const waitTime2 = randomSeconds(1, 40);
-                console.log(`[回复逻辑二] Q${i + 1} 等待 ${waitTime2} 秒后选择...`);
-                await sleep(waitTime2 * 1000);
+                const waitAnswer = randomSeconds(10, 1800);
+                console.log(`[回复逻辑二] Q${i + 1} 单选-开始回答前等待 ${waitAnswer} 秒...`);
+                await sleep(waitAnswer * 1000);
                 // 随机选一个选项
                 const selected = randomSelectOption(q.options);
                 q.selectedOptions = [selected];
@@ -1790,11 +1801,11 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
         }
         
         // ⭐ 静默 15 秒
-        console.log(`[回复逻辑二] Q${i + 1} 静默 15 秒...`);
-        await sleep(15 * 1000);
+        console.log(`[回复逻辑二] Q${i + 1} 静默 30 秒...`);
+        await sleep(30 * 1000);
         
         // 投骰子决定是否反问（各50%）
-        const askBack = Math.random() < 0.5;
+        const askBack = Math.random() < 0.2;
         if (askBack) {
             q.isSameQuestion = true;
             console.log(`[回复逻辑二] Q${i + 1} 🔄 反问 → 标记【同问】`);
@@ -1816,8 +1827,8 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
             console.log(`[回复逻辑二] 第二轮 Q${idx + 1}: "${q.text}"`);
             
             // 重新走分支A流程
-            const waitTime = randomSeconds(1, 30);
-            console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 等待 ${waitTime} 秒...`);
+            const waitTime = randomSeconds(180, 1800);
+            console.log(`[回复逻辑二] 第二轮 Q${idx + 1} A1等待 ${waitTime} 秒（${waitTime/60} 分钟）...`);
             await sleep(waitTime * 1000);
             
             // 三选一判断（仍然可以选暂不回答，但必须执行反问）
@@ -1837,25 +1848,30 @@ async function replyLogicTwo(questionnaireId, currentVersion, timeLimit) {
                 // 回答
                 console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 开始回答`);
                 if (q.type === 'multiple') {
-                    const count = randomSeconds(1, q.options.length);
-                    const waitTime2 = randomSeconds(1, 40);
-                    await sleep(waitTime2 * 1000);
-                    q.selectedOptions = randomSelectMultiple(q.options, count);
+                const waitCount = randomSeconds(10, 300);
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 多选-抽取数量前等待 ${waitCount} 秒...`);
+                await sleep(waitCount * 1000);
+                const count = randomSeconds(1, q.options.length);
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 多选题，选择 ${count} 个选项`);
+                const waitAnswer = randomSeconds(10, 1800);
+                console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 多选-开始回答前等待 ${waitAnswer} 秒...`);
+                await sleep(waitAnswer * 1000);
+                q.selectedOptions = randomSelectMultiple(q.options, count);
                     console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 选中选项: ${q.selectedOptions.map(i => q.options[i]).join(', ')}`);
                 } else {
-                    const waitTime2 = randomSeconds(1, 40);
-                    await sleep(waitTime2 * 1000);
+                    const waitAnswer = randomSeconds(10, 1800);
+                    console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 单选-开始回答前等待 ${waitAnswer} 秒...`);
+                    await sleep(waitAnswer * 1000);
                     const selected = randomSelectOption(q.options);
                     q.selectedOptions = [selected];
                     console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 选中选项: ${q.options[selected]}`);
                 }
             }
-            
-            // ⭐ 静默 15 秒
-            await sleep(15 * 1000);
+
+            await sleep(30 * 1000);
             
             // 投骰子决定是否反问（各50%）
-            const askBack = Math.random() < 0.5;
+            const askBack = Math.random() < 0.2;
             if (askBack) {
                 q.isSameQuestion = true;
                 console.log(`[回复逻辑二] 第二轮 Q${idx + 1} 🔄 反问 → 标记【同问】`);
@@ -1920,10 +1936,10 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
     // ============================================================
     // 步骤1：静默倒计时 60 秒（计入已用时间）
     // ============================================================
-    console.log('[回复逻辑三] 步骤1：静默倒计时 60 秒...');
-    await sleep(60 * 1000);
-    let elapsedTime = 60;
-    console.log(`[回复逻辑三] 静默完成，已用时间: ${elapsedTime}秒`);
+    console.log('[回复逻辑三] 步骤1：静默倒计时 1~90 分钟...');
+    await sleep(randomSeconds(60, 5400) * 1000);
+    let elapsedTime = 7200;
+    console.log(`[回复逻辑三] 静默完成，已用时间: ${elapsedTime}秒（${elapsedTime/3600}小时）`);
     
     // ============================================================
     // 步骤2：筛选出所有被标记为「暂不回答」的问题
@@ -1955,8 +1971,8 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
         while (true) {
             loopCount++;
             console.log(`[回复逻辑三] 大循环 #${loopCount}`);
-            const d = randomSeconds(1, 30);
-            console.log(`[回复逻辑三] 抽取随机等待: ${d} 秒`);
+            const d = randomSeconds(900, 4500);
+            console.log(`[回复逻辑三] 抽取随机等待: ${d} 秒（${d/60} 分钟）`);
             console.log(`[回复逻辑三] 当前已用: ${totalElapsed}秒，加上 ${d} 秒后为 ${totalElapsed + d}秒，上限: ${timeLimitSeconds}秒`);
             
             if (totalElapsed + d >= timeLimitSeconds) {
@@ -1991,8 +2007,8 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                 const q = updatedQuestions[idx];
                 console.log(`[回复逻辑三] 处理暂不回答问题 Q${idx + 1}: "${q.text}"`);
                 
-                const waitTime = randomSeconds(1, 30);
-                console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime} 秒...`);
+                const waitTime = randomSeconds(180, 1800);
+                console.log(`[回复逻辑三] Q${idx + 1} A1等待 ${waitTime} 秒（${waitTime/60} 分钟）...`);
                 await sleep(waitTime * 1000);
                 
                 const decision = weightedRandomDecision();
@@ -2008,27 +2024,31 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
                 } else {
                     console.log(`[回复逻辑三] Q${idx + 1} 开始回答`);
                     if (q.type === 'multiple') {
+                        const waitCount = randomSeconds(10, 300);
+                        console.log(`[回复逻辑三] Q${idx + 1} 多选-抽取数量前等待 ${waitCount} 秒...`);
+                        await sleep(waitCount * 1000);
                         const count = randomSeconds(1, q.options.length);
                         console.log(`[回复逻辑三] Q${idx + 1} 多选题，选择 ${count} 个选项`);
-                        const waitTime2 = randomSeconds(1, 40);
-                        console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime2} 秒后选择...`);
-                        await sleep(waitTime2 * 1000);
-                        q.selectedOptions = randomSelectMultiple(q.options, count);
+                        const waitAnswer = randomSeconds(10, 1800);
+                        console.log(`[回复逻辑三] Q${idx + 1} 多选-开始回答前等待 ${waitAnswer} 秒...`);
+                        await sleep(waitAnswer * 1000);
+                         q.selectedOptions = randomSelectMultiple(q.options, count);
                         console.log(`[回复逻辑三] Q${idx + 1} 选中选项: ${q.selectedOptions.map(i => q.options[i]).join(', ')}`);
+}
                     } else {
-                        const waitTime2 = randomSeconds(1, 40);
-                        console.log(`[回复逻辑三] Q${idx + 1} 等待 ${waitTime2} 秒后选择...`);
-                        await sleep(waitTime2 * 1000);
+                        const waitAnswer = randomSeconds(10, 1800);
+                        console.log(`[回复逻辑三] Q${idx + 1} 单选-开始回答前等待 ${waitAnswer} 秒...`);
+                        await sleep(waitAnswer * 1000);
                         const selected = randomSelectOption(q.options);
                         q.selectedOptions = [selected];
                         console.log(`[回复逻辑三] Q${idx + 1} 选中选项: ${q.options[selected]}`);
                     }
                 }
                 
-                console.log(`[回复逻辑三] Q${idx + 1} 静默 15 秒...`);
-                await sleep(15 * 1000);
+                console.log(`[回复逻辑三] Q${idx + 1} 静默 30 秒...`);
+                await sleep(30 * 1000);
                 
-                const askBack = Math.random() < 0.5;
+                const askBack = Math.random() < 0.2;
                 if (askBack) {
                     q.isSameQuestion = true;
                     q.sameQuestionStatus = null;
@@ -2048,33 +2068,21 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
         console.log('[回复逻辑三] 步骤2：无暂不回答的问题，跳过');
     }
     
-    // ============================================================
-    // 步骤3：等待 30 秒
-    // ============================================================
-    console.log('[回复逻辑三] 步骤3：等待 30 秒...');
-    await sleep(30 * 1000);
-    console.log('[回复逻辑三] 等待完成');
-    
-    // ============================================================
-    // 步骤4：检查是否有【同问.互动一】标记的问题
-    // ============================================================
-    let interactiveOneCount = 0;
-    const finalQuestions = updatedQuestions.map(q => {
-        const newQ = { ...q };
-        if (q.isInteractiveOne === true) {
-            newQ.isInteractiveOne = false;
-            newQ.isInteractiveOneDone = true;
-            interactiveOneCount++;
-            console.log(`[回复逻辑三] 问题 "${q.text}" 的【同问.互动一】已标记为完成`);
-        }
-        return newQ;
-    });
-    console.log(`[回复逻辑三] 步骤4：共处理 ${interactiveOneCount} 个【同问.互动一】标记`);
-    
-    // ============================================================
-    // ⭐ 步骤5：处理同问状态转换（【同问.已回】→【同问.已回 √】，【同问.拒答】→【同问.拒答 √】）
-    // ============================================================
-    finalQuestions.forEach(q => {
+// 新阶段⑤：检查是否有待转√的同问标记
+// ============================================================
+const hasPendingSameQuestion = updatedQuestions.some(q => 
+    q.isSameQuestion && (q.sameQuestionStatus === 'replied' || q.sameQuestionStatus === 'rejected')
+);
+
+if (hasPendingSameQuestion) {
+    // 随机等待 1~60 分钟（60~3600 秒）
+    const waitTime = randomSeconds(60, 3600);
+    console.log(`[回复逻辑三] 存在待转√的同问，等待 ${waitTime} 秒（${waitTime/60} 分钟）...`);
+    await sleep(waitTime * 1000);
+    console.log('[回复逻辑三] 等待完成，开始转√');
+
+    // 执行转√操作
+    updatedQuestions.forEach(q => {
         if (q.isSameQuestion && q.sameQuestionStatus === 'replied') {
             q.sameQuestionStatus = 'replied_done';
             console.log(`[回复逻辑三] 问题 "${q.text}" 同问状态变为 【同问.已回 √】`);
@@ -2083,20 +2091,22 @@ async function replyLogicThree(questionnaireId, currentVersion, timeLimit) {
             console.log(`[回复逻辑三] 问题 "${q.text}" 同问状态变为 【同问.拒答 √】`);
         }
     });
-    
-    // ============================================================
-    // 【结束】整理数据，返回结果
-    // ============================================================
-    console.log('[回复逻辑三] 执行完成');
-    console.log(`[回复逻辑三] enteredBigLoop: ${enteredBigLoop}, enteredYes: ${enteredYes}`);
-    console.log(`[回复逻辑三] 【同问.已回 √/拒答 √】转换完成`);
-    
-    return {
-        enteredBigLoop: enteredBigLoop,
-        enteredYes: enteredYes,
-        updatedQuestions: finalQuestions,
-        prevVersion: prevVersion
-    };
+} else {
+    console.log('[回复逻辑三] 无待转√的同问，立即结束，不等待');
+}
+
+// ============================================================
+// 【结束】整理数据，返回结果（修正变量名 finalQuestions → updatedQuestions）
+// ============================================================
+console.log('[回复逻辑三] 执行完成');
+console.log(`[回复逻辑三] enteredBigLoop: ${enteredBigLoop}, enteredYes: ${enteredYes}`);
+
+return {
+    enteredBigLoop: enteredBigLoop,
+    enteredYes: enteredYes,
+    updatedQuestions: updatedQuestions,  
+    prevVersion: prevVersion
+};
 }
 
 // ============================================================

@@ -2166,6 +2166,13 @@ function resetSession() {
     // 初始化
     // ============================================================
 function initCompanionFeature() {
+    // 防止重复初始化
+    if (window._companionInitialized) {
+        console.log('[companion] 已初始化，跳过重复初始化');
+        return;
+    }
+    window._companionInitialized = true;
+
     console.log('[companion] 陪伴功能已加载（实时记录版）');
     window.showCompanionPicker = showCompanionPicker;
     window.openCompanion = showCompanionPicker;
@@ -2174,22 +2181,23 @@ function initCompanionFeature() {
     stopMusic();
     stopAlarm();
 
-    // ★ 调用全局的 bindCompanionCalendarEvents（已在自执行函数外定义）
     if (typeof bindCompanionCalendarEvents === 'function') {
         bindCompanionCalendarEvents();
     } else {
         console.warn('[companion] bindCompanionCalendarEvents 未定义，跳过绑定');
     }
 
-    // ★ 监听开屏动画结束事件
+    // 使用 { once: true } 自动移除
     window.addEventListener('welcomeAnimationEnded', function onWelcomeEnded() {
         console.log('[companion] 收到开屏动画结束事件');
-        window.removeEventListener('welcomeAnimationEnded', onWelcomeEnded);
         checkAndRecoverOngoingRecord();
-    });
+    }, { once: true });
 
-    // ★ 备用：如果事件未触发，5秒后也检查一次
-    setTimeout(function() {
+    // 兜底定时器去重
+    if (window._companionRecoverTimer) {
+        clearTimeout(window._companionRecoverTimer);
+    }
+    window._companionRecoverTimer = setTimeout(function() {
         console.log('[companion] 5秒兜底检查 ongoing 记录');
         checkAndRecoverOngoingRecord();
     }, 5000);
