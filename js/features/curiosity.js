@@ -1884,8 +1884,9 @@ if (stampContainer) {
                 cursorStyle = 'default';
                 opacityStyle = 'opacity:0.7;';
             } else if (isSameQuestion) {
-                // 【同问】或【同问.已回】→ 可点击进入同问卡片
-                if (sameStatus === null || sameStatus === undefined || sameStatus === 'replied') {
+                const versionNum = getVersionNumber(editingQuestionnaire.version);
+                const isEvenVersion = versionNum % 2 === 0;
+                if (isEvenVersion && (sameStatus === null || sameStatus === undefined || sameStatus === 'replied')) {
                     canClickCard = true;
                     clickAction = `openSameQuestionEditor(${index})`;
                     cursorStyle = 'pointer';
@@ -1893,7 +1894,7 @@ if (stampContainer) {
                     cursorStyle = 'default';
                     opacityStyle = 'opacity:0.7;';
                 }
-            } else if (permissions.canClickQuestion) {
+           }else if (permissions.canClickQuestion) {
                 // 普通问题且有编辑权 → 可点击编辑
                 canClickCard = true;
                 clickAction = `openQuestionEditorForEdit(${index})`;
@@ -2905,6 +2906,7 @@ window.deleteQuestion = function(index) {
 // ============================================================
 
 // 当前正在编辑的同问问题索引
+// 当前正在编辑的同问问题索引
 let editingSameQuestionIndex = -1;
 // 同问卡片的临时数据
 let tempSameQuestionData = {
@@ -2912,28 +2914,32 @@ let tempSameQuestionData = {
     myRejected: false
 };
 
-/**
- * 打开同问卡片
- */
 window.openSameQuestionEditor = function(index) {
     const q = editingQuestionnaire.questions[index];
     if (!q || !q.isSameQuestion) {
         showNotification('该问题没有同问标记', 'info', 2000);
         return;
     }
-    
+
+    // ⭐ 版本号单数时禁止打开（加在这里）
+    const versionNum = getVersionNumber(editingQuestionnaire.version);
+    if (versionNum % 2 === 1) {
+        showNotification('当前版本不支持同问互动', 'info', 2000);
+        return;
+    }
+
     // 如果是已完成状态（√），不允许再编辑
     if (q.sameQuestionStatus === 'replied_done' || q.sameQuestionStatus === 'rejected_done') {
         showNotification('该问题已完成互动，不可修改', 'info', 2000);
         return;
     }
-    
+
     editingSameQuestionIndex = index;
     tempSameQuestionData = {
         myAnswers: [...(q.myAnswers || [])],
         myRejected: q.myRejected === true
     };
-    
+
     renderSameQuestionCard();
     showModal(document.getElementById('same-question-modal'));
 };
