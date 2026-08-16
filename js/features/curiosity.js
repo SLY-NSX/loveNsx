@@ -542,13 +542,401 @@ async function finishLogicTwo(questionnaire, gotYes) {
     await finalizeQuestionnaire(q.id, gotYes, loopStarted);
 }
 
-/**
- * 空函数占位 - 回复逻辑三（后续步骤实现）
- */
+// ============================================================
+// checkLogicThree - 回复逻辑三倒序检查
+// ============================================================
 async function checkLogicThree(questionnaire) {
-    // TODO: 第 5 步实现
-    console.log('[占位] checkLogicThree 待实现');
+    const q = questionnaire;
+    const task = q.task;
+    if (!task || task.stage === 'done') return;
+
+    console.log(`[逻辑三] 检查 ${q.id}，当前阶段: ${task.stage}`);
+
+    // ============================================================
+    // 倒序检查顺序：
+    // secondRoundDone → t3 → 同问标签 → answeredDone → t2 → firstPhaseDone → t1-3结果 → t1-3时间戳 → t1-2结果 → t1-2时间戳 → t1-1结果 → t1-1时间戳
+    // ============================================================
+
+    // 【节点0】同问处理是否已完成
+    if (task.secondRoundDone) {
+        console.log(`[逻辑三] 节点0：同问转√已完成，走 ending`);
+        await finishLogicThree(q, task.gotYes || false);
+        return;
+    }
+
+    // 【节点1】检查 t3 时间戳（同问转√等待）
+    if (task.timestamps.t3) {
+        if (isTimeUp(task.timestamps.t3)) {
+            console.log(`[逻辑三] 节点1：t3到期，执行同问转√`);
+            await executeSameQuestion(q);
+            await finishLogicThree(q, task.gotYes || false);
+            return;
+        } else {
+            console.log(`[逻辑三] 节点1：t3未到期，等待`);
+            return;
+        }
+    }
+
+    // 【节点2】检查是否有【同问.已回】或【同问.拒答】标签（有则生成 t3）
+    if (task.hasSameQuestionTag) {
+        console.log(`[逻辑三] 节点2：有同问标签，生成 t3`);
+        task.timestamps.t3 = randomTimestamp(10, 15 * 60);
+        task.stage = 'waiting_same';
+        await saveTask(q.id, task);
+        console.log(`[逻辑三] t3已生成: ${new Date(task.timestamps.t3).toLocaleString()}`);
+        return;
+    }
+
+    // 【节点3】检查答题是否完成
+    if (task.answeredDone) {
+        console.log(`[逻辑三] 节点3：答题已完成，检查同问标签`);
+        // 检查是否有同问标签
+        const hasSameTag = (q.questions || []).some(qq =>
+            qq.isSameQuestion === true && (qq.sameQuestionStatus === 'replied' || qq.sameQuestionStatus === 'rejected')
+        );
+        if (hasSameTag) {
+            task.hasSameQuestionTag = true;
+            task.stage = 'waiting_same';
+            await saveTask(q.id, task);
+            console.log(`[逻辑三] 发现同问标签，进入下一步`);
+        } else {
+            // 没有同问标签，直接结束
+            task.secondRoundDone = true;
+            await saveTask(q.id, task);
+            await finishLogicThree(q, task.gotYes || false);
+        }
+        return;
+    }
+
+    // 【节点4】检查 t2 时间戳（答题等待）
+    if (task.timestamps.t2) {
+        if (isTimeUp(task.timestamps.t2)) {
+            console.log(`[逻辑三] 节点4：t2到期，执行答题`);
+            await executeUnansweredRound(q);
+            task.answeredDone = true;
+            await saveTask(q.id, task);
+            console.log(`[逻辑三] 答题完成`);
+            // 继续检查同问标签（会在下次 checkLogicThree 的节点3处理）
+            return;
+        } else {
+            console.log(`[逻辑三] 节点4：t2未到期，等待`);
+            return;
+        }
+    }
+
+    // 【节点5】检查一阶段结束标志
+    if (task.firstPhaseDone) {
+        console.log(`[逻辑三] 节点5：一阶段结束标志存在，进入答题阶段`);
+        // 生成 t2
+        task.timestamps.t2 = randomTimestamp(60, 15 * 60);
+        task.stage = 'waiting_answer';
+        await saveTask(q.id, task);
+        console.log(`[逻辑三] t2已生成: ${new Date(task.timestamps.t2).toLocaleString()}`);
+        return;
+    }
+
+    // 【节点6】检查 t1-3 结果（第三轮 YES/NO 已完成）
+    const result3 = task.ynResults.list.find(r => r.round === 3);
+    if (result3) {
+        if (result3.result === 'YES') {
+            console.log(`[逻辑三] 节点6：t1-3结果为YES，生成 t2`);
+            task.gotYes = true;
+            task.loopStarted = true;
+            task.timestamps.t2 = randomTimestamp(60, 15 * 60);
+            task.stage = 'waiting_answer';
+            await saveTask(q.id, task);
+            return;
+        } else if (result3.result === 'NO') {
+            // noCount >= 3 才会进入第三轮
+            console.log(`[逻辑三] 节点6：t1-3为NO，生成一阶段结束标志`);
+            task.firstPhaseDone = true;
+            task.loopStarted = true;
+            task.gotYes = false;
+            await saveTask(q.id, task);
+            return;
+        }
+    }
+
+    // 【节点7】检查 t1-3 时间戳（第三轮等待中）
+    if (task.timestamps.t1_3) {
+        if (isTimeUp(task.timestamps.t1_3)) {
+            console.log(`[逻辑三] 节点7：t1-3到期，执行 YES/NO 判断`);
+            await executeYN_Three(q);
+            return;
+        } else {
+            console.log(`[逻辑三] 节点7：t1-3未到期，等待`);
+            return;
+        }
+    }
+
+    // 【节点8】检查 t1-2 结果（第二轮 YES/NO 已完成）
+    const result2 = task.ynResults.list.find(r => r.round === 2);
+    if (result2) {
+        if (result2.result === 'YES') {
+            console.log(`[逻辑三] 节点8：t1-2结果为YES，生成 t2`);
+            task.gotYes = true;
+            task.loopStarted = true;
+            task.timestamps.t2 = randomTimestamp(60, 15 * 60);
+            task.stage = 'waiting_answer';
+            await saveTask(q.id, task);
+            return;
+        } else if (result2.result === 'NO') {
+            // 生成 t1-3
+            task.timestamps.t1_3 = randomTimestamp(15 * 60, 2 * 60 * 60);
+            task.currentRound = 3;
+            task.stage = 'waiting_yn';
+            await saveTask(q.id, task);
+            console.log(`[逻辑三] 节点8：t1-2为NO，生成 t1-3`);
+            return;
+        }
+    }
+
+    // 【节点9】检查 t1-2 时间戳（第二轮等待中）
+    if (task.timestamps.t1_2) {
+        if (isTimeUp(task.timestamps.t1_2)) {
+            console.log(`[逻辑三] 节点9：t1-2到期，执行 YES/NO 判断`);
+            await executeYN_Three(q);
+            return;
+        } else {
+            console.log(`[逻辑三] 节点9：t1-2未到期，等待`);
+            return;
+        }
+    }
+
+    // 【节点10】检查 t1-1 结果（第一轮 YES/NO 已完成）
+    const result1 = task.ynResults.list.find(r => r.round === 1);
+    if (result1) {
+        if (result1.result === 'YES') {
+            console.log(`[逻辑三] 节点10：t1-1结果为YES，生成 t2`);
+            task.gotYes = true;
+            task.loopStarted = true;
+            task.timestamps.t2 = randomTimestamp(60, 15 * 60);
+            task.stage = 'waiting_answer';
+            await saveTask(q.id, task);
+            return;
+        } else if (result1.result === 'NO') {
+            // 生成 t1-2
+            task.timestamps.t1_2 = randomTimestamp(15 * 60, 2 * 60 * 60);
+            task.currentRound = 2;
+            task.stage = 'waiting_yn';
+            await saveTask(q.id, task);
+            console.log(`[逻辑三] 节点10：t1-1为NO，生成 t1-2`);
+            return;
+        }
+    }
+
+    // 【节点11】检查 t1-1 时间戳（第一轮等待中）
+    if (task.timestamps.t1_1) {
+        if (isTimeUp(task.timestamps.t1_1)) {
+            console.log(`[逻辑三] 节点11：t1-1到期，执行 YES/NO 判断`);
+            await executeYN_Three(q);
+            return;
+        } else {
+            console.log(`[逻辑三] 节点11：t1-1未到期，等待`);
+            return;
+        }
+    }
+
+    // 【节点12】异常：没有任何节点
+    console.warn(`[逻辑三] 节点12：任务异常，清除`);
+    await clearTask(q.id);
 }
+// ============================================================
+// executeYN_Three - 逻辑三 YES/NO 判断
+// ============================================================
+async function executeYN_Three(questionnaire) {
+    const q = questionnaire;
+    const task = q.task;
+    if (!task) return;
+
+    const result = Math.random() < 0.5 ? 'YES' : 'NO';
+    const round = task.currentRound || 1;
+
+    // 存入结果到 ynResults.list
+    task.ynResults.list.push({ round: round, result: result });
+
+    if (result === 'YES') {
+        task.ynResults.yesCount += 1;
+        task.loopStarted = true;
+        task.gotYes = true;
+        task.stage = 'waiting_answer';
+        await saveTask(q.id, task);
+        console.log(`[逻辑三] ✅ YES，共${task.ynResults.yesCount}次`);
+        // 触发下一步：生成 t2（会在 checkLogicThree 的对应节点处理）
+        return;
+    } else {
+        task.ynResults.noCount += 1;
+        console.log(`[逻辑三] ❌ NO，累计 ${task.ynResults.noCount} 次`);
+
+        if (task.ynResults.noCount >= 3) {
+            task.loopStarted = true;
+            task.gotYes = false;
+            task.firstPhaseDone = true;
+            await saveTask(q.id, task);
+            console.log(`[逻辑三] 三次NO，一阶段结束`);
+            return;
+        }
+
+        // 未满3次，走第四步(2)(a)：生成下一个 t1
+        const nextRound = round + 1;
+        const key = `t1_${nextRound}`;
+        task.timestamps[key] = randomTimestamp(15 * 60, 2 * 60 * 60);
+        task.currentRound = nextRound;
+        task.stage = 'waiting_yn';
+        await saveTask(q.id, task);
+        console.log(`[逻辑三] 生成 t1-${nextRound}: ${new Date(task.timestamps[key]).toLocaleString()}`);
+    }
+}
+// ============================================================
+// executeUnansweredRound - 处理所有暂不回答的问题
+// ============================================================
+async function executeUnansweredRound(questionnaire) {
+    const q = questionnaire;
+    const task = q.task;
+    if (!task) return;
+
+    const questions = q.questions || [];
+    const results = [];
+
+    console.log(`[逻辑三] 处理暂不回答的问题，共 ${questions.length} 题`);
+
+    for (let i = 0; i < questions.length; i++) {
+        const qData = questions[i];
+
+        // 只处理「暂不回答」的问题
+        if (qData.status !== 'unanswered') {
+            // 非暂不回答的问题，保持原样
+            results.push({
+                index: i,
+                status: qData.status,
+                selectedOptions: qData.selectedOptions || [],
+                isSameQuestion: qData.isSameQuestion || false
+            });
+            continue;
+        }
+
+        console.log(`[逻辑三] 处理暂不回答问题 Q${i+1}: "${qData.text}"`);
+
+        const result = {
+            index: i,
+            text: qData.text,
+            type: qData.type,
+            options: qData.options,
+            originalStatus: qData.status || null,
+            status: null,
+            selectedOptions: [],
+            isSameQuestion: false
+        };
+
+        // 三选一
+        const decision = weightedRandomDecision();
+        result.status = decision;
+
+        if (decision === 'rejected') {
+            console.log(`[逻辑三] Q${i+1} 拒绝回答`);
+            result.selectedOptions = [];
+        } else if (decision === 'unanswered') {
+            console.log(`[逻辑三] Q${i+1} 再次暂不回答`);
+            result.selectedOptions = [];
+        } else {
+            // 回答
+            if (qData.type === 'multiple') {
+                const count = randomSeconds(1, qData.options.length);
+                const selected = randomSelectMultiple(qData.options, count);
+                result.selectedOptions = selected;
+                console.log(`[逻辑三] Q${i+1} 多选，选了 ${selected.length} 个`);
+            } else {
+                const selected = randomSelectOption(qData.options);
+                result.selectedOptions = [selected];
+                console.log(`[逻辑三] Q${i+1} 单选，选了 ${selected}`);
+            }
+        }
+
+        // 20% 概率反问
+        if (Math.random() < 0.2) {
+            result.isSameQuestion = true;
+            console.log(`[逻辑三] Q${i+1} 标记【同问】`);
+        }
+
+        results.push(result);
+    }
+
+    // 合并回 questions
+    q.questions = q.questions.map((qData, idx) => {
+        const r = results[idx];
+        if (r) {
+            return {
+                ...qData,
+                status: r.status !== undefined ? r.status : qData.status,
+                selectedOptions: r.selectedOptions !== undefined ? r.selectedOptions : qData.selectedOptions || [],
+                isSameQuestion: r.isSameQuestion !== undefined ? r.isSameQuestion : qData.isSameQuestion || false
+            };
+        }
+        return qData;
+    });
+
+    // 保存到 task 供后续合并（finalizeQuestionnaire 会再次合并）
+    task.firstRoundResults = results;
+    task.answeredDone = true;
+    await saveTask(q.id, task);
+
+    console.log(`[逻辑三] 暂不回答问题处理完成`);
+}
+
+// ============================================================
+// executeSameQuestion - 处理同问标签转√
+// ============================================================
+async function executeSameQuestion(questionnaire) {
+    const q = questionnaire;
+    const task = q.task;
+    if (!task) return;
+
+    console.log(`[逻辑三] 处理同问转√`);
+
+    let changed = false;
+    q.questions = q.questions.map(qData => {
+        if (qData.isSameQuestion === true && qData.sameQuestionStatus === 'replied') {
+            changed = true;
+            return {
+                ...qData,
+                sameQuestionStatus: 'replied_done'
+            };
+        } else if (qData.isSameQuestion === true && qData.sameQuestionStatus === 'rejected') {
+            changed = true;
+            return {
+                ...qData,
+                sameQuestionStatus: 'rejected_done'
+            };
+        }
+        return qData;
+    });
+
+    if (changed) {
+        // 保存到 curiosityData
+        await saveCuriosityData();
+        console.log(`[逻辑三] 同问转√完成`);
+    } else {
+        console.log(`[逻辑三] 没有需要转换的同问标签`);
+    }
+
+    task.secondRoundDone = true;
+    await saveTask(q.id, task);
+}
+
+// ============================================================
+// finishLogicThree - 结束逻辑三
+// ============================================================
+async function finishLogicThree(questionnaire, gotYes) {
+    const q = questionnaire;
+    const task = q.task;
+    if (!task) return;
+
+    const loopStarted = task.loopStarted || false;
+
+    // 调用统一结束处理
+    await finalizeQuestionnaire(q.id, gotYes, loopStarted);
+}
+
 
 /**
  * 空函数占位 - 回复逻辑一（后续步骤实现）
@@ -629,55 +1017,86 @@ async function startLogicTwo(questionnaireId, version) {
     console.log(`[逻辑二] 任务已创建，时长: ${durationLimit}，t1_1: ${new Date(taskData.timestamps.t1_1).toLocaleString()}`);
 }
 // ============================================================
-// 启动逻辑三（首字母B）- 占位
+// 启动逻辑三（首字母B）
 // ============================================================
 async function startLogicThree(questionnaireId, version) {
     console.log(`[逻辑三] 启动 - ID: ${questionnaireId}, 版本: ${version}`);
 
-    // 先检查是否有「暂不回答」的问题
     const q = curiosityData.ing.find(item => item.id === questionnaireId);
     if (!q) {
         console.warn(`[逻辑三] 未找到问卷 ${questionnaireId}`);
         return;
     }
 
+    // 检查是否有「暂不回答」的问题
     const hasUnanswered = (q.questions || []).some(qq => qq.status === 'unanswered');
 
     if (hasUnanswered) {
+        console.log(`[逻辑三] 有暂不回答的问题，进入 YES/NO 大循环`);
+
         // 有暂不回答 → 进入大循环
         const taskData = {
             stage: 'waiting_yn',
+            durationLimit: '2h',  // 固定2小时
             timestamps: {
-                tA: randomTimestamp(15 * 60, 2 * 60 * 60)  // 15分钟~2小时
+                t1_1: randomTimestamp(15 * 60, 2 * 60 * 60),
+                t1_2: null,
+                t1_3: null,
+                t2: null,
+                t3: null
             },
-            ynResult: null,
-            noCount: 0,
+            ynResults: {
+                list: [],
+                yesCount: 0,
+                noCount: 0
+            },
+            currentRound: 1,
             loopStarted: false,
-            firstRoundDone: false,
+            gotYes: false,
+            firstPhaseDone: false,
+            answeredDone: false,
+            hasSameQuestionTag: false,
             firstRoundResults: null,
-            secondRoundDone: false,
-            intermediateResults: null
+            secondRoundDone: false
         };
         await saveTask(questionnaireId, taskData);
-        console.log(`[逻辑三] 有暂不回答，已创建任务，等待 YES/NO 判断`);
+        console.log(`[逻辑三] 有暂不回答，已创建任务，t1_1: ${new Date(taskData.timestamps.t1_1).toLocaleString()}`);
     } else {
-        // 没有暂不回答 → 直接进入同问检查（跳过 YES/NO）
+        console.log(`[逻辑三] 无暂不回答，直接进入同问检查`);
+
+        // 检查是否有【同问.已回】或【同问.拒答】标签
+        const hasSameTag = (q.questions || []).some(qq =>
+            qq.isSameQuestion === true && (qq.sameQuestionStatus === 'replied' || qq.sameQuestionStatus === 'rejected')
+        );
+
         const taskData = {
             stage: 'checking_same',
-            timestamps: {},
-            ynResult: null,
-            noCount: 0,
+            durationLimit: '2h',
+            timestamps: {
+                t1_1: null,
+                t1_2: null,
+                t1_3: null,
+                t2: null,
+                t3: null
+            },
+            ynResults: {
+                list: [],
+                yesCount: 0,
+                noCount: 0
+            },
+            currentRound: 1,
             loopStarted: false,
-            firstRoundDone: false,
+            gotYes: false,
+            firstPhaseDone: true,   // 一阶段结束（无暂不回答）
+            answeredDone: false,
+            hasSameQuestionTag: hasSameTag,
             firstRoundResults: null,
-            secondRoundDone: false,
-            intermediateResults: null
+            secondRoundDone: false
         };
         await saveTask(questionnaireId, taskData);
-        console.log(`[逻辑三] 无暂不回答，直接进入同问检查`);
+        console.log(`[逻辑三] 无暂不回答，直接进入同问检查，有同问标签: ${hasSameTag}`);
     }
 }
-
 // ---------- 工具函数 ----------
 function generateCuriosityId() {
     return 'qst_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
