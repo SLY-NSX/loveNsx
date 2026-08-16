@@ -6,7 +6,6 @@
 // ---------- 数据模型 ----------
 let curiosityData = { ing: [], archived: [] };
 let currentCuriosityTab = 'ing';
-let editingCuriosityId = null;
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
     const saved = await localforage.getItem('curiosityData');
@@ -64,20 +63,6 @@ function isTimeUp(timestamp) {
     return Date.now() >= timestamp;
 }
 
-/**
- * 保存问卷的任务状态
- * @param {string} questionnaireId - 问卷ID
- * @param {object} taskData - 任务数据
- * @param {string} taskData.stage - 当前阶段
- * @param {object} taskData.timestamps - 各阶段时间戳
- * @param {string|null} taskData.ynResult - YES/NO 结果
- * @param {number} taskData.noCount - NO 累计次数
- * @param {boolean} taskData.loopStarted - 是否已开启大循环
- * @param {boolean} taskData.firstRoundDone - 第一轮是否完成（逻辑二）
- * @param {array|null} taskData.firstRoundResults - 第一轮结果（逻辑二）
- * @param {boolean} taskData.secondRoundDone - 第二轮是否完成（逻辑二）
- * @param {object|null} taskData.intermediateResults - 中间结果（逻辑三）
- */
 async function saveTask(questionnaireId, taskData) {
     const q = curiosityData.ing.find(item => item.id === questionnaireId);
     if (q) {
@@ -89,18 +74,6 @@ async function saveTask(questionnaireId, taskData) {
     }
 }
 
-/**
- * 加载问卷的任务状态
- * @param {string} questionnaireId - 问卷ID
- * @returns {object|null} 任务数据或 null
- */
-async function loadTask(questionnaireId) {
-    const q = curiosityData.ing.find(item => item.id === questionnaireId);
-    if (q && q.task) {
-        return q.task;
-    }
-    return null;
-}
 
 /**
  * 清除问卷的任务状态
@@ -937,49 +910,108 @@ async function finishLogicThree(questionnaire, gotYes) {
     await finalizeQuestionnaire(q.id, gotYes, loopStarted);
 }
 
-
-/**
- * 空函数占位 - 回复逻辑一（后续步骤实现）
- */
+// ============================================================
+// checkLogicOne - 回复逻辑一倒序检查
+// ============================================================
 async function checkLogicOne(questionnaire) {
-    // TODO: 第 7 步实现
-    console.log('[占位] checkLogicOne 待实现');
-}
-/**
- * 检查问卷是否正在进行中（有未完成的任务）
- * @param {object} questionnaire - 问卷对象
- * @returns {boolean}
- */
-function hasActiveTask(questionnaire) {
-    return questionnaire && 
-           questionnaire.task !== null && 
-           questionnaire.task !== undefined &&
-           questionnaire.task.stage !== 'done';
+    const q = questionnaire;
+    const task = q.task;
+    if (!task || task.stage === 'done') return;
+
+    console.log(`[逻辑一] 检查 ${q.id}，当前阶段: ${task.stage}`);
+
+    // 倒序检查只有一个节点：t1
+    if (task.timestamps.t1) {
+        if (isTimeUp(task.timestamps.t1)) {
+            console.log(`[逻辑一] t1到期，执行同问状态转换`);
+            await executeLogicOne(q);
+            await finishLogicOne(q);
+            return;
+        } else {
+            console.log(`[逻辑一] t1未到期，等待`);
+            return;
+        }
+    }
+
+    // 没有任何节点
+    console.warn(`[逻辑一] 任务异常，清除`);
+    await clearTask(q.id);
 }
 
 // ============================================================
-// 启动逻辑一（首字母非A非B）- 占位
+// executeLogicOne - 执行同问状态转换
+// ============================================================
+async function executeLogicOne(questionnaire) {
+    const q = questionnaire;
+    const task = q.task;
+    if (!task) return;
+
+    console.log(`[逻辑一] 处理同问状态转换`);
+
+    let changed = false;
+    q.questions = q.questions.map(qData => {
+        if (qData.isSameQuestion === true && qData.sameQuestionStatus === 'replied') {
+            changed = true;
+            return {
+                ...qData,
+                sameQuestionStatus: 'replied_done'
+            };
+        } else if (qData.isSameQuestion === true && qData.sameQuestionStatus === 'rejected') {
+            changed = true;
+            return {
+                ...qData,
+                sameQuestionStatus: 'rejected_done'
+            };
+        }
+        return qData;
+    });
+
+    if (changed) {
+        await saveCuriosityData();
+        console.log(`[逻辑一] 同问状态转换完成`);
+    } else {
+        console.log(`[逻辑一] 没有需要转换的同问标签`);
+    }
+
+    task.firstRoundResults = null;
+    task.secondRoundDone = true;
+    await saveTask(q.id, task);
+}
+// ============================================================
+// finishLogicOne - 结束逻辑一
+// ============================================================
+async function finishLogicOne(questionnaire) {
+    const q = questionnaire;
+    const task = q.task;
+    if (!task) return;
+
+    // 逻辑一没有进入大循环，也没有拿到YES
+    const loopStarted = false;
+    const gotYes = false;
+
+    // 调用统一结束处理
+    await finalizeQuestionnaire(q.id, gotYes, loopStarted);
+}
+
+// ============================================================
+// 启动逻辑一（首字母非A非B）
 // ============================================================
 async function startLogicOne(questionnaireId, version) {
     console.log(`[逻辑一] 启动 - ID: ${questionnaireId}, 版本: ${version}`);
 
-    // 创建任务
     const taskData = {
-        stage: 'waiting_initial',
+        stage: 'waiting_t1',
         timestamps: {
-            t_initial: randomTimestamp(15 * 60, 5 * 60 * 60)  // 15分钟~5小时
+            t1: randomTimestamp(15 * 60, 5 * 60 * 60)  // 15分钟~5小时
         },
-        ynResult: null,
-        noCount: 0,
         loopStarted: false,
-        firstRoundDone: false,
+        gotYes: false,
         firstRoundResults: null,
-        secondRoundDone: false,
-        intermediateResults: null
+        secondRoundDone: false
     };
 
     await saveTask(questionnaireId, taskData);
-    console.log(`[逻辑一] 任务已创建，等待时间戳触发`);
+    console.log(`[逻辑一] 任务已创建，t1: ${new Date(taskData.timestamps.t1).toLocaleString()}`);
 }
 
 // ============================================================
@@ -1243,13 +1275,6 @@ async function finalizeQuestionnaire(questionnaireId, gotYes, loopStarted) {
  */
 function randomSeconds(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-/**
- * 随机选择数组中的一个元素
- */
-function randomPick(arr) {
-    return arr[Math.floor(Math.random() * arr.length)];
 }
 
 /**
@@ -1738,51 +1763,6 @@ window.openCuriosityComposeForView = function(questionnaire, sourceStatus) {
     showModal(document.getElementById('curiosity-compose-modal'));
 };
 
-// ---------- 保存问卷到数据存储 ----------
-function saveQuestionnaireToData(questionnaire, sourceStatus) {
-    if (!questionnaire.id) {
-        // 新建：生成ID
-        questionnaire.id = generateCuriosityId();
-        questionnaire.isDraft = false;
-        questionnaire.sentTime = Date.now();
-        // 放入 ing 列表
-        curiosityData.ing.push({ ...questionnaire });
-    } else {
-        // 更新已有
-        const targetArr = sourceStatus === 'ing' ? curiosityData.ing : curiosityData.archived;
-        const index = targetArr.findIndex(item => item.id === questionnaire.id);
-        if (index > -1) {
-            // 保留原有状态字段，更新内容
-            const existing = targetArr[index];
-            targetArr[index] = {
-                ...existing,
-                title: questionnaire.title,
-                questions: questionnaire.questions,
-                version: questionnaire.version || existing.version || 'A-0-N'
-            };
-        } else {
-            // 可能在另一个列表里，尝试查找
-            const otherArr = sourceStatus === 'ing' ? curiosityData.archived : curiosityData.ing;
-            const otherIndex = otherArr.findIndex(item => item.id === questionnaire.id);
-            if (otherIndex > -1) {
-                const existing = otherArr[otherIndex];
-                otherArr[otherIndex] = {
-                    ...existing,
-                    title: questionnaire.title,
-                    questions: questionnaire.questions,
-                    version: questionnaire.version || existing.version || 'A-0-N'
-                };
-            } else {
-                // 极端情况：找不到，重新添加
-                curiosityData.ing.push({ ...questionnaire, isDraft: false, sentTime: Date.now() });
-            }
-        }
-    }
-    saveCuriosityData();
-    renderCuriosityLists();
-}
-
-// ---------- 渲染编辑器内容 ----------
 // ---------- 渲染编辑器内容 ----------
 function renderComposeEditor() {
     const titleEl = document.getElementById('compose-title-display');
