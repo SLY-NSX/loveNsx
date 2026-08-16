@@ -123,38 +123,54 @@ async function clearTask(questionnaireId) {
  * 检查所有进行中的问卷任务
  * 页面加载/打开模态框时调用
  */
+let _isChecking = false;
+
 async function checkAllPendingTasks() {
-    console.log('[调度] 开始检查所有进行中的任务...');
-    
-    const pendingItems = curiosityData.ing.filter(item => 
-        item.task !== null && 
-        item.task !== undefined &&
-        item.task.stage !== 'done'
-    );
-    
-    if (pendingItems.length === 0) {
-        console.log('[调度] 无进行中的任务');
+    if (_isChecking) {
+        console.log('[调度] 已有检查进行中，跳过本次');
         return;
     }
-    
-    console.log(`[调度] 发现 ${pendingItems.length} 个进行中的任务`);
-    
-    for (const item of pendingItems) {
-        try {
-            const prefix = getVersionPrefix(item.version);
-            console.log(`[调度] 检查问卷 ${item.id}，首字母: ${prefix}，阶段: ${item.task.stage}`);
-            
-            // TODO: 后续步骤实现
-            // if (prefix !== 'A' && prefix !== 'B') {
-            //     await checkLogicOne(item);
-            // } else if (prefix === 'A') {
-            //     await checkLogicTwo(item);
-            // } else if (prefix === 'B') {
-            //     await checkLogicThree(item);
-            // }
-        } catch (e) {
-            console.warn(`[调度] 检查问卷 ${item.id} 时出错:`, e);
+
+    _isChecking = true;
+    console.log('[调度] 开始检查所有进行中的任务...');
+
+    try {
+        // ⭐ 第一步：筛选出版本号数字为单数的问卷
+        const oddVersionItems = curiosityData.ing.filter(item => {
+            if (!item.version) return false;
+            const num = getVersionNumber(item.version);
+            return num % 2 === 1;
+        });
+
+        if (oddVersionItems.length === 0) {
+            console.log('[调度] 没有版本号为单数的问卷，结束检查');
+            _isChecking = false;
+            return;
         }
+
+        console.log(`[调度] 发现 ${oddVersionItems.length} 个版本号为单数的问卷`);
+
+        // ⭐ 第二步：逐个检查，按首字母分发
+        for (const item of oddVersionItems) {
+            try {
+                const prefix = getVersionPrefix(item.version);
+                console.log(`[调度] 检查问卷 ${item.id}，版本: ${item.version}，首字母: ${prefix}`);
+
+                if (prefix !== 'A' && prefix !== 'B') {
+                    await checkLogicOne(item);
+                } else if (prefix === 'A') {
+                    await checkLogicTwo(item);
+                } else if (prefix === 'B') {
+                    await checkLogicThree(item);
+                }
+            } catch (e) {
+                console.warn(`[调度] 检查问卷 ${item.id} 时出错:`, e);
+            }
+        }
+    } catch (e) {
+        console.error('[调度] 检查过程出错:', e);
+    } finally {
+        _isChecking = false;
     }
 }
 
