@@ -193,6 +193,110 @@ function hasActiveTask(questionnaire) {
            questionnaire.task.stage !== 'done';
 }
 
+// ============================================================
+// 启动逻辑一（首字母非A非B）- 占位
+// ============================================================
+async function startLogicOne(questionnaireId, version) {
+    console.log(`[逻辑一] 启动 - ID: ${questionnaireId}, 版本: ${version}`);
+
+    // 创建任务
+    const taskData = {
+        stage: 'waiting_initial',
+        timestamps: {
+            t_initial: randomTimestamp(15 * 60, 5 * 60 * 60)  // 15分钟~5小时
+        },
+        ynResult: null,
+        noCount: 0,
+        loopStarted: false,
+        firstRoundDone: false,
+        firstRoundResults: null,
+        secondRoundDone: false,
+        intermediateResults: null
+    };
+
+    await saveTask(questionnaireId, taskData);
+    console.log(`[逻辑一] 任务已创建，等待时间戳触发`);
+}
+
+// ============================================================
+// 启动逻辑二（首字母A）- 完整实现
+// ============================================================
+async function startLogicTwo(questionnaireId, version) {
+    console.log(`[逻辑二] 启动 - ID: ${questionnaireId}, 版本: ${version}`);
+
+    const num = getVersionNumber(version);
+    // 版本号数字为1：15分钟~3小时；其他：15分钟~2小时
+    const minSec = 15 * 60;
+    const maxSec = num === 1 ? 3 * 60 * 60 : 2 * 60 * 60;
+
+    const taskData = {
+        stage: 'waiting_yn',
+        timestamps: {
+            t1: randomTimestamp(minSec, maxSec)
+        },
+        ynResult: null,
+        noCount: 0,
+        loopStarted: false,
+        firstRoundDone: false,
+        firstRoundResults: null,
+        secondRoundDone: false,
+        intermediateResults: null
+    };
+
+    await saveTask(questionnaireId, taskData);
+    console.log(`[逻辑二] 任务已创建，时间戳: ${new Date(taskData.timestamps.t1).toLocaleString()}`);
+}
+
+// ============================================================
+// 启动逻辑三（首字母B）- 占位
+// ============================================================
+async function startLogicThree(questionnaireId, version) {
+    console.log(`[逻辑三] 启动 - ID: ${questionnaireId}, 版本: ${version}`);
+
+    // 先检查是否有「暂不回答」的问题
+    const q = curiosityData.ing.find(item => item.id === questionnaireId);
+    if (!q) {
+        console.warn(`[逻辑三] 未找到问卷 ${questionnaireId}`);
+        return;
+    }
+
+    const hasUnanswered = (q.questions || []).some(qq => qq.status === 'unanswered');
+
+    if (hasUnanswered) {
+        // 有暂不回答 → 进入大循环
+        const taskData = {
+            stage: 'waiting_yn',
+            timestamps: {
+                tA: randomTimestamp(15 * 60, 2 * 60 * 60)  // 15分钟~2小时
+            },
+            ynResult: null,
+            noCount: 0,
+            loopStarted: false,
+            firstRoundDone: false,
+            firstRoundResults: null,
+            secondRoundDone: false,
+            intermediateResults: null
+        };
+        await saveTask(questionnaireId, taskData);
+        console.log(`[逻辑三] 有暂不回答，已创建任务，等待 YES/NO 判断`);
+    } else {
+        // 没有暂不回答 → 直接进入同问检查（跳过 YES/NO）
+        const taskData = {
+            stage: 'checking_same',
+            timestamps: {},
+            ynResult: null,
+            noCount: 0,
+            loopStarted: false,
+            firstRoundDone: false,
+            firstRoundResults: null,
+            secondRoundDone: false,
+            intermediateResults: null
+        };
+        await saveTask(questionnaireId, taskData);
+        console.log(`[逻辑三] 无暂不回答，直接进入同问检查`);
+    }
+}
+
 // ---------- 工具函数 ----------
 function generateCuriosityId() {
     return 'qst_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -1332,20 +1436,25 @@ function proceedToSend(caseType) {
                 editingQuestionnaire.title
             );
             
-            // 启动后台回复逻辑
-            setTimeout(async () => {
-                try {
-                    const result = await simulateReplyLogic(
-                        editingQuestionnaire.id,
-                        newVersion,
-                        caseType
-                    );
-                    console.log('[后台回复] 结果:', result);
-                } catch (error) {
-                    console.error('[后台回复] 错误:', error);
-                    showNotification('后台回复处理出错，请稍后查看', 'error', 3000);
+        // 启动后台回复逻辑（新框架）
+        setTimeout(async () => {
+            try {
+                const prefix = getVersionPrefix(newVersion);
+                console.log(`[投递入口] 新版本号: ${newVersion}，首字母: ${prefix}，caseType: ${caseType}`);
+
+                if (prefix === 'A') {
+                    await startLogicTwo(editingQuestionnaire.id, newVersion);
+                } else if (prefix === 'B') {
+                await startLogicThree(editingQuestionnaire.id, newVersion);
+                } else {
+                    await startLogicOne(editingQuestionnaire.id, newVersion);
                 }
-            }, 500);
+                console.log('[投递入口] 新任务已启动');
+            } catch (error) {
+                console.error('[投递入口] 启动任务失败:', error);
+                showNotification('任务启动失败，请稍后查看', 'error', 3000);
+            }
+        }, 500);
             
             closeCuriosityCompose(true);
             setTimeout(() => {
