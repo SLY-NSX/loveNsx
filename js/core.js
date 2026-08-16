@@ -449,11 +449,19 @@ const loadData = async () => {
             applyAllAvatarFrames();
             manageAutoSendTimer(); 
             checkEnvelopeStatus(); 
+            if (typeof checkAllPendingTasks === 'function') {
+                checkAllPendingTasks();
+            }
             updateUI();
             if (settings.customBubbleCss) {
                 try { applyCustomBubbleCss(settings.customBubbleCss); } catch(e) {}
             }
         }, 100);
+        setInterval(() => {
+            if (typeof checkAllPendingTasks === 'function') {
+                checkAllPendingTasks();
+            }
+        }, 60000);
 
     } catch (e) {
         console.error("LoadData 内部致命错误:", e);
@@ -2769,14 +2777,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // ── 【修复】页面切回前台时，强制同步数据与界面 ──
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
-            // 页面重新可见时，立即用完整数据重绘
             renderMessages(false);
-            // 滚动到底部，确保看到最新消息
             if (DOMElements && DOMElements.chatContainer) {
                 DOMElements.chatContainer.scrollTop = DOMElements.chatContainer.scrollHeight;
+            }
+            if (typeof checkAllPendingTasks === 'function') {
+                checkAllPendingTasks();
             }
         }
     });
