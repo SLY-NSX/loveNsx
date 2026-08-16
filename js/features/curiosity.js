@@ -207,14 +207,20 @@ async function checkLogicTwo(questionnaire) {
         }
     }
 
-    // 【节点2】检查 firstRoundResults（一轮答题已完成，等待 t3）
+    // 【节点2】检查 firstRoundResults（一轮答题已完成）
     if (task.firstRoundResults) {
-        console.log(`[逻辑二] 节点2：有一轮答题结果，生成 t3`);
-        task.timestamps.t3 = randomTimestamp(10, 15 * 60);
-        task.stage = 'waiting_second';
-        await saveTask(q.id, task);
-        console.log(`[逻辑二] t3已生成`);
-        return;
+         const hasUnanswered = task.firstRoundResults.some(r => r.status === 'unanswered');
+        if (hasUnanswered) {
+            console.log(`[逻辑二] 节点2：有一轮答题结果，且有暂不回答，生成 t3`);
+            task.timestamps.t3 = randomTimestamp(10, 15 * 60);
+            task.stage = 'waiting_second';
+            await saveTask(q.id, task);
+            return;
+        } else {
+            console.log(`[逻辑二] 节点2：有一轮答题结果，无暂不回答，直接结束`);
+            await finishLogicTwo(q, true);
+            return;
+        }
     }
 
     // 【节点3】检查 t2 时间戳（一轮答题等待）
@@ -446,13 +452,21 @@ async function executeFirstRound(questionnaire) {
 
     task.firstRoundResults = results;
     task.firstRoundDone = true;
-    task.stage = 'waiting_second';
-    task.timestamps.t3 = randomTimestamp(10, 15 * 60);
-    await saveTask(q.id, task);
 
-    console.log(`[逻辑二] 第一轮完成，${unansweredIndices.length} 题暂不回答`);
+    const hasUnanswered = results.some(r => r.status === 'unanswered');
+
+    if (hasUnanswered) {
+        task.stage = 'waiting_second';
+        task.timestamps.t3 = randomTimestamp(10, 15 * 60);
+        await saveTask(q.id, task);
+        console.log(`[逻辑二] 第一轮完成，有暂不回答，生成 t3`);
+    } else {
+        task.stage = 'done';
+        await saveTask(q.id, task);
+        console.log(`[逻辑二] 第一轮完成，无暂不回答，直接结束`);
+        await finishLogicTwo(q, true);
+    }
 }
-
 // ============================================================
 // executeSecondRound - 第二轮答题（处理暂不回答）
 // ============================================================
@@ -752,17 +766,39 @@ async function finalizeQuestionnaire(questionnaireId, gotYes, loopStarted) {
     const currentVersion = q.version || 'A-0-N';
     const prevVersion = currentVersion;
 
-    // ---- 2. 更新版本号 ----
+    // ---- 2. 【新增】合并 task 中的答题结果到 questions ----
+    const task = q.task;
+    if (task && task.firstRoundResults && Array.isArray(task.firstRoundResults)) {
+        console.log(`[结束处理] 合并答题结果到 questions`);
+        q.questions = q.questions.map((qData, idx) => {
+            const result = task.firstRoundResults[idx];
+            if (result) {
+                return {
+                    ...qData,
+                    status: result.status !== undefined ? result.status : qData.status,
+                    selectedOptions: result.selectedOptions !== undefined ? result.selectedOptions : qData.selectedOptions || [],
+                    isSameQuestion: result.isSameQuestion !== undefined ? result.isSameQuestion : qData.isSameQuestion || false
+                };
+            }
+            return qData;
+        });
+        // 保存合并后的 questions 到 curiosityData（立即存储，确保后续 saveQuestionnaireVersion 使用最新数据）
+        // 注意：这里不调用 saveCuriosityData，因为稍后 saveQuestionnaireVersion 会保存
+        console.log(`[结束处理] 答题结果已合并`);
+    } else {
+        console.log(`[结束处理] 无答题结果需要合并`);
+    }
+
+    // ---- 3. 更新版本号 ----
     const newVersion = updateVersion(currentVersion, { gotYes, loopStarted });
     console.log(`[结束处理] 版本号: ${currentVersion} → ${newVersion}`);
 
-    // ---- 3. 保存版本号（使用 saveQuestionnaireVersion，不动它） ----
-    // 注意：这里直接调用 saveQuestionnaireVersion，它会保留 task 字段
-    // 但我们需要在保存前把 task 清除，因为已经结束了
-    const taskBackup = q.task;
-    q.task = null;  // 清除任务，防止后续检查
+    // ---- 4. 清除任务（先清除，因为已经合并完了） ----
+    q.task = null;
+    await clearTask(questionnaireId);
 
-    // 用 saveQuestionnaireVersion 保存新版本
+    // ---- 5. 保存版本号（使用 saveQuestionnaireVersion） ----
+    // 此时 q.questions 已经包含了最新的答题结果
     saveQuestionnaireVersion(
         questionnaireId,
         newVersion,
@@ -773,10 +809,7 @@ async function finalizeQuestionnaire(questionnaireId, gotYes, loopStarted) {
         q.title
     );
 
-    // ---- 4. 清除任务（双重保险） ----
-    await clearTask(questionnaireId);
-
-    // ---- 5. 显示弹窗 ----
+    // ---- 6. 显示弹窗 ----
     const title = q.title || '未命名问卷';
     const partnerName = (typeof settings !== 'undefined' && settings.partnerName) || '梦角';
 
@@ -2718,11 +2751,3 @@ window.closeSameQuestion = function() {
         hideModal(document.getElementById('same-question-modal'));
     }
 };
-
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(async () => {
-        // 好奇心驿站用固定键名存储，不依赖 SESSION_ID，直接加载
-        await loadCuriosityData();
-        await checkAllPendingTasks();
-    }, 300);
-});
