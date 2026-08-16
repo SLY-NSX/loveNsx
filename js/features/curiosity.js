@@ -9,7 +9,7 @@ let currentCuriosityTab = 'ing';
 let editingCuriosityId = null;
 // ---------- 存储操作 ----------
 async function loadCuriosityData() {
-    const saved = await localforage.getItem(getStorageKey('curiosityData'));
+    const saved = await localforage.getItem('curiosityData');
     
     if (saved) {
         curiosityData = saved;
@@ -37,7 +37,7 @@ async function loadCuriosityData() {
 }
 
 function saveCuriosityData() {
-    localforage.setItem(getStorageKey('curiosityData'), curiosityData);
+    localforage.setItem('curiosityData', curiosityData);
 }
 
 // ============================================================
@@ -2884,14 +2884,10 @@ window.closeSameQuestion = function() {
     }
 };
 
-// ============================================================
-// 页面加载初始化（只执行一次）
-// ============================================================
-
 document.addEventListener('DOMContentLoaded', function() {
-    // 页面加载完成后执行一次检查，清理历史测试数据
     setTimeout(async () => {
+        // 好奇心驿站用固定键名存储，不依赖 SESSION_ID，直接加载
         await loadCuriosityData();
         await checkAllPendingTasks();
-    }, 500);
+    }, 300);
 });
