@@ -562,8 +562,8 @@ window.openCuriosityModal = async function() {
     document.getElementById('curiosity-compose-form').style.display = 'none';
     document.getElementById('curiosity-main-close-btn').style.display = 'flex';
     renderCuriosityLists();
-    await checkAllPendingTasks(); 
     showModal(document.getElementById('curiosity-modal'));
+    // 注意：检查只在页面加载时执行一次，这里不再调用
 };
 
 // ---------- 标签切换 ----------
@@ -576,7 +576,6 @@ window.switchCuriosityTab = function(tab) {
     document.getElementById('curiosity-compose-form').style.display = 'none';
     document.getElementById('curiosity-main-close-btn').style.display = 'flex';
     renderCuriosityLists();
-    setTimeout(() => checkAllPendingTasks(), 200); 
 };
 
 // ---------- 渲染列表 ----------
@@ -2884,3 +2883,15 @@ window.closeSameQuestion = function() {
         hideModal(document.getElementById('same-question-modal'));
     }
 };
+
+// ============================================================
+// 页面加载初始化（只执行一次）
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 页面加载完成后执行一次检查，清理历史测试数据
+    setTimeout(async () => {
+        await loadCuriosityData();
+        await checkAllPendingTasks();
+    }, 500);
+});
