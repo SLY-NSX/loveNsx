@@ -133,7 +133,7 @@ async function checkAllPendingTasks() {
 
     _isChecking = true;
     console.log('[调度] 开始检查所有进行中的任务...');
-
+    await loadCuriosityData();
     try {
         // ⭐ 第一步：筛选出版本号数字为单数的问卷
         const oddVersionItems = curiosityData.ing.filter(item => {
