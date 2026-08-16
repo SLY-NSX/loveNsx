@@ -11,156 +11,6 @@ let editingCuriosityId = null;
 async function loadCuriosityData() {
     const saved = await localforage.getItem(getStorageKey('curiosityData'));
     
-    // 生成带时间戳的测试数据（每次刷新都重新生成，确保卡片出现）
-    const freshTestSamples = [
-        {
-            id: 'test_A1N_' + Date.now(),
-            title: '测试问卷 A-1-N',
-            questions: [
-                { id: 't1', text: '你最喜欢的季节？', type: 'single', options: ['春天', '夏天', '秋天', '冬天'] },
-                { id: 't2', text: '你平时喜欢什么运动？', type: 'multiple', options: ['跑步', '游泳', '篮球', '瑜伽'], status: 'answered' },
-                { id: 't3', text: '你怕黑吗？', type: 'single', options: ['怕', '不怕', '看情况'], status: 'rejected' },
-                { id: 't4', text: '你相信一见钟情吗？', type: 'single', options: ['相信', '不信', '不确定'], status: 'unanswered' }
-            ],
-            sentTime: Date.now() - 3600000 * 3,
-            status: 'ing',
-            version: 'A-1-N',
-            isDraft: false
-        },
-        {
-            id: 'test_B2N_' + Date.now(),
-            title: '测试问卷 B-2-N',
-            questions: [
-                { id: 't5', text: '你最想去的地方是？', type: 'single', options: ['海边', '雪山', '草原', '古城'], status: 'answered' },
-                { id: 't6', text: '你喜欢什么类型的电影？', type: 'multiple', options: ['科幻', '爱情', '悬疑', '喜剧'], status: 'answered' },
-                { id: 't7', text: '你养过宠物吗？', type: 'single', options: ['养过', '没养过', '想养'], status: 'unanswered' }
-            ],
-            sentTime: Date.now() - 3600000 * 5,
-            status: 'ing',
-            version: 'B-2-N',
-            isDraft: false
-        },
-        {
-            id: 'test_C4N_' + Date.now(),
-            title: '测试问卷 C-4-N',
-            questions: [
-                { id: 't8', text: '你最喜欢的颜色是？', type: 'single', options: ['红色', '蓝色', '绿色', '紫色'], status: 'rejected' },
-                { id: 't9', text: '你平时周末做什么？', type: 'multiple', options: ['看书', '运动', '追剧', '约朋友'], status: 'answered' },
-                { id: 't10', text: '你喜欢吃辣吗？', type: 'single', options: ['超喜欢', '一般', '不吃辣'], status: 'unanswered' },
-                { id: 't11', text: '你相信星座吗？', type: 'single', options: ['相信', '不信', '半信半疑'] }
-            ],
-            sentTime: Date.now() - 3600000 * 8,
-            status: 'ing',
-            version: 'C-4-N',
-            isDraft: false
-        },
-        {
-            id: 'test_C6N_sameq_' + Date.now(),
-            title: '测试问卷 C-6-N（含同问）',
-            questions: [
-                { id: 't12', text: '你最喜欢的音乐类型？', type: 'single', options: ['流行', '古典', '摇滚', '电子'], status: 'answered', isSameQuestion: true },
-                { id: 't13', text: '你理想中的旅行目的地？', type: 'multiple', options: ['日本', '欧洲', '南极', '非洲'], status: 'answered' },
-                { id: 't14', text: '你喜欢下雨天吗？', type: 'single', options: ['喜欢', '不喜欢', '看心情'], status: 'unanswered' }
-            ],
-            sentTime: Date.now() - 3600000 * 12,
-            status: 'ing',
-            version: 'C-6-N',
-            isDraft: false
-        },
-        {
-            id: 'test_B4Y_' + Date.now(),
-            title: '测试问卷 B-4-Y',
-            questions: [
-                { id: 't15', text: '你最喜欢的饮品？', type: 'single', options: ['咖啡', '茶', '果汁', '水'], status: 'unanswered' },
-                { id: 't16', text: '你平时几点睡觉？', type: 'single', options: ['22点前', '23点', '0点', '1点后'], status: 'answered' }
-            ],
-            sentTime: Date.now() - 3600000 * 6,
-            status: 'ing',
-            version: 'B-4-Y',
-            isDraft: false
-        },
-        {
-            id: 'test_B8N_' + Date.now(),
-            title: '测试问卷 B-8-N（暂不回答+同问）',
-            questions: [
-                { id: 't17', text: '你最喜欢的运动？', type: 'single', options: ['篮球', '足球', '游泳', '跑步'], status: 'unanswered' },
-                { id: 't18', text: '你最喜欢的电影类型？', type: 'multiple', options: ['科幻', '爱情', '悬疑', '喜剧'], status: 'answered', isSameQuestion: true },
-                { id: 't19', text: '你养过宠物吗？', type: 'single', options: ['养过', '没养过', '想养'], status: 'answered' }
-            ],
-            sentTime: Date.now() - 3600000 * 9,
-            status: 'ing',
-            version: 'B-8-N',
-            isDraft: false
-        },
-        // ===== 新增：C-6-Y（含【同问.互动一】标记） =====
-        {
-            id: 'test_C6Y_interactive_' + Date.now(),
-            title: '测试问卷 C-6-Y（含同问互动一）',
-            questions: [
-                { 
-                    id: 't20', 
-                    text: '你最喜欢的书籍类型？', 
-                    type: 'single', 
-                    options: ['文学', '科幻', '历史', '哲学'], 
-                    status: 'answered',
-                    isSameQuestion: false,
-                    isInteractiveOne: true,      // 【同问.互动一】标记
-                    isInteractiveOneDone: false
-                },
-                { 
-                    id: 't21', 
-                    text: '你平时喜欢什么休闲活动？', 
-                    type: 'multiple', 
-                    options: ['阅读', '运动', '音乐', '旅行'], 
-                    status: 'answered',
-                    isSameQuestion: false,
-                    isInteractiveOne: false,
-                    isInteractiveOneDone: false
-                },
-                { 
-                    id: 't22', 
-                    text: '你相信命运吗？', 
-                    type: 'single', 
-                    options: ['相信', '不信', '半信半疑'], 
-                    status: 'unanswered',
-                    isSameQuestion: false,
-                    isInteractiveOne: false,
-                    isInteractiveOneDone: false
-                }
-            ],
-            sentTime: Date.now() - 3600000 * 14,
-            status: 'ing',
-            version: 'C-6-Y',
-            isDraft: false
-        },
-        // ===== 新增结束 =====
-        {
-            id: 'sample_1_' + Date.now(),
-            title: '关于你的一切',
-            questions: [
-                { id: 'q1', text: '你最喜欢的颜色？', type: 'single', options: ['红色', '蓝色', '绿色', '其他'] },
-                { id: 'q2', text: '你平时喜欢做什么？', type: 'multiple', options: ['看书', '运动', '音乐', '旅行'] },
-                { id: 'q3', text: '你对我的第一印象？', type: 'single', options: ['温柔', '有趣', '高冷', '可爱'] }
-            ],
-            sentTime: Date.now() - 3600000 * 2,
-            status: 'ing',
-            version: 'A-0-N',
-            isDraft: false
-        },
-        {
-            id: 'sample_2_' + Date.now(),
-            title: '我们的未来',
-            questions: [
-                { id: 'q4', text: '你希望我们多久见一次面？', type: 'single', options: ['每天', '每周', '每月', '随缘'] },
-                { id: 'q5', text: '你最想和我一起做的事？', type: 'multiple', options: ['看电影', '旅行', '做饭', '聊天'] }
-            ],
-            sentTime: Date.now() - 3600000 * 48,
-            status: 'archived',
-            version: 'A-2-N',
-            isDraft: false
-        }
-    ];
-
     if (saved) {
         curiosityData = saved;
         // ⭐ 为 ing 列表中的每个问卷添加 lastViewedVersion（如果不存在）
@@ -169,29 +19,178 @@ async function loadCuriosityData() {
                 item.lastViewedVersion = null;
             }
         });
-        // 强制合并测试数据（每次都覆盖或追加）
-        curiosityData.ing = curiosityData.ing.filter(item => !item.id.startsWith('test_'));
-        curiosityData.ing = [...freshTestSamples.filter(s => s.status === 'ing'), ...curiosityData.ing];
-        // archived 也做类似处理
-        curiosityData.archived = curiosityData.archived.filter(item => !item.id.startsWith('test_'));
-        curiosityData.archived = [...freshTestSamples.filter(s => s.status === 'archived'), ...curiosityData.archived];
-    } else {
-        curiosityData = { ing: [], archived: [] };
-        freshTestSamples.forEach(sample => {
-            if (sample.status === 'ing') {
-                sample.lastViewedVersion = null; // ⭐ 新增
-                curiosityData.ing.push(sample);
-            } else {
-                sample.lastViewedVersion = null; // ⭐ 新增
-                curiosityData.archived.push(sample);
+        // ⭐ 兼容旧数据：为每个问卷添加 task 字段（如果不存在）
+        curiosityData.ing.forEach(item => {
+            if (item.task === undefined) {
+                item.task = null;
             }
         });
+        curiosityData.archived.forEach(item => {
+            if (item.task === undefined) {
+                item.task = null;
+            }
+        });
+    } else {
+        curiosityData = { ing: [], archived: [] };
     }
     await saveCuriosityData();
 }
 
 function saveCuriosityData() {
     localforage.setItem(getStorageKey('curiosityData'), curiosityData);
+}
+
+// ============================================================
+// 任务存储与恢复（新框架）
+// ============================================================
+
+/**
+ * 生成未来时间戳
+ * @param {number} minSeconds - 最小秒数
+ * @param {number} maxSeconds - 最大秒数
+ * @returns {number} 未来时间戳（毫秒）
+ */
+function randomTimestamp(minSeconds, maxSeconds) {
+    return Date.now() + randomSeconds(minSeconds, maxSeconds) * 1000;
+}
+
+/**
+ * 判断时间戳是否已到或已超过
+ * @param {number} timestamp - 时间戳（毫秒）
+ * @returns {boolean}
+ */
+function isTimeUp(timestamp) {
+    if (!timestamp) return false;
+    return Date.now() >= timestamp;
+}
+
+/**
+ * 保存问卷的任务状态
+ * @param {string} questionnaireId - 问卷ID
+ * @param {object} taskData - 任务数据
+ * @param {string} taskData.stage - 当前阶段
+ * @param {object} taskData.timestamps - 各阶段时间戳
+ * @param {string|null} taskData.ynResult - YES/NO 结果
+ * @param {number} taskData.noCount - NO 累计次数
+ * @param {boolean} taskData.loopStarted - 是否已开启大循环
+ * @param {boolean} taskData.firstRoundDone - 第一轮是否完成（逻辑二）
+ * @param {array|null} taskData.firstRoundResults - 第一轮结果（逻辑二）
+ * @param {boolean} taskData.secondRoundDone - 第二轮是否完成（逻辑二）
+ * @param {object|null} taskData.intermediateResults - 中间结果（逻辑三）
+ */
+async function saveTask(questionnaireId, taskData) {
+    const q = curiosityData.ing.find(item => item.id === questionnaireId);
+    if (q) {
+        q.task = taskData;
+        await saveCuriosityData();
+        console.log(`[任务] 已保存任务 ${questionnaireId}，阶段: ${taskData.stage}`);
+    } else {
+        console.warn(`[任务] 未找到问卷 ${questionnaireId}`);
+    }
+}
+
+/**
+ * 加载问卷的任务状态
+ * @param {string} questionnaireId - 问卷ID
+ * @returns {object|null} 任务数据或 null
+ */
+async function loadTask(questionnaireId) {
+    const q = curiosityData.ing.find(item => item.id === questionnaireId);
+    if (q && q.task) {
+        return q.task;
+    }
+    return null;
+}
+
+/**
+ * 清除问卷的任务状态
+ * @param {string} questionnaireId - 问卷ID
+ */
+async function clearTask(questionnaireId) {
+    const q = curiosityData.ing.find(item => item.id === questionnaireId);
+    if (q) {
+        q.task = null;
+        await saveCuriosityData();
+        console.log(`[任务] 已清除任务 ${questionnaireId}`);
+    }
+}
+
+// ============================================================
+// 任务调度器（页面加载时检查）
+// ============================================================
+
+/**
+ * 检查所有进行中的问卷任务
+ * 页面加载/打开模态框时调用
+ */
+async function checkAllPendingTasks() {
+    console.log('[调度] 开始检查所有进行中的任务...');
+    
+    const pendingItems = curiosityData.ing.filter(item => 
+        item.task !== null && 
+        item.task !== undefined &&
+        item.task.stage !== 'done'
+    );
+    
+    if (pendingItems.length === 0) {
+        console.log('[调度] 无进行中的任务');
+        return;
+    }
+    
+    console.log(`[调度] 发现 ${pendingItems.length} 个进行中的任务`);
+    
+    for (const item of pendingItems) {
+        try {
+            const prefix = getVersionPrefix(item.version);
+            console.log(`[调度] 检查问卷 ${item.id}，首字母: ${prefix}，阶段: ${item.task.stage}`);
+            
+            // TODO: 后续步骤实现
+            // if (prefix !== 'A' && prefix !== 'B') {
+            //     await checkLogicOne(item);
+            // } else if (prefix === 'A') {
+            //     await checkLogicTwo(item);
+            // } else if (prefix === 'B') {
+            //     await checkLogicThree(item);
+            // }
+        } catch (e) {
+            console.warn(`[调度] 检查问卷 ${item.id} 时出错:`, e);
+        }
+    }
+}
+
+/**
+ * 空函数占位 - 回复逻辑二（后续步骤实现）
+ */
+async function checkLogicTwo(questionnaire) {
+    // TODO: 第 6 步实现
+    console.log('[占位] checkLogicTwo 待实现');
+}
+
+/**
+ * 空函数占位 - 回复逻辑三（后续步骤实现）
+ */
+async function checkLogicThree(questionnaire) {
+    // TODO: 第 5 步实现
+    console.log('[占位] checkLogicThree 待实现');
+}
+
+/**
+ * 空函数占位 - 回复逻辑一（后续步骤实现）
+ */
+async function checkLogicOne(questionnaire) {
+    // TODO: 第 7 步实现
+    console.log('[占位] checkLogicOne 待实现');
+}
+/**
+ * 检查问卷是否正在进行中（有未完成的任务）
+ * @param {object} questionnaire - 问卷对象
+ * @returns {boolean}
+ */
+function hasActiveTask(questionnaire) {
+    return questionnaire && 
+           questionnaire.task !== null && 
+           questionnaire.task !== undefined &&
+           questionnaire.task.stage !== 'done';
 }
 
 // ---------- 工具函数 ----------
@@ -237,7 +236,8 @@ function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, upda
             status: status || existing.status,
             sentTime: sentTime || existing.sentTime,
             isDraft: false,
-            title: title || existing.title || '未命名问卷'
+            title: title || existing.title || '未命名问卷',
+            task: existing.task || null
         };
         console.log(`[存储] 问卷 ${questionnaireId} 已更新到版本 ${newVersion}，上一版本: ${prevVersion || existing.version}`);
     } else {
@@ -252,7 +252,8 @@ function saveQuestionnaireVersion(questionnaireId, newVersion, prevVersion, upda
             status: status || 'ing',
             sentTime: sentTime || Date.now(),
             isDraft: false,
-            createdTime: Date.now()
+            createdTime: Date.now(),
+            task: null
         };
         // 根据 status 决定放入 ing 还是 archived
         const targetList = (status === 'archived') ? curiosityData.archived : curiosityData.ing;
@@ -561,6 +562,7 @@ window.openCuriosityModal = async function() {
     document.getElementById('curiosity-compose-form').style.display = 'none';
     document.getElementById('curiosity-main-close-btn').style.display = 'flex';
     renderCuriosityLists();
+    await checkAllPendingTasks(); 
     showModal(document.getElementById('curiosity-modal'));
 };
 
@@ -574,6 +576,7 @@ window.switchCuriosityTab = function(tab) {
     document.getElementById('curiosity-compose-form').style.display = 'none';
     document.getElementById('curiosity-main-close-btn').style.display = 'flex';
     renderCuriosityLists();
+    setTimeout(() => checkAllPendingTasks(), 200); 
 };
 
 // ---------- 渲染列表 ----------
@@ -2200,7 +2203,8 @@ function executeArchive(title) {
         const archivedItem = {
             ...curiosityData.ing[ingIndex],
             status: 'archived',
-            isDraft: false
+            isDraft: false,
+            task: null  // ⭐ 清除任务状态
         };
         // 添加到 archived 列表
         curiosityData.archived.push(archivedItem);
