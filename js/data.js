@@ -858,40 +858,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 新的异步导出函数
     window.exportAllData = async function () {
-    // ========== 新增拦截逻辑 ==========
-    try {
-        const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
-        const curiosityData = await localforage.getItem(curiosityKey);
-        if (curiosityData && curiosityData.ing && curiosityData.ing.length > 0) {
-            // 检查是否有奇数版本号（数字为单数）
-            const hasOdd = curiosityData.ing.some(item => {
-                // 使用全局函数 getVersionNumber（来自 curiosity.js）
-                const num = typeof getVersionNumber === 'function' ? getVersionNumber(item.version) : 0;
-                return num % 2 === 1;
-            });
-            if (hasOdd) {
-                // 弹出友好提示，阻止备份
-                if (typeof showCuriosityConfirm === 'function') {
-                    await new Promise((resolve) => {
-                        showCuriosityConfirm({
-                            title: '⏳ 暂不能备份',
-                            message: '当前有问卷正在等待回复（版本号为单数），请等待回复完成后再备份 ✦',
-                            confirmText: '我知道了',
-                            onConfirm: () => resolve()
-                        });
-                    });
-                } else {
-                    // 降级方案
-                    alert('当前有问卷正在等待回复，请稍后再备份');
-                }
-                return; // 🛑 直接终止导出
-            }
-        }
-    } catch (e) {
-        console.warn('[exportAllData] 检查好奇驿站状态失败:', e);
-        // 检查失败时可以选择继续（或阻断），这里建议继续，因为可能只是临时读取错误
-    }
-
         var allData = {
             _exportedAt: new Date().toISOString(),
             _version: '2.2'  // 版本号升级，包含更多数据
