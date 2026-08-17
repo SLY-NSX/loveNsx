@@ -1,7 +1,5 @@
 // ============================================================
 // 好奇驿站 - 问卷调查功能
-// 基于信封投递框架改造
-// ============================================================
 
 // ---------- 数据模型 ----------
 let curiosityData = { ing: [], archived: [] };
@@ -18,7 +16,6 @@ async function loadCuriosityData() {
                 item.lastViewedVersion = null;
             }
         });
-        // ⭐ 兼容旧数据：为每个问卷添加 task 字段（如果不存在）
         curiosityData.ing.forEach(item => {
             if (item.task === undefined) {
                 item.task = null;
@@ -39,25 +36,11 @@ function saveCuriosityData() {
     localforage.setItem('curiosityData', curiosityData);
 }
 
-// ============================================================
 // 任务存储与恢复（新框架）
-// ============================================================
-
-/**
- * 生成未来时间戳
- * @param {number} minSeconds - 最小秒数
- * @param {number} maxSeconds - 最大秒数
- * @returns {number} 未来时间戳（毫秒）
- */
 function randomTimestamp(minSeconds, maxSeconds) {
     return Date.now() + randomSeconds(minSeconds, maxSeconds) * 1000;
 }
 
-/**
- * 判断时间戳是否已到或已超过
- * @param {number} timestamp - 时间戳（毫秒）
- * @returns {boolean}
- */
 function isTimeUp(timestamp) {
     if (!timestamp) return false;
     return Date.now() >= timestamp;
@@ -74,11 +57,6 @@ async function saveTask(questionnaireId, taskData) {
     }
 }
 
-
-/**
- * 清除问卷的任务状态
- * @param {string} questionnaireId - 问卷ID
- */
 async function clearTask(questionnaireId) {
     const q = curiosityData.ing.find(item => item.id === questionnaireId);
     if (q) {
@@ -88,14 +66,7 @@ async function clearTask(questionnaireId) {
     }
 }
 
-// ============================================================
 // 任务调度器（页面加载时检查）
-// ============================================================
-
-/**
- * 检查所有进行中的问卷任务
- * 页面加载/打开模态框时调用
- */
 let _isChecking = false;
 
 async function checkAllPendingTasks() {
@@ -153,11 +124,7 @@ async function checkLogicTwo(questionnaire) {
     if (!task || task.stage === 'done') return;
 
     console.log(`[逻辑二] 检查 ${q.id}，当前阶段: ${task.stage}`);
-
-    // ============================================================
     // 倒序检查：从后往前逐层剥
-    // 顺序：end → t3 → firstRoundResults → t2 → t1-3结果 → t1-3时间戳 → t1-2结果 → t1-2时间戳 → t1-1结果 → t1-1时间戳
-    // ============================================================
 
     // 【节点0】二轮答题是否已完成（已结束）
     if (task.secondRoundDone) {
@@ -362,9 +329,7 @@ async function executeYN_Two(questionnaire) {
         console.log(`[逻辑二] 生成 t1-${nextRound}: ${new Date(task.timestamps[key]).toLocaleString()}`);
     }
 }
-// ============================================================
 // executeFirstRound - 第一轮答题
-// ============================================================
 async function executeFirstRound(questionnaire) {
     const q = questionnaire;
     const task = q.task;
@@ -440,9 +405,7 @@ async function executeFirstRound(questionnaire) {
         await finishLogicTwo(q, true);
     }
 }
-// ============================================================
 // executeSecondRound - 第二轮答题（处理暂不回答）
-// ============================================================
 async function executeSecondRound(questionnaire) {
     const q = questionnaire;
     const task = q.task;
@@ -501,9 +464,7 @@ async function executeSecondRound(questionnaire) {
     console.log(`[逻辑二] 第二轮完成`);
 }
 
-// ============================================================
 // finishLogicTwo - 结束逻辑二
-// ============================================================
 async function finishLogicTwo(questionnaire, gotYes) {
     const q = questionnaire;
     const task = q.task;
@@ -553,7 +514,7 @@ async function checkLogicThree(questionnaire) {
     // 【节点2】检查是否有【同问.已回】或【同问.拒答】标签（有则生成 t3）
     if (task.hasSameQuestionTag) {
         console.log(`[逻辑三] 节点2：有同问标签，生成 t3`);
-        task.timestamps.t3 = randomTimestamp(10, 15 * 60);
+        task.timestamps.t3 = randomTimestamp(30, 5 * 60 * 60); 
         task.stage = 'waiting_same';
         await saveTask(q.id, task);
         console.log(`[逻辑三] t3已生成: ${new Date(task.timestamps.t3).toLocaleString()}`);
