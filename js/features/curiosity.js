@@ -2157,30 +2157,35 @@ function handleSubmitQuestionnaire() {
     // ============================================================
     // 步骤B：根据首字母分支判断
     // ============================================================
-    function proceedWithSameQuestionChecked() {
-        const hasUnanswered = questions.some(q => q.status === 'unanswered');
-        const hasInteractiveOne = questions.some(q => q.isInteractiveOne === true);
-        
-        if (versionPrefix === 'B') {
-            if (hasUnanswered || hasInteractiveOne) {
-                if (hasUnanswered) {
-                    proceedToSend('case2');
-                } else {
-                    proceedToSend('case3');
-                }
+function proceedWithSameQuestionChecked() {
+    const hasUnanswered = questions.some(q => q.status === 'unanswered');
+    // 【修改】检查是否有【同问.已回】或【同问.拒答】（已互动过的同问）
+    const hasRepliedOrRejectedSame = questions.some(q => 
+        q.isSameQuestion === true && 
+        (q.sameQuestionStatus === 'replied' || q.sameQuestionStatus === 'rejected')
+    );
+    
+    if (versionPrefix === 'B') {
+        // 首字母为 B：有「暂不回答」或「已互动的同问」才能投递
+        if (hasUnanswered || hasRepliedOrRejectedSame) {
+            if (hasUnanswered) {
+                proceedToSend('case2');
             } else {
-                showNotDeliverable();
+                proceedToSend('case3');
             }
-            return;
-        }
-        
-        // 首字母不是 B（C/D/E...）
-        if (hasInteractiveOne) {
-            proceedToSend('case4');
         } else {
             showNotDeliverable();
         }
+        return;
     }
+    
+    // 首字母不是 B（C/D/E...）：必须有「已互动的同问」才能投递
+    if (hasRepliedOrRejectedSame) {
+        proceedToSend('case4');
+    } else {
+        showNotDeliverable();
+    }
+}
 }
     
 // ============================================================
