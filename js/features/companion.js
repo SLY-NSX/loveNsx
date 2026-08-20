@@ -43,11 +43,14 @@ window.__isCompanionActive = function() {
         isEnding: false,
         _autoStopped: false,
         volumePercent: 20,
+
     };
 
     // ★ 新增：当前活动记录的ID（用于实时更新）
     let activeRecordId = null;
-
+    // ★ 新增：月历选中日期相关
+    let _selectedDateStr = null;
+    let _selectedElement = null;
     let audioElement = null;
     let _isSoftLooping = false;
     let _softLoopTargetGain = 0.2;
@@ -2814,15 +2817,49 @@ function renderCompanionCalendar() {
         statsEl.textContent = `本月陪伴: ${totalDays} 天 · ${totalRecords} 次`;
     }
 
-    grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
-        el.addEventListener('click', function() {
-            const day = parseInt(this.dataset.day);
-            const month = parseInt(this.dataset.month);
-            const year = parseInt(this.dataset.year);
-            const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
+    el.addEventListener('click', function() {
+        const day = parseInt(this.dataset.day);
+        const month = parseInt(this.dataset.month);
+        const year = parseInt(this.dataset.year);
+        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+
+        if (_selectedDateStr === dateStr) {
+            // 已选中，再次点击 → 打开陪伴记录详情
             showCompanionDayDetail(dateStr);
-        });
+        } else {
+            // 清除之前高亮
+            if (_selectedElement) {
+                _selectedElement.classList.remove('selected');
+            }
+            this.classList.add('selected');
+            _selectedElement = this;
+            _selectedDateStr = dateStr;
+
+            // 更新计划与待办卡片
+            if (typeof window.updatePlanTodoCards === 'function') {
+                window.updatePlanTodoCards(dateStr);
+            }
+        }
     });
+});
+// 自动选中本月第一天
+const firstDayEl = grid.querySelector('.calendar-day[data-day="1"]');
+if (firstDayEl) {
+    if (_selectedElement) {
+        _selectedElement.classList.remove('selected');
+    }
+    const day = parseInt(firstDayEl.dataset.day);
+    const month = parseInt(firstDayEl.dataset.month);
+    const year = parseInt(firstDayEl.dataset.year);
+    const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    firstDayEl.classList.add('selected');
+    _selectedElement = firstDayEl;
+    _selectedDateStr = dateStr;
+    if (typeof window.updatePlanTodoCards === 'function') {
+        window.updatePlanTodoCards(dateStr);
+    }
+}
 }
 
 function populateCompanionYearMonthSelectors() {
