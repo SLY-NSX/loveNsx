@@ -1288,28 +1288,49 @@
     // ============================================================
     // 外部接口：更新卡片
     // ============================================================
-    window.updatePlanTodoCards = function (dateStr) {
-        let container = document.getElementById('plan-todo-container');
-        if (!container) {
-            const grid = document.getElementById('comp-records-grid');
-            const stats = document.getElementById('comp-records-stats');
-            if (!grid || !stats) {
-                console.warn('[plan-todo] 无法找到插入位置');
-                return;
-            }
-            container = document.createElement('div');
-            container.id = 'plan-todo-container';
-            container.style.cssText = `
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                margin-top: 12px;
-                padding: 0 2px;
-            `;
-            grid.parentNode.insertBefore(container, stats);
+// ============================================================
+// 外部接口：更新卡片
+// ============================================================
+window.updatePlanTodoCards = function (dateStr) {
+    // 1. 获取日历面板容器
+    const panel = document.getElementById('comp-records-calendar-panel');
+    if (!panel) {
+        console.warn('[plan-todo] 未找到日历面板');
+        return;
+    }
+
+    // 2. 获取 grid（用于定位插入位置）
+    const grid = document.getElementById('comp-records-grid');
+    if (!grid) {
+        console.warn('[plan-todo] 未找到日历网格');
+        return;
+    }
+
+    // 3. 查找或创建容器
+    let container = document.getElementById('plan-todo-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'plan-todo-container';
+        container.style.cssText = `
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 12px;
+            padding: 0 2px;
+        `;
+
+        // 4. 插入到 grid 的下一个兄弟元素之前，或追加到 panel 末尾
+        const nextSibling = grid.nextSibling;
+        if (nextSibling) {
+            panel.insertBefore(container, nextSibling);
+        } else {
+            panel.appendChild(container);
         }
-        renderCards(dateStr);
-    };
+    }
+
+    // 5. 渲染卡片内容
+    renderCards(dateStr);
+};
 
     // ============================================================
     // 对外暴露：刷新函数（供月份切换等场景调用）
