@@ -2807,7 +2807,13 @@ function renderCompanionCalendar() {
         `;
     }
     grid.innerHTML = html;
-
+grid.style.cssText = `
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    width: 100%;
+    margin-bottom: 8px;
+`;
     const statsEl = document.getElementById('comp-records-stats');
     if (statsEl) {
         const totalDays = Object.keys(dayMap).length;
