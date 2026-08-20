@@ -12019,3 +12019,10 @@ html[data-theme="dark"] #comp-records-title-icon {
     padding: 4px 0;
     min-width: 0;  /* ⭐ 关键：允许 flex 子元素收缩 */
 }
+.calendar-day.selected {
+    background: var(--accent-color) !important;
+    color: #fff !important;
+    border-radius: 50%;
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(var(--accent-color-rgb), 0.4);
+}
