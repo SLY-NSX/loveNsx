@@ -1,8 +1,7 @@
 /**
  * companion.js - 陪伴睡眠功能（实时记录版）
  */
-let _selectedDateStr = null;
-let _selectedElement = null;
+
 // 全局通话禁止标志（仅用于陪伴大弹窗期间）
 window.__companionActive = false;
 window.__setCompanionActive = function(active) {
@@ -2167,13 +2166,6 @@ function resetSession() {
     // 初始化
     // ============================================================
 function initCompanionFeature() {
-    // 防止重复初始化
-    if (window._companionInitialized) {
-        console.log('[companion] 已初始化，跳过重复初始化');
-        return;
-    }
-    window._companionInitialized = true;
-
     console.log('[companion] 陪伴功能已加载（实时记录版）');
     window.showCompanionPicker = showCompanionPicker;
     window.openCompanion = showCompanionPicker;
@@ -2182,23 +2174,22 @@ function initCompanionFeature() {
     stopMusic();
     stopAlarm();
 
+    // ★ 调用全局的 bindCompanionCalendarEvents（已在自执行函数外定义）
     if (typeof bindCompanionCalendarEvents === 'function') {
         bindCompanionCalendarEvents();
     } else {
         console.warn('[companion] bindCompanionCalendarEvents 未定义，跳过绑定');
     }
 
-    // 使用 { once: true } 自动移除
+    // ★ 监听开屏动画结束事件
     window.addEventListener('welcomeAnimationEnded', function onWelcomeEnded() {
         console.log('[companion] 收到开屏动画结束事件');
+        window.removeEventListener('welcomeAnimationEnded', onWelcomeEnded);
         checkAndRecoverOngoingRecord();
-    }, { once: true });
+    });
 
-    // 兜底定时器去重
-    if (window._companionRecoverTimer) {
-        clearTimeout(window._companionRecoverTimer);
-    }
-    window._companionRecoverTimer = setTimeout(function() {
+    // ★ 备用：如果事件未触发，5秒后也检查一次
+    setTimeout(function() {
         console.log('[companion] 5秒兜底检查 ongoing 记录');
         checkAndRecoverOngoingRecord();
     }, 5000);
@@ -2823,49 +2814,15 @@ function renderCompanionCalendar() {
         statsEl.textContent = `本月陪伴: ${totalDays} 天 · ${totalRecords} 次`;
     }
 
-grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
-    el.addEventListener('click', function() {
-        const day = parseInt(this.dataset.day);
-        const month = parseInt(this.dataset.month);
-        const year = parseInt(this.dataset.year);
-        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-
-        if (_selectedDateStr === dateStr) {
-            // 已选中，再次点击 → 打开陪伴记录详情
+    grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
+        el.addEventListener('click', function() {
+            const day = parseInt(this.dataset.day);
+            const month = parseInt(this.dataset.month);
+            const year = parseInt(this.dataset.year);
+            const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
             showCompanionDayDetail(dateStr);
-        } else {
-            // 清除之前高亮
-            if (_selectedElement) {
-                _selectedElement.classList.remove('selected');
-            }
-            this.classList.add('selected');
-            _selectedElement = this;
-            _selectedDateStr = dateStr;
-
-            // 更新计划与待办卡片
-            if (typeof window.updatePlanTodoCards === 'function') {
-                window.updatePlanTodoCards(dateStr);
-            }
-        }
+        });
     });
-});
-// 自动选中本月第一天
-const firstDayEl = grid.querySelector('.calendar-day[data-day="1"]');
-if (firstDayEl) {
-    if (_selectedElement) {
-        _selectedElement.classList.remove('selected');
-    }
-    const day = parseInt(firstDayEl.dataset.day);
-    const month = parseInt(firstDayEl.dataset.month);
-    const year = parseInt(firstDayEl.dataset.year);
-    const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    firstDayEl.classList.add('selected');
-    _selectedElement = firstDayEl;
-    _selectedDateStr = dateStr;
-    if (typeof window.updatePlanTodoCards === 'function') {
-        window.updatePlanTodoCards(dateStr);
-    }
-}
 }
 
 function populateCompanionYearMonthSelectors() {
