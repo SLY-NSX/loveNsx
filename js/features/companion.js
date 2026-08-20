@@ -48,9 +48,6 @@ window.__isCompanionActive = function() {
 
     // ★ 新增：当前活动记录的ID（用于实时更新）
     let activeRecordId = null;
-    // ★ 新增：月历选中日期相关
-    let _selectedDateStr = null;
-    let _selectedElement = null;
     let audioElement = null;
     let _isSoftLooping = false;
     let _softLoopTargetGain = 0.2;
@@ -2380,7 +2377,8 @@ function bindCompanionCalendarEvents() {
 // ============================================================
 
 let _compRecordsCurrentDate = new Date();
-
+let _selectedDateStr = null;
+let _selectedElement = null;
 // 辅助函数：获取记录并过滤掉 ongoing
 function getFilteredRecords() {
     const records = window._companionRecords || [];
