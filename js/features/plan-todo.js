@@ -425,6 +425,7 @@
         currentType = 'todo';
         stageList = [];
         selectedPrimaryLabel = '';
+        selectedColor = COLORS[0].value;
 
         // 构建模态框
         const overlay = document.createElement('div');
@@ -599,13 +600,12 @@
             secondaryInput.addEventListener('input', updateTitlePreview);
         }
 
-        // 阶段管理：添加阶段
-        const addStageBtn = modal.querySelector('#pt-add-stage-btn');
-        if (addStageBtn) {
-            addStageBtn.addEventListener('click', function () {
-                addStage();
-            });
-        }
+// 阶段管理：添加阶段（使用事件委托，避免动态元素问题）
+document.addEventListener('click', function(e) {
+    if (e.target.id === 'pt-add-stage-btn' || e.target.closest('#pt-add-stage-btn')) {
+        addStage();
+    }
+});
 
         // 重复方式切换
         const repeatTypeRadios = modal.querySelectorAll('input[name="pt-repeat-type"]');
@@ -640,25 +640,62 @@
                     <i class="fas fa-tag" style="margin-right:6px;color:var(--accent-color);"></i>标题设置
                 </div>
 
-                <!-- 一级标题 -->
-                <div style="display:flex; gap:8px; align-items:center; margin-bottom:6px;">
-                    <div style="position:relative; flex:1;">
-                        <input type="text" id="pt-primary-input" placeholder="一级标题（如：学习）" maxlength="20" style="
-                            width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
-                            border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
-                            font-size:14px; outline:none; font-family:var(--font-family);
-                            box-sizing:border-box;
-                        ">
-                        <div id="pt-primary-hint" style="font-size:10px; color:var(--text-secondary); margin-top:3px; opacity:0.7;">输入已有标签将自动锁定颜色</div>
-                    </div>
-                    <select id="pt-primary-color-picker" style="
-                        width:52px; height:42px; border:1.5px solid var(--border-color);
-                        border-radius:10px; background:var(--primary-bg); cursor:pointer;
-                        flex-shrink:0; padding:2px;
-                    ">
-                        ${COLORS.map(c => `<option value="${c.value}" style="background:${c.value};color:#fff;">${c.name}</option>`).join('')}
-                    </select>
-                </div>
+<!-- 一级标题 -->
+<div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
+    <div style="flex:1;">
+        <input type="text" id="pt-primary-input" placeholder="一级标题（如：学习）" maxlength="20" style="
+            width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
+            border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+            font-size:14px; outline:none; font-family:var(--font-family);
+            box-sizing:border-box;
+        ">
+        <div id="pt-primary-hint" style="font-size:10px; color:var(--text-secondary); margin-top:3px; opacity:0.7;">输入已有标签将自动锁定颜色</div>
+    </div>
+    
+    <!-- 颜色选择器 - 显示色块 + 下拉 -->
+    <div style="position:relative; flex-shrink:0;">
+        <div id="pt-color-preview" style="
+            width:40px; height:40px; border-radius:50%; 
+            border:2px solid var(--border-color); 
+            background: #3498DB; 
+            cursor:pointer; 
+            transition: all 0.2s;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        " onclick="toggleColorPicker()"></div>
+        
+        <div id="pt-color-dropdown" style="
+            display:none; position:absolute; top:48px; right:0; 
+            background:var(--secondary-bg); border:1px solid var(--border-color); 
+            border-radius:12px; padding:12px; width:200px; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index:10;
+        ">
+            <!-- 预设颜色 -->
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px;">
+                ${COLORS.map(c => `
+                    <div class="pt-color-option" data-color="${c.value}" style="
+                        width:36px; height:36px; border-radius:50%; 
+                        background:${c.value}; cursor:pointer; 
+                        border:2px solid transparent; 
+                        transition: all 0.2s;
+                    " onclick="selectColor('${c.value}')" onmouseover="this.style.borderColor='rgba(255,255,255,0.5)'" onmouseout="this.style.borderColor='transparent'"></div>
+                `).join('')}
+            </div>
+            
+            <!-- 自定义颜色 -->
+            <div style="display:flex; gap:6px; align-items:center; border-top:1px solid var(--border-color); padding-top:8px;">
+                <span style="font-size:11px; color:var(--text-secondary);">自定义：</span>
+                <input type="color" id="pt-custom-color-input" value="#3498DB" style="
+                    width:36px; height:36px; border:none; border-radius:50%; cursor:pointer; padding:0;
+                " onchange="selectColor(this.value)">
+                <input type="text" id="pt-custom-color-hex" placeholder="#xxxxxx" value="#3498DB" style="
+                    flex:1; padding:4px 8px; border:1px solid var(--border-color);
+                    border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                    font-size:11px; outline:none; font-family:var(--font-family);
+                " onchange="selectColor(this.value)">
+            </div>
+        </div>
+    </div>
+</div>
 
                 <!-- 二级标题 -->
                 <input type="text" id="pt-secondary-input" placeholder="二级标题（如：看完一本书）" maxlength="30" style="
@@ -1066,7 +1103,8 @@
 
         const primaryLabel = primaryInput ? primaryInput.value.trim() : '';
         const secondaryTitle = secondaryInput ? secondaryInput.value.trim() : '';
-        const primaryColor = colorPicker ? colorPicker.value : COLORS[0].value;
+        // 颜色获取（从隐藏域或全局变量）
+const primaryColor = selectedColor || COLORS[0].value;
 
         if (!primaryLabel) {
             showToast('请输入一级标题', 'warning');
@@ -1362,3 +1400,43 @@ window.updatePlanTodoCards = function (dateStr) {
 
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
+
+// ============================================================
+// 颜色选择器交互
+// ============================================================
+let selectedColor = '#3498DB';
+
+function toggleColorPicker() {
+    const dropdown = document.getElementById('pt-color-dropdown');
+    if (dropdown) {
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+function selectColor(colorHex) {
+    selectedColor = colorHex;
+    const preview = document.getElementById('pt-color-preview');
+    const customHex = document.getElementById('pt-custom-color-hex');
+    const customInput = document.getElementById('pt-custom-color-input');
+    const dropdown = document.getElementById('pt-color-dropdown');
+    
+    if (preview) preview.style.background = colorHex;
+    if (customHex) customHex.value = colorHex;
+    if (customInput) customInput.value = colorHex;
+    if (dropdown) dropdown.style.display = 'none';
+    
+    // 同步到隐藏的 color picker 值（用于保存）
+    const hiddenPicker = document.getElementById('pt-primary-color-picker');
+    if (hiddenPicker) hiddenPicker.value = colorHex;
+}
+
+// 点击其他地方关闭下拉
+document.addEventListener('click', function(e) {
+    const dropdown = document.getElementById('pt-color-dropdown');
+    const preview = document.getElementById('pt-color-preview');
+    if (dropdown && preview) {
+        if (!dropdown.contains(e.target) && !preview.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    }
+});
