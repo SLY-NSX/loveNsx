@@ -634,85 +634,96 @@ document.addEventListener('click', function(e) {
         const isPlan = currentType === 'plan';
 
         body.innerHTML = `
-            <!-- 一、标题设置 -->
-            <div style="margin-bottom:18px;">
-                <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
-                    <i class="fas fa-tag" style="margin-right:6px;color:var(--accent-color);"></i>标题设置
-                </div>
-
-<!-- 一级标题 -->
-<div style="display:flex; gap:10px; align-items:center; margin-bottom:6px;">
-    <div style="flex:1;">
-        <input type="text" id="pt-primary-input" placeholder="一级标题（如：学习）" maxlength="20" style="
-            width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
-            border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
-            font-size:14px; outline:none; font-family:var(--font-family);
-            box-sizing:border-box;
-        ">
-        <div id="pt-primary-hint" style="font-size:10px; color:var(--text-secondary); margin-top:3px; opacity:0.7;">输入已有标签将自动锁定颜色</div>
+<!-- 一、标题设置 -->
+<div style="margin-bottom:18px;">
+    <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
+        <i class="fas fa-tag" style="margin-right:6px;color:var(--accent-color);"></i>标题设置
     </div>
-    
-    <!-- 颜色选择器 - 显示色块 + 下拉 -->
-    <div style="position:relative; flex-shrink:0;">
-        <div id="pt-color-preview" style="
-            width:40px; height:40px; border-radius:50%; 
-            border:2px solid var(--border-color); 
-            background: #3498DB; 
-            cursor:pointer; 
-            transition: all 0.2s;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-        " onclick="toggleColorPicker()"></div>
-        
-        <div id="pt-color-dropdown" style="
-            display:none; position:absolute; top:48px; right:0; 
-            background:var(--secondary-bg); border:1px solid var(--border-color); 
-            border-radius:12px; padding:12px; width:200px; 
-            box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index:10;
-        ">
-            <!-- 预设颜色 -->
-            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px;">
-                ${COLORS.map(c => `
-                    <div class="pt-color-option" data-color="${c.value}" style="
-                        width:36px; height:36px; border-radius:50%; 
-                        background:${c.value}; cursor:pointer; 
-                        border:2px solid transparent; 
-                        transition: all 0.2s;
-                    " onclick="selectColor('${c.value}')" onmouseover="this.style.borderColor='rgba(255,255,255,0.5)'" onmouseout="this.style.borderColor='transparent'"></div>
-                `).join('')}
-            </div>
+
+    <!-- 一级标题：色块在左，输入框在右（同一行，色块上移4px） -->
+    <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:6px;">
+        <!-- 色块选择器（左） -->
+        <div style="position:relative; flex-shrink:0; margin-top:-4px;">
+            <div id="pt-color-preview" style="
+                width:40px; height:40px; border-radius:50%; 
+                border:2px solid var(--border-color); 
+                background: #3498DB; 
+                cursor:pointer; 
+                transition: all 0.2s;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+            " onclick="toggleColorPicker()"></div>
             
-            <!-- 自定义颜色 -->
-            <div style="display:flex; gap:6px; align-items:center; border-top:1px solid var(--border-color); padding-top:8px;">
-                <span style="font-size:11px; color:var(--text-secondary);">自定义：</span>
-                <input type="color" id="pt-custom-color-input" value="#3498DB" style="
-                    width:36px; height:36px; border:none; border-radius:50%; cursor:pointer; padding:0;
-                " onchange="selectColor(this.value)">
-                <input type="text" id="pt-custom-color-hex" placeholder="#xxxxxx" value="#3498DB" style="
-                    flex:1; padding:4px 8px; border:1px solid var(--border-color);
-                    border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
-                    font-size:11px; outline:none; font-family:var(--font-family);
-                " onchange="selectColor(this.value)">
+            <div id="pt-color-dropdown" style="
+                display:none; position:absolute; top:48px; left:0; 
+                background:var(--secondary-bg); border:1px solid var(--border-color); 
+                border-radius:12px; padding:12px; width:220px; 
+                box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index:10;
+            ">
+                <!-- 预设颜色 -->
+                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px;">
+                    ${COLORS.map(c => `
+                        <div class="pt-color-option" data-color="${c.value}" style="
+                            width:36px; height:36px; border-radius:50%; 
+                            background:${c.value}; cursor:pointer; 
+                            border:2px solid transparent; 
+                            transition: all 0.2s;
+                        " onclick="selectColor('${c.value}')" onmouseover="this.style.borderColor='rgba(255,255,255,0.5)'" onmouseout="this.style.borderColor='transparent'"></div>
+                    `).join('')}
+                </div>
+                
+                <!-- 自定义颜色 - 改为横向紧凑布局 -->
+                <div style="display:flex; gap:6px; align-items:center; border-top:1px solid var(--border-color); padding-top:8px;">
+                    <span style="font-size:11px; color:var(--text-secondary); flex-shrink:0;">自定义：</span>
+                    <input type="color" id="pt-custom-color-input" value="#3498DB" style="
+                        width:32px; height:32px; border:none; border-radius:50%; cursor:pointer; padding:0; flex-shrink:0;
+                    " onchange="selectColor(this.value)">
+                    <div style="position:relative; flex:1; min-width:0;">
+                        <input type="text" id="pt-custom-color-hex" placeholder="#xxxxxx" value="#3498DB" style="
+                            width:100%; padding:4px 8px; border:1px solid var(--border-color);
+                            border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                            font-size:11px; outline:none; font-family:var(--font-family);
+                            box-sizing:border-box;
+                        " onchange="selectColor(this.value)">
+                        <!-- 实时颜色预览小方块（嵌入在输入框右侧） -->
+                        <div id="pt-custom-color-preview" style="
+                            position:absolute; right:4px; top:50%; transform:translateY(-50%);
+                            width:16px; height:16px; border-radius:4px; 
+                            background:#3498DB; border:1px solid var(--border-color);
+                            pointer-events:none;
+                        "></div>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <!-- 一级标题输入框（右） -->
+        <div style="flex:1; min-width:0;">
+            <input type="text" id="pt-primary-input" placeholder="一级标题（如：学习）" maxlength="20" style="
+                width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
+                border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+                font-size:14px; outline:none; font-family:var(--font-family);
+                box-sizing:border-box;
+            ">
+            <div id="pt-primary-hint" style="font-size:10px; color:var(--text-secondary); margin-top:3px; opacity:0.7;">输入已有标签将自动锁定颜色</div>
+        </div>
+    </div>
+
+    <!-- 二级标题 -->
+    <input type="text" id="pt-secondary-input" placeholder="二级标题（如：看完一本书）" maxlength="30" style="
+        width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
+        border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+        font-size:14px; outline:none; font-family:var(--font-family);
+        box-sizing:border-box; margin-top:6px;
+    ">
+
+    <div id="pt-title-preview" style="
+        margin-top:6px; font-size:14px; color:var(--text-secondary);
+        padding:4px 10px; background:rgba(var(--accent-color-rgb),0.06);
+        border-radius:8px; min-height:28px; display:flex; align-items:center;
+    ">
+        📌 预览：<span id="pt-title-preview-text" style="color:var(--text-primary);font-weight:500;margin-left:4px;"></span>
     </div>
 </div>
-
-                <!-- 二级标题 -->
-                <input type="text" id="pt-secondary-input" placeholder="二级标题（如：看完一本书）" maxlength="30" style="
-                    width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
-                    border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
-                    font-size:14px; outline:none; font-family:var(--font-family);
-                    box-sizing:border-box; margin-top:6px;
-                ">
-
-                <div id="pt-title-preview" style="
-                    margin-top:6px; font-size:14px; color:var(--text-secondary);
-                    padding:4px 10px; background:rgba(var(--accent-color-rgb),0.06);
-                    border-radius:8px; min-height:28px; display:flex; align-items:center;
-                ">
-                    📌 预览：<span id="pt-title-preview-text" style="color:var(--text-primary);font-weight:500;margin-left:4px;"></span>
-                </div>
-            </div>
 
             <!-- 二、时间设置 -->
             <div style="margin-bottom:18px;">
@@ -1402,33 +1413,51 @@ window.updatePlanTodoCards = function (dateStr) {
 })();
 
 // ============================================================
-// 颜色选择器交互
+// 颜色选择器交互（更新版 - 支持实时预览）
 // ============================================================
 let selectedColor = '#3498DB';
 
-function toggleColorPicker() {
+window.toggleColorPicker = function() {
     const dropdown = document.getElementById('pt-color-dropdown');
     if (dropdown) {
         dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
     }
-}
+};
 
-function selectColor(colorHex) {
+window.selectColor = function(colorHex) {
     selectedColor = colorHex;
     const preview = document.getElementById('pt-color-preview');
     const customHex = document.getElementById('pt-custom-color-hex');
     const customInput = document.getElementById('pt-custom-color-input');
+    const customPreview = document.getElementById('pt-custom-color-preview');
     const dropdown = document.getElementById('pt-color-dropdown');
     
     if (preview) preview.style.background = colorHex;
     if (customHex) customHex.value = colorHex;
     if (customInput) customInput.value = colorHex;
+    if (customPreview) customPreview.style.background = colorHex;
     if (dropdown) dropdown.style.display = 'none';
     
     // 同步到隐藏的 color picker 值（用于保存）
     const hiddenPicker = document.getElementById('pt-primary-color-picker');
     if (hiddenPicker) hiddenPicker.value = colorHex;
-}
+};
+
+// 自定义 HEX 输入框实时预览（输入时自动更新预览色块）
+document.addEventListener('input', function(e) {
+    if (e.target.id === 'pt-custom-color-hex') {
+        const val = e.target.value.trim();
+        // 简单验证是否为有效的 hex 颜色
+        if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+            const preview = document.getElementById('pt-custom-color-preview');
+            if (preview) preview.style.background = val;
+            // 同步更新主色块
+            const mainPreview = document.getElementById('pt-color-preview');
+            if (mainPreview) mainPreview.style.background = val;
+            selectedColor = val;
+        }
+    }
+});
 
 // 点击其他地方关闭下拉
 document.addEventListener('click', function(e) {
