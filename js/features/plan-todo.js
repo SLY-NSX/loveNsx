@@ -636,7 +636,8 @@ function renderFormBody() {
     const primaryOptions = meta[currentType] || [];
 
     // 获取当前输入的一级标题（用于过滤二级标题）
-    const currentPrimary = primaryInput ? primaryInput.value.trim() : '';
+    const primaryInputEl = document.getElementById('pt-primary-input');
+    const currentPrimary = primaryInputEl ? primaryInputEl.value.trim() : '';
 
     // 获取当前一级标题下已有的二级标题（仅计划模式）
     let secondaryOptions = [];
