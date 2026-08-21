@@ -627,329 +627,656 @@ document.addEventListener('click', function(e) {
     // ============================================================
     // 表单渲染函数
     // ============================================================
-    function renderFormBody() {
-        const body = document.getElementById('pt-form-body');
-        if (!body) return;
+function renderFormBody() {
+    const body = document.getElementById('pt-form-body');
+    if (!body) return;
 
-        const isPlan = currentType === 'plan';
+    const isPlan = currentType === 'plan';
+    const meta = getMeta();
+    const primaryOptions = meta[currentType] || [];
 
-        body.innerHTML = `
-<!-- 一、标题设置 -->
-<div style="margin-bottom:18px;">
-    <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
-        <i class="fas fa-tag" style="margin-right:6px;color:var(--accent-color);"></i>标题设置
-    </div>
+    // 获取当前输入的一级标题（用于过滤二级标题）
+    const primaryInput = document.getElementById('pt-primary-input');
+    const currentPrimary = primaryInput ? primaryInput.value.trim() : '';
 
-    <!-- 一级标题：色块在左，输入框在右（同一行，色块上移4px） -->
-    <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:6px;">
-        <!-- 色块选择器（左） -->
-        <div style="position:relative; flex-shrink:0; margin-top:-4px;">
-            <div id="pt-color-preview" style="
-                width:40px; height:40px; border-radius:50%; 
-                border:2px solid var(--border-color); 
-                background: #3498DB; 
-                cursor:pointer; 
-                transition: all 0.2s;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            " onclick="toggleColorPicker()"></div>
-            
-            <div id="pt-color-dropdown" style="
-                display:none; position:absolute; top:48px; left:0; 
-                background:var(--secondary-bg); border:1px solid var(--border-color); 
-                border-radius:12px; padding:12px; width:220px; 
-                box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index:10;
-            ">
-                <!-- 预设颜色 -->
-                <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px;">
-                    ${COLORS.map(c => `
-                        <div class="pt-color-option" data-color="${c.value}" style="
-                            width:36px; height:36px; border-radius:50%; 
-                            background:${c.value}; cursor:pointer; 
-                            border:2px solid transparent; 
-                            transition: all 0.2s;
-                        " onclick="selectColor('${c.value}')" onmouseover="this.style.borderColor='rgba(255,255,255,0.5)'" onmouseout="this.style.borderColor='transparent'"></div>
-                    `).join('')}
-                </div>
-                
-                <!-- 自定义颜色 - 改为横向紧凑布局 -->
-                <div style="display:flex; gap:6px; align-items:center; border-top:1px solid var(--border-color); padding-top:8px;">
-                    <span style="font-size:11px; color:var(--text-secondary); flex-shrink:0;">自定义：</span>
-                    <input type="color" id="pt-custom-color-input" value="#3498DB" style="
-                        width:32px; height:32px; border:none; border-radius:50%; cursor:pointer; padding:0; flex-shrink:0;
-                    " onchange="selectColor(this.value)">
-                    <div style="position:relative; flex:1; min-width:0;">
-                        <input type="text" id="pt-custom-color-hex" placeholder="#xxxxxx" value="#3498DB" style="
-                            width:100%; padding:4px 8px; border:1px solid var(--border-color);
-                            border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
-                            font-size:11px; outline:none; font-family:var(--font-family);
-                            box-sizing:border-box;
-                        " onchange="selectColor(this.value)">
-                        <!-- 实时颜色预览小方块（嵌入在输入框右侧） -->
-                        <div id="pt-custom-color-preview" style="
-                            position:absolute; right:4px; top:50%; transform:translateY(-50%);
-                            width:16px; height:16px; border-radius:4px; 
-                            background:#3498DB; border:1px solid var(--border-color);
-                            pointer-events:none;
-                        "></div>
+    // 获取当前一级标题下已有的二级标题（仅计划模式）
+    let secondaryOptions = [];
+    if (isPlan && currentPrimary) {
+        const allData = getAllData();
+        const seen = new Set();
+        for (const date in allData) {
+            const day = allData[date];
+            if (day.plans) {
+                day.plans.forEach(item => {
+                    if (item.primaryLabel === currentPrimary && item.secondaryTitle) {
+                        const key = item.secondaryTitle;
+                        if (!seen.has(key)) {
+                            seen.add(key);
+                            secondaryOptions.push({ title: item.secondaryTitle, id: item.id });
+                        }
+                    }
+                });
+            }
+        }
+        // 按字母排序
+        secondaryOptions.sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+    body.innerHTML = `
+        <!-- 一、标题设置 -->
+        <div style="margin-bottom:18px;">
+            <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
+                <i class="fas fa-tag" style="margin-right:6px;color:var(--accent-color);"></i>标题设置
+            </div>
+
+            <!-- 一级标题：色块在左，输入框在右（同一行，色块上移4px） -->
+            <div style="display:flex; gap:10px; align-items:flex-start; margin-bottom:6px;">
+                <!-- 色块选择器（左） -->
+                <div style="position:relative; flex-shrink:0; margin-top:-4px;">
+                    <div id="pt-color-preview" style="
+                        width:40px; height:40px; border-radius:50%; 
+                        border:2px solid var(--border-color); 
+                        background: ${selectedColor || '#3498DB'}; 
+                        cursor:pointer; 
+                        transition: all 0.2s;
+                        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+                    " onclick="toggleColorPicker()"></div>
+                    
+                    <div id="pt-color-dropdown" style="
+                        display:none; position:absolute; top:48px; left:0; 
+                        background:var(--secondary-bg); border:1px solid var(--border-color); 
+                        border-radius:12px; padding:12px; width:220px; 
+                        box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index:10;
+                    ">
+                        <!-- 预设颜色 -->
+                        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:8px;">
+                            ${COLORS.map(c => `
+                                <div class="pt-color-option" data-color="${c.value}" style="
+                                    width:36px; height:36px; border-radius:50%; 
+                                    background:${c.value}; cursor:pointer; 
+                                    border:2px solid transparent; 
+                                    transition: all 0.2s;
+                                " onclick="selectColor('${c.value}')" onmouseover="this.style.borderColor='rgba(255,255,255,0.5)'" onmouseout="this.style.borderColor='transparent'"></div>
+                            `).join('')}
+                        </div>
+                        
+                        <!-- 自定义颜色 -->
+                        <div style="display:flex; gap:6px; align-items:center; border-top:1px solid var(--border-color); padding-top:8px;">
+                            <span style="font-size:11px; color:var(--text-secondary); flex-shrink:0;">自定义：</span>
+                            <input type="color" id="pt-custom-color-input" value="${selectedColor || '#3498DB'}" style="
+                                width:32px; height:32px; border:none; border-radius:50%; cursor:pointer; padding:0; flex-shrink:0;
+                            " onchange="selectColor(this.value)">
+                            <div style="position:relative; flex:1; min-width:0;">
+                                <input type="text" id="pt-custom-color-hex" placeholder="#xxxxxx" value="${selectedColor || '#3498DB'}" style="
+                                    width:100%; padding:4px 8px; border:1px solid var(--border-color);
+                                    border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                                    font-size:11px; outline:none; font-family:var(--font-family);
+                                    box-sizing:border-box;
+                                " oninput="onCustomHexInput(this.value)">
+                                <div id="pt-custom-color-preview" style="
+                                    position:absolute; right:4px; top:50%; transform:translateY(-50%);
+                                    width:16px; height:16px; border-radius:4px; 
+                                    background:${selectedColor || '#3498DB'}; border:1px solid var(--border-color);
+                                    pointer-events:none;
+                                "></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- 一级标题输入框 + 下拉菜单（右） -->
+                <div style="flex:1; min-width:0; position:relative;">
+                    <div style="position:relative;">
+                        <input type="text" id="pt-primary-input" placeholder="一级标题（如：学习）" maxlength="20" autocomplete="off" style="
+                            width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
+                            border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+                            font-size:14px; outline:none; font-family:var(--font-family);
+                            box-sizing:border-box;
+                        ">
+                        <!-- 一级标题下拉菜单 -->
+                        <div id="pt-primary-dropdown" style="
+                            display:none; position:absolute; top:calc(100% + 4px); left:0; right:0;
+                            background:var(--secondary-bg); border:1px solid var(--border-color);
+                            border-radius:10px; max-height:150px; overflow-y:auto;
+                            box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index:20;
+                        ">
+                            ${primaryOptions.length > 0 ? primaryOptions.map(opt => `
+                                <div class="pt-primary-option" data-name="${opt.name}" data-color="${opt.color}" style="
+                                    display:flex; align-items:center; gap:10px; padding:8px 12px;
+                                    cursor:pointer; transition:background 0.15s;
+                                    border-bottom:1px solid var(--border-color);
+                                " onmouseover="this.style.background='rgba(var(--accent-color-rgb),0.06)'" onmouseout="this.style.background='transparent'">
+                                    <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${opt.color}; flex-shrink:0;"></span>
+                                    <span style="font-size:13px; color:var(--text-primary);">${opt.name}</span>
+                                </div>
+                            `).join('') : `
+                                <div style="padding:12px; text-align:center; color:var(--text-secondary); font-size:12px; opacity:0.6;">
+                                    暂无已创建的一级标题
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                    <div id="pt-primary-hint" style="font-size:10px; color:var(--text-secondary); margin-top:3px; opacity:0.7;">输入已有标签将自动锁定颜色，点击下拉可快速选择</div>
+                </div>
+            </div>
+
+            <!-- 二级标题（带下拉菜单） -->
+            <div style="position:relative; margin-top:6px;">
+                <input type="text" id="pt-secondary-input" placeholder="二级标题（如：看完一本书）" maxlength="30" autocomplete="off" style="
+                    width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
+                    border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+                    font-size:14px; outline:none; font-family:var(--font-family);
+                    box-sizing:border-box;
+                ">
+                <!-- 二级标题下拉菜单（仅计划模式且有选项时显示） -->
+                ${isPlan ? `
+                <div id="pt-secondary-dropdown" style="
+                    display:none; position:absolute; top:calc(100% + 4px); left:0; right:0;
+                    background:var(--secondary-bg); border:1px solid var(--border-color);
+                    border-radius:10px; max-height:150px; overflow-y:auto;
+                    box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index:20;
+                ">
+                    ${secondaryOptions.length > 0 ? secondaryOptions.map(opt => `
+                        <div class="pt-secondary-option" data-title="${opt.title}" style="
+                            display:flex; align-items:center; gap:10px; padding:8px 12px;
+                            cursor:pointer; transition:background 0.15s;
+                            border-bottom:1px solid var(--border-color);
+                        " onmouseover="this.style.background='rgba(var(--accent-color-rgb),0.06)'" onmouseout="this.style.background='transparent'">
+                            <span style="font-size:13px; color:var(--text-primary);">${opt.title}</span>
+                            <span style="font-size:10px; color:var(--text-secondary); opacity:0.5; margin-left:auto;">已存在</span>
+                        </div>
+                    `).join('') : `
+                        <div style="padding:12px; text-align:center; color:var(--text-secondary); font-size:12px; opacity:0.6;">
+                            暂无已创建的二级标题
+                        </div>
+                    `}
+                </div>
+                ` : ''}
+            </div>
+            ${isPlan ? `<div style="font-size:10px; color:var(--text-secondary); margin-top:3px; opacity:0.6;">点击下拉可选择已有二级标题（仅当前一级标题下）</div>` : ''}
+
+            <div id="pt-title-preview" style="
+                margin-top:6px; font-size:14px; color:var(--text-secondary);
+                padding:4px 10px; background:rgba(var(--accent-color-rgb),0.06);
+                border-radius:8px; min-height:28px; display:flex; align-items:center;
+            ">
+                📌 预览：<span id="pt-title-preview-text" style="color:var(--text-primary);font-weight:500;margin-left:4px;"></span>
             </div>
         </div>
 
-        <!-- 一级标题输入框（右） -->
-        <div style="flex:1; min-width:0;">
-            <input type="text" id="pt-primary-input" placeholder="一级标题（如：学习）" maxlength="20" style="
-                width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
-                border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
-                font-size:14px; outline:none; font-family:var(--font-family);
-                box-sizing:border-box;
-            ">
-            <div id="pt-primary-hint" style="font-size:10px; color:var(--text-secondary); margin-top:3px; opacity:0.7;">输入已有标签将自动锁定颜色</div>
-        </div>
-    </div>
+        <!-- 二、时间设置 -->
+        <div style="margin-bottom:18px;">
+            <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
+                <i class="fas fa-clock" style="margin-right:6px;color:var(--accent-color);"></i>时间设置
+            </div>
 
-    <!-- 二级标题 -->
-    <input type="text" id="pt-secondary-input" placeholder="二级标题（如：看完一本书）" maxlength="30" style="
-        width:100%; padding:9px 12px; border:1.5px solid var(--border-color);
-        border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
-        font-size:14px; outline:none; font-family:var(--font-family);
-        box-sizing:border-box; margin-top:6px;
-    ">
-
-    <div id="pt-title-preview" style="
-        margin-top:6px; font-size:14px; color:var(--text-secondary);
-        padding:4px 10px; background:rgba(var(--accent-color-rgb),0.06);
-        border-radius:8px; min-height:28px; display:flex; align-items:center;
-    ">
-        📌 预览：<span id="pt-title-preview-text" style="color:var(--text-primary);font-weight:500;margin-left:4px;"></span>
-    </div>
-</div>
-
-            <!-- 二、时间设置 -->
-            <div style="margin-bottom:18px;">
-                <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
-                    <i class="fas fa-clock" style="margin-right:6px;color:var(--accent-color);"></i>时间设置
-                </div>
-
-                ${isPlan ? `
-                    <!-- 计划模式 -->
-                    <div style="display:flex; gap:8px; margin-bottom:6px;">
-                        <div style="flex:1;">
-                            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">开始日期</label>
-                            <input type="date" id="pt-plan-start" value="${getTodayStr()}" style="
-                                width:100%; padding:8px 10px; border:1.5px solid var(--border-color);
-                                border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
-                                font-size:13px; outline:none; font-family:var(--font-family);
-                                box-sizing:border-box;
-                            ">
-                        </div>
-                        <div style="flex:1;">
-                            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">结束日期</label>
-                            <input type="date" id="pt-plan-end" style="
-                                width:100%; padding:8px 10px; border:1.5px solid var(--border-color);
-                                border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
-                                font-size:13px; outline:none; font-family:var(--font-family);
-                                box-sizing:border-box;
-                            ">
-                        </div>
-                    </div>
-
-                    <!-- 阶段拆分 -->
-                    <div style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                            <span style="font-size:12px; color:var(--text-secondary); font-weight:500;">📌 阶段拆分（可选）</span>
-                            <button id="pt-add-stage-btn" style="
-                                padding:4px 14px; border:none; border-radius:8px;
-                                background:rgba(var(--accent-color-rgb),0.15); color:var(--accent-color);
-                                font-size:12px; font-weight:600; cursor:pointer;
-                                font-family:var(--font-family);
-                            ">+ 添加阶段</button>
-                        </div>
-                        <div id="pt-stage-list" style="display:flex; flex-direction:column; gap:8px;">
-                            <!-- 由 JS 动态渲染 -->
-                        </div>
-                    </div>
-                ` : `
-                    <!-- 待办模式 -->
-                    <div style="margin-bottom:8px;">
-                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:var(--text-secondary);">
-                            <input type="checkbox" id="pt-repeat-toggle" style="width:16px;height:16px;accent-color:var(--accent-color);">
-                            重复
-                        </label>
-                    </div>
-
-                    <div id="pt-repeat-detail" style="display:none; padding:10px 12px; background:var(--primary-bg); border-radius:10px; margin-bottom:8px;">
-                        <div style="display:flex; gap:12px; margin-bottom:8px;">
-                            <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
-                                <input type="radio" name="pt-repeat-type" value="weekly" checked> 按星期
-                            </label>
-                            <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
-                                <input type="radio" name="pt-repeat-type" value="daily"> 按天数
-                            </label>
-                        </div>
-
-                        <div id="pt-repeat-weekly" style="display:flex; gap:4px; flex-wrap:wrap;">
-                            ${['一','二','三','四','五','六','日'].map(d => `
-                                <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:3px; cursor:pointer; padding:2px 6px; background:rgba(var(--border-color),0.3); border-radius:6px;">
-                                    <input type="checkbox" value="${d}" style="width:14px;height:14px;accent-color:var(--accent-color);"> ${d}
-                                </label>
-                            `).join('')}
-                        </div>
-
-                        <div id="pt-repeat-daily" style="display:none; align-items:center; gap:6px; margin-top:4px;">
-                            <span style="font-size:12px; color:var(--text-secondary);">每隔</span>
-                            <input type="number" id="pt-repeat-interval" value="1" min="1" max="30" style="
-                                width:50px; padding:4px 6px; border:1px solid var(--border-color);
-                                border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
-                                font-size:13px; text-align:center; outline:none;
-                            ">
-                            <span style="font-size:12px; color:var(--text-secondary);">天</span>
-                        </div>
-
-                        <div style="display:flex; gap:8px; margin-top:8px; border-top:1px solid var(--border-color); padding-top:8px;">
-                            <div style="flex:1;">
-                                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">开始日期</label>
-                                <input type="date" id="pt-todo-start" value="${getTodayStr()}" style="
-                                    width:100%; padding:6px 8px; border:1.5px solid var(--border-color);
-                                    border-radius:8px; background:var(--primary-bg); color:var(--text-primary);
-                                    font-size:12px; outline:none; font-family:var(--font-family);
-                                    box-sizing:border-box;
-                                ">
-                            </div>
-                            <div style="flex:1;">
-                                <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">结束日期（选填）</label>
-                                <input type="date" id="pt-todo-end" style="
-                                    width:100%; padding:6px 8px; border:1.5px solid var(--border-color);
-                                    border-radius:8px; background:var(--primary-bg); color:var(--text-primary);
-                                    font-size:12px; outline:none; font-family:var(--font-family);
-                                    box-sizing:border-box;
-                                ">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 待办：无重复时的单日日期 -->
-                    <div id="pt-todo-single-date" style="display:block;">
-                        <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">日期</label>
-                        <input type="date" id="pt-todo-date" value="${currentDateStr}" style="
+            ${isPlan ? `
+                <!-- 计划模式 -->
+                <div style="display:flex; gap:8px; margin-bottom:6px;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">开始日期</label>
+                        <input type="date" id="pt-plan-start" value="${getTodayStr()}" style="
                             width:100%; padding:8px 10px; border:1.5px solid var(--border-color);
                             border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
                             font-size:13px; outline:none; font-family:var(--font-family);
                             box-sizing:border-box;
                         ">
                     </div>
-                `}
-            </div>
-
-            <!-- 三、奖励预设 -->
-            <div style="margin-bottom:12px;">
-                <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
-                    <i class="fas fa-gem" style="margin-right:6px;color:var(--accent-color);"></i>奖励预设
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">结束日期</label>
+                        <input type="date" id="pt-plan-end" style="
+                            width:100%; padding:8px 10px; border:1.5px solid var(--border-color);
+                            border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+                            font-size:13px; outline:none; font-family:var(--font-family);
+                            box-sizing:border-box;
+                        ">
+                    </div>
                 </div>
 
-                <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-                    <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
-                        <input type="checkbox" id="pt-no-reward"> 不设奖励
+                <!-- 阶段拆分 -->
+                <div style="margin-top:10px; border-top:1px dashed var(--border-color); padding-top:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:12px; color:var(--text-secondary); font-weight:500;">📌 阶段拆分（可选）</span>
+                        <button id="pt-add-stage-btn" style="
+                            padding:4px 14px; border:none; border-radius:8px;
+                            background:rgba(var(--accent-color-rgb),0.15); color:var(--accent-color);
+                            font-size:12px; font-weight:600; cursor:pointer;
+                            font-family:var(--font-family);
+                        ">+ 添加阶段</button>
+                    </div>
+                    <div id="pt-stage-list" style="display:flex; flex-direction:column; gap:8px;">
+                        <!-- 由 JS 动态渲染 -->
+                    </div>
+                </div>
+            ` : `
+                <!-- 待办模式 -->
+                <div style="margin-bottom:8px;">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:var(--text-secondary);">
+                        <input type="checkbox" id="pt-repeat-toggle" style="width:16px;height:16px;accent-color:var(--accent-color);">
+                        重复
                     </label>
                 </div>
 
-                <div id="pt-reward-fields">
-                    <!-- 总奖励 -->
-                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
-                        <span style="font-size:12px; color:var(--text-secondary);">总奖励：</span>
-                        <input type="number" id="pt-reward-total-count" value="1" min="0" max="99" style="
+                <div id="pt-repeat-detail" style="display:none; padding:10px 12px; background:var(--primary-bg); border-radius:10px; margin-bottom:8px;">
+                    <div style="display:flex; gap:12px; margin-bottom:8px;">
+                        <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
+                            <input type="radio" name="pt-repeat-type" value="weekly" checked> 按星期
+                        </label>
+                        <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
+                            <input type="radio" name="pt-repeat-type" value="daily"> 按天数
+                        </label>
+                    </div>
+
+                    <div id="pt-repeat-weekly" style="display:flex; gap:4px; flex-wrap:wrap;">
+                        ${['一','二','三','四','五','六','日'].map(d => `
+                            <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:3px; cursor:pointer; padding:2px 6px; background:rgba(var(--border-color),0.3); border-radius:6px;">
+                                <input type="checkbox" value="${d}" style="width:14px;height:14px;accent-color:var(--accent-color);"> ${d}
+                            </label>
+                        `).join('')}
+                    </div>
+
+                    <div id="pt-repeat-daily" style="display:none; align-items:center; gap:6px; margin-top:4px;">
+                        <span style="font-size:12px; color:var(--text-secondary);">每隔</span>
+                        <input type="number" id="pt-repeat-interval" value="1" min="1" max="30" style="
                             width:50px; padding:4px 6px; border:1px solid var(--border-color);
                             border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
                             font-size:13px; text-align:center; outline:none;
                         ">
-                        <span style="font-size:12px; color:var(--text-secondary);">颗</span>
-                        <select id="pt-reward-total-color" style="
-                            padding:4px 8px; border:1px solid var(--border-color);
-                            border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
-                            font-size:12px; outline:none;
-                        ">
-                            ${REWARD_COLORS.map(c => `<option value="${c}">${c}曜石</option>`).join('')}
-                        </select>
+                        <span style="font-size:12px; color:var(--text-secondary);">天</span>
                     </div>
 
-                    <!-- 阶段奖励（仅计划模式显示） -->
-                    <div id="pt-stage-rewards" style="display:${currentType === 'plan' ? 'block' : 'none'}; margin-top:6px; border-top:1px dashed var(--border-color); padding-top:8px;">
-                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px;">各阶段奖励：</div>
-                        <div id="pt-stage-reward-list">
-                            <!-- 由 JS 动态渲染 -->
+                    <div style="display:flex; gap:8px; margin-top:8px; border-top:1px solid var(--border-color); padding-top:8px;">
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">开始日期</label>
+                            <input type="date" id="pt-todo-start" value="${getTodayStr()}" style="
+                                width:100%; padding:6px 8px; border:1.5px solid var(--border-color);
+                                border-radius:8px; background:var(--primary-bg); color:var(--text-primary);
+                                font-size:12px; outline:none; font-family:var(--font-family);
+                                box-sizing:border-box;
+                            ">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">结束日期（选填）</label>
+                            <input type="date" id="pt-todo-end" style="
+                                width:100%; padding:6px 8px; border:1.5px solid var(--border-color);
+                                border-radius:8px; background:var(--primary-bg); color:var(--text-primary);
+                                font-size:12px; outline:none; font-family:var(--font-family);
+                                box-sizing:border-box;
+                            ">
                         </div>
                     </div>
                 </div>
+
+                <!-- 待办：无重复时的单日日期 -->
+                <div id="pt-todo-single-date" style="display:block;">
+                    <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">日期</label>
+                    <input type="date" id="pt-todo-date" value="${currentDateStr}" style="
+                        width:100%; padding:8px 10px; border:1.5px solid var(--border-color);
+                        border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+                        font-size:13px; outline:none; font-family:var(--font-family);
+                        box-sizing:border-box;
+                    ">
+                </div>
+            `}
+        </div>
+
+        <!-- 三、奖励预设 -->
+        <div style="margin-bottom:12px;">
+            <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; letter-spacing:0.5px;">
+                <i class="fas fa-gem" style="margin-right:6px;color:var(--accent-color);"></i>奖励预设
             </div>
 
-            <!-- 四、其他设置 -->
-            <div style="margin-bottom:4px;">
-                <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; letter-spacing:0.5px;">
-                    <i class="fas fa-cog" style="margin-right:6px;color:var(--accent-color);"></i>其他设置
-                </div>
-                <label style="font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:8px; cursor:pointer;">
-                    <input type="checkbox" id="pt-viewable" style="width:16px;height:16px;accent-color:var(--accent-color);">
-                    可查看（未来功能联动）
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
+                <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
+                    <input type="checkbox" id="pt-no-reward"> 不设奖励
                 </label>
             </div>
-        `;
 
-        // ---------- 事件绑定（动态元素） ----------
-        // 重复开关
-        const repeatToggle = document.getElementById('pt-repeat-toggle');
-        if (repeatToggle) {
-            repeatToggle.addEventListener('change', function () {
-                const detail = document.getElementById('pt-repeat-detail');
-                const single = document.getElementById('pt-todo-single-date');
-                if (this.checked) {
-                    detail.style.display = 'block';
-                    single.style.display = 'none';
-                } else {
-                    detail.style.display = 'none';
-                    single.style.display = 'block';
+            <div id="pt-reward-fields">
+                <!-- 总奖励 -->
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                    <span style="font-size:12px; color:var(--text-secondary);">总奖励：</span>
+                    <input type="number" id="pt-reward-total-count" value="1" min="0" max="99" style="
+                        width:50px; padding:4px 6px; border:1px solid var(--border-color);
+                        border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                        font-size:13px; text-align:center; outline:none;
+                    ">
+                    <span style="font-size:12px; color:var(--text-secondary);">颗</span>
+                    <select id="pt-reward-total-color" style="
+                        padding:4px 8px; border:1px solid var(--border-color);
+                        border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                        font-size:12px; outline:none;
+                    ">
+                        ${REWARD_COLORS.map(c => `<option value="${c}">${c}曜石</option>`).join('')}
+                    </select>
+                </div>
+
+                <!-- 阶段奖励（仅计划模式显示） -->
+                <div id="pt-stage-rewards" style="display:${isPlan ? 'block' : 'none'}; margin-top:6px; border-top:1px dashed var(--border-color); padding-top:8px;">
+                    <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px;">各阶段奖励：</div>
+                    <div id="pt-stage-reward-list">
+                        <!-- 由 JS 动态渲染 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 四、其他设置 -->
+        <div style="margin-bottom:4px;">
+            <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; letter-spacing:0.5px;">
+                <i class="fas fa-cog" style="margin-right:6px;color:var(--accent-color);"></i>其他设置
+            </div>
+            <label style="font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="pt-viewable" style="width:16px;height:16px;accent-color:var(--accent-color);">
+                可查看（未来功能联动）
+            </label>
+        </div>
+    `;
+
+    // ---------- 事件绑定 ----------
+    const primaryInput = document.getElementById('pt-primary-input');
+    const secondaryInput = document.getElementById('pt-secondary-input');
+    const primaryDropdown = document.getElementById('pt-primary-dropdown');
+    const secondaryDropdown = document.getElementById('pt-secondary-dropdown');
+
+    // 一级标题：输入时实时过滤下拉菜单
+    if (primaryInput) {
+        primaryInput.addEventListener('input', function() {
+            const val = this.value.trim();
+            const type = currentType;
+            const meta = getMeta();
+            const list = meta[type] || [];
+            
+            // 检查是否已有该标签
+            const existing = list.find(item => item.name === val);
+            if (existing && val) {
+                selectedColor = existing.color;
+                const colorPicker = document.getElementById('pt-color-preview');
+                if (colorPicker) colorPicker.style.background = existing.color;
+                const customPreview = document.getElementById('pt-custom-color-preview');
+                if (customPreview) customPreview.style.background = existing.color;
+                // 锁定颜色
+                const hint = document.getElementById('pt-primary-hint');
+                if (hint) {
+                    hint.textContent = '✅ 已有标签，颜色已固定';
+                    hint.style.color = 'var(--accent-color)';
                 }
-            });
-        }
+            } else if (val) {
+                const hint = document.getElementById('pt-primary-hint');
+                if (hint) {
+                    hint.textContent = '新标签，可选择颜色';
+                    hint.style.color = 'var(--text-secondary)';
+                }
+            } else {
+                const hint = document.getElementById('pt-primary-hint');
+                if (hint) {
+                    hint.textContent = '输入已有标签将自动锁定颜色，点击下拉可快速选择';
+                    hint.style.color = 'var(--text-secondary)';
+                }
+            }
+            
+            // 过滤下拉菜单选项
+            if (primaryDropdown) {
+                const options = primaryDropdown.querySelectorAll('.pt-primary-option');
+                options.forEach(opt => {
+                    const name = opt.dataset.name || '';
+                    opt.style.display = name.includes(val) ? 'flex' : 'none';
+                });
+                // 如果有输入，显示下拉；如果没输入也显示（让用户点击选择）
+                primaryDropdown.style.display = 'block';
+            }
+            
+            // 更新预览
+            updateTitlePreview();
+            // 更新二级标题下拉（计划模式）
+            if (isPlan) {
+                updateSecondaryDropdown();
+            }
+        });
 
-        // 重复方式切换（按星期 / 按天数）
-        const repeatRadios = document.querySelectorAll('input[name="pt-repeat-type"]');
-        repeatRadios.forEach(radio => {
-            radio.addEventListener('change', function () {
-                toggleRepeatDetail(this.value);
+        // 一级标题：获得焦点时显示下拉
+        primaryInput.addEventListener('focus', function() {
+            if (primaryDropdown) {
+                // 过滤选项
+                const val = this.value.trim();
+                const options = primaryDropdown.querySelectorAll('.pt-primary-option');
+                options.forEach(opt => {
+                    const name = opt.dataset.name || '';
+                    opt.style.display = name.includes(val) ? 'flex' : 'none';
+                });
+                primaryDropdown.style.display = 'block';
+            }
+        });
+
+        // 一级标题：点击外部关闭下拉
+        document.addEventListener('click', function(e) {
+            if (primaryDropdown && primaryInput) {
+                if (!primaryDropdown.contains(e.target) && e.target !== primaryInput) {
+                    primaryDropdown.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // 一级标题下拉菜单选项点击
+    if (primaryDropdown) {
+        primaryDropdown.querySelectorAll('.pt-primary-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const name = this.dataset.name;
+                const color = this.dataset.color;
+                if (primaryInput) {
+                    primaryInput.value = name;
+                    selectedColor = color;
+                    const preview = document.getElementById('pt-color-preview');
+                    if (preview) preview.style.background = color;
+                    const customPreview = document.getElementById('pt-custom-color-preview');
+                    if (customPreview) customPreview.style.background = color;
+                    const hint = document.getElementById('pt-primary-hint');
+                    if (hint) {
+                        hint.textContent = '✅ 已有标签，颜色已固定';
+                        hint.style.color = 'var(--accent-color)';
+                    }
+                    updateTitlePreview();
+                    // 更新二级标题下拉
+                    if (isPlan) {
+                        updateSecondaryDropdown();
+                    }
+                }
+                primaryDropdown.style.display = 'none';
+            });
+        });
+    }
+
+    // 二级标题：输入时过滤下拉（仅计划模式）
+    if (isPlan && secondaryInput && secondaryDropdown) {
+        secondaryInput.addEventListener('input', function() {
+            const val = this.value.trim();
+            const options = secondaryDropdown.querySelectorAll('.pt-secondary-option');
+            options.forEach(opt => {
+                const title = opt.dataset.title || '';
+                opt.style.display = title.includes(val) ? 'flex' : 'none';
+            });
+            if (val.length > 0) {
+                secondaryDropdown.style.display = 'block';
+            } else {
+                secondaryDropdown.style.display = 'none';
+            }
+            updateTitlePreview();
+        });
+
+        secondaryInput.addEventListener('focus', function() {
+            // 只有有选项时才显示
+            const options = secondaryDropdown.querySelectorAll('.pt-secondary-option');
+            let hasVisible = false;
+            options.forEach(opt => {
+                if (opt.style.display !== 'none') hasVisible = true;
+            });
+            if (hasVisible && secondaryOptions.length > 0) {
+                secondaryDropdown.style.display = 'block';
+            }
+        });
+
+        // 二级下拉选项点击
+        secondaryDropdown.querySelectorAll('.pt-secondary-option').forEach(opt => {
+            opt.addEventListener('click', function() {
+                const title = this.dataset.title;
+                if (secondaryInput) {
+                    secondaryInput.value = title;
+                    updateTitlePreview();
+                }
+                secondaryDropdown.style.display = 'none';
             });
         });
 
-        // 不设奖励
-        const noRewardCheck = document.getElementById('pt-no-reward');
-        if (noRewardCheck) {
-            noRewardCheck.addEventListener('change', function () {
-                toggleRewardFields(this.checked);
+        // 点击外部关闭二级下拉
+        document.addEventListener('click', function(e) {
+            if (secondaryDropdown && secondaryInput) {
+                if (!secondaryDropdown.contains(e.target) && e.target !== secondaryInput) {
+                    secondaryDropdown.style.display = 'none';
+                }
+            }
+        });
+    }
+
+    // 重复开关
+    const repeatToggle = document.getElementById('pt-repeat-toggle');
+    if (repeatToggle) {
+        repeatToggle.addEventListener('change', function () {
+            const detail = document.getElementById('pt-repeat-detail');
+            const single = document.getElementById('pt-todo-single-date');
+            if (this.checked) {
+                detail.style.display = 'block';
+                single.style.display = 'none';
+            } else {
+                detail.style.display = 'none';
+                single.style.display = 'block';
+            }
+        });
+    }
+
+    // 重复方式切换（按星期 / 按天数）
+    const repeatRadios = document.querySelectorAll('input[name="pt-repeat-type"]');
+    repeatRadios.forEach(radio => {
+        radio.addEventListener('change', function () {
+            const weekly = document.getElementById('pt-repeat-weekly');
+            const daily = document.getElementById('pt-repeat-daily');
+            if (this.value === 'weekly') {
+                weekly.style.display = 'flex';
+                daily.style.display = 'none';
+            } else {
+                weekly.style.display = 'none';
+                daily.style.display = 'flex';
+            }
+        });
+    });
+
+    // 不设奖励
+    const noRewardCheck = document.getElementById('pt-no-reward');
+    if (noRewardCheck) {
+        noRewardCheck.addEventListener('change', function () {
+            const fields = document.getElementById('pt-reward-fields');
+            if (fields) {
+                fields.style.opacity = this.checked ? '0.4' : '1';
+                fields.style.pointerEvents = this.checked ? 'none' : 'auto';
+            }
+        });
+    }
+
+    // 初始化阶段列表
+    updateStageUI();
+    updateRewardUI();
+    updateTitlePreview();
+}
+
+// ============================================================
+// 辅助：更新二级标题下拉菜单（仅计划模式）
+// ============================================================
+function updateSecondaryDropdown() {
+    const isPlan = currentType === 'plan';
+    if (!isPlan) return;
+    
+    const primaryInput = document.getElementById('pt-primary-input');
+    const currentPrimary = primaryInput ? primaryInput.value.trim() : '';
+    const dropdown = document.getElementById('pt-secondary-dropdown');
+    if (!dropdown) return;
+    
+    if (!currentPrimary) {
+        dropdown.innerHTML = `
+            <div style="padding:12px; text-align:center; color:var(--text-secondary); font-size:12px; opacity:0.6;">
+                请先填写一级标题
+            </div>
+        `;
+        return;
+    }
+    
+    const allData = getAllData();
+    const seen = new Set();
+    const options = [];
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            day.plans.forEach(item => {
+                if (item.primaryLabel === currentPrimary && item.secondaryTitle) {
+                    const key = item.secondaryTitle;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        options.push({ title: item.secondaryTitle });
+                    }
+                }
             });
         }
-
-        // 初始化阶段列表
-        updateStageUI();
-        updateRewardUI();
-        updateTitlePreview();
     }
+    options.sort((a, b) => a.title.localeCompare(b.title));
+    
+    if (options.length === 0) {
+        dropdown.innerHTML = `
+            <div style="padding:12px; text-align:center; color:var(--text-secondary); font-size:12px; opacity:0.6;">
+                暂无已创建的二级标题
+            </div>
+        `;
+        return;
+    }
+    
+    dropdown.innerHTML = options.map(opt => `
+        <div class="pt-secondary-option" data-title="${opt.title}" style="
+            display:flex; align-items:center; gap:10px; padding:8px 12px;
+            cursor:pointer; transition:background 0.15s;
+            border-bottom:1px solid var(--border-color);
+        " onmouseover="this.style.background='rgba(var(--accent-color-rgb),0.06)'" onmouseout="this.style.background='transparent'">
+            <span style="font-size:13px; color:var(--text-primary);">${opt.title}</span>
+            <span style="font-size:10px; color:var(--text-secondary); opacity:0.5; margin-left:auto;">已存在</span>
+        </div>
+    `).join('');
+    
+    // 重新绑定点击事件
+    dropdown.querySelectorAll('.pt-secondary-option').forEach(opt => {
+        opt.addEventListener('click', function() {
+            const title = this.dataset.title;
+            const input = document.getElementById('pt-secondary-input');
+            if (input) {
+                input.value = title;
+                updateTitlePreview();
+            }
+            dropdown.style.display = 'none';
+        });
+    });
+}
 
     // ============================================================
     // 表单交互辅助函数
     // ============================================================
-    function switchType(type) {
-        currentType = type;
-        // 更新标签页样式
-        const tabs = document.querySelectorAll('.pt-type-tab');
-        tabs.forEach(tab => {
-            const isActive = tab.dataset.type === type;
-            tab.style.background = isActive ? 'var(--accent-color)' : 'transparent';
-            tab.style.color = isActive ? '#fff' : 'var(--text-secondary)';
-        });
-        // 重新渲染表单
-        renderFormBody();
-        // 更新一级标题提示
-        updatePrimaryLabelOptions();
-    }
+function switchType(type) {
+    currentType = type;
+    // 更新标签页样式
+    const tabs = document.querySelectorAll('.pt-type-tab');
+    tabs.forEach(tab => {
+        const isActive = tab.dataset.type === type;
+        tab.style.background = isActive ? 'var(--accent-color)' : 'transparent';
+        tab.style.color = isActive ? '#fff' : 'var(--text-secondary)';
+    });
+    // 重新渲染表单
+    renderFormBody();
+}
 
     function toggleRepeatDetail(value) {
         const weekly = document.getElementById('pt-repeat-weekly');
