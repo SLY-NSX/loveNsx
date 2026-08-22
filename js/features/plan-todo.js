@@ -2169,9 +2169,6 @@ window.updatePlanTodoCards = function (dateStr) {
         }
     };
 
-    console.log('[plan-todo] 完整模块已加载（含新建功能）');
-})();
-
 // 暴露状态计算函数供外部使用
 window.calculateItemStatus = calculateItemStatus;
 window.getStatusColor = getStatusColor;
@@ -2179,6 +2176,9 @@ window.getStatusIcon = getStatusIcon;
 window.getStatusLabel = getStatusLabel;
 window.expandRepeatDates = expandRepeatDates;
 window.showPlanTodoDetail = showPlanTodoDetail;
+    console.log('[plan-todo] 完整模块已加载（含新建功能）');
+})();
+
 
 // ============================================================
 // 颜色选择器交互（更新版 - 支持实时预览）
