@@ -381,14 +381,16 @@
         `;
 
         // ---------- 事件绑定 ----------
-        // 卡片点击 → 二级列表（待开发）
-        container.querySelectorAll('.plan-todo-card').forEach(card => {
-            card.addEventListener('click', function (e) {
-                e.stopPropagation();
-                const type = this.dataset.type === 'plan' ? '计划' : '待办';
-                showComingSoon(`${type}列表`);
-            });
-        });
+// 卡片点击 → 三级详情页（测试用）
+container.querySelectorAll('.plan-todo-card').forEach(card => {
+    card.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const type = this.dataset.type === 'plan' ? 'plan' : 'todo';
+        // 用模拟数据打开详情页
+        const mockId = 'mock_' + Date.now();
+        showPlanTodoDetail(mockId, type, dateStr);
+    });
+});
 
         // 按钮点击
         container.querySelectorAll('.plan-todo-action-btn').forEach(btn => {
@@ -403,6 +405,437 @@
             });
         });
     }
+
+// ============================================================
+// 三级详情页（测试版，使用模拟数据）
+// ============================================================
+function showPlanTodoDetail(recordId, type, dateStr) {
+    // 构建模拟数据（根据类型不同）
+    const isPlan = type === 'plan';
+    const now = new Date();
+    const todayStr = getTodayStr();
+    
+    // 模拟条目数据
+    const mockItem = {
+        id: recordId,
+        type: type,
+        primaryLabel: isPlan ? '学习' : '购物',
+        primaryColor: '#3498DB',
+        secondaryTitle: isPlan ? '看完一本书' : '买牛奶',
+        fullTitle: isPlan ? '学习.看完一本书' : '购物.买牛奶',
+        startDate: dateStr || todayStr,
+        endDate: dateStr || todayStr,
+        isRepeating: false,
+        repeatType: 'weekly',
+        repeatDays: ['一', '三', '五'],
+        repeatInterval: 2,
+        repeatEndDate: '2026-09-30',
+        stages: isPlan ? [
+            { start: '2026-08-18', end: '2026-08-25', note: '收集资料，确定方向' },
+            { start: '2026-08-26', end: '2026-09-05', note: '撰写初稿' }
+        ] : [],
+        reward: {
+            total: { count: 5, color: '金' },
+            stages: isPlan ? [
+                { count: 2, color: '银', noReward: false },
+                { count: 3, color: '银', noReward: false }
+            ] : []
+        },
+        noReward: false,
+        status: 'active',
+        createdAt: Date.now(),
+        updatedAt: Date.now()
+    };
+
+    // 如果是待办且没有重复，模拟重复规则显示"无"
+    if (!isPlan && !mockItem.isRepeating) {
+        mockItem.isRepeating = false;
+    }
+
+    // 构建模态框
+    const overlay = document.createElement('div');
+    overlay.id = 'pt-detail-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100001;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(8px);
+        animation: companionToastIn 0.3s ease;
+        padding: 12px;
+        box-sizing: border-box;
+        overflow-y: auto;
+    `;
+
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: var(--secondary-bg);
+        max-width: 480px;
+        width: 100%;
+        max-height: 90vh;
+        border-radius: 24px;
+        padding: 20px 20px 16px;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    `;
+
+    // 计算状态
+    const status = calculateItemStatus(mockItem);
+    const statusColor = getStatusColor(status);
+    const statusIcon = getStatusIcon(status);
+    const statusLabel = getStatusLabel(status);
+
+    // 构建内容
+    const titleText = isPlan ? '📅 计划' : '📋 今日待办';
+    const dateDisplay = formatDateDisplay(mockItem.startDate);
+    const timeRange = isPlan 
+        ? `${formatDateDisplay(mockItem.startDate)} 至 ${formatDateDisplay(mockItem.endDate)}`
+        : `${formatDateDisplay(mockItem.startDate)}（当天）`;
+
+    // 第五行：待办显示重复规则，计划显示阶段进程
+    let fifthRowHTML = '';
+    if (isPlan) {
+        // 计划：阶段进程
+        if (mockItem.stages && mockItem.stages.length > 0) {
+            let stagesHTML = mockItem.stages.map((stage, idx) => {
+                const reward = mockItem.reward.stages[idx] || { count: 0, color: '黑', noReward: true };
+                return `
+                    <div style="margin-top:6px; padding:8px 10px; background:var(--primary-bg); border-radius:8px; border-left:3px solid var(--accent-color);">
+                        <div style="font-weight:600; font-size:13px; color:var(--text-primary);">阶段 ${idx+1}</div>
+                        <div style="font-size:12px; color:var(--text-secondary);">${formatDateDisplay(stage.start)} 至 ${formatDateDisplay(stage.end)}</div>
+                        ${stage.note ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${stage.note}</div>` : ''}
+                        <div style="font-size:11px; color:var(--accent-color); margin-top:2px;">
+                            奖励：${reward.noReward ? '无' : `${reward.count} 颗 ${reward.color}曜石`}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            fifthRowHTML = `
+                <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">📌 阶段进程</div>
+                ${stagesHTML}
+            `;
+        } else {
+            fifthRowHTML = `<div style="font-size:13px; color:var(--text-secondary); opacity:0.6;">无阶段拆分</div>`;
+        }
+    } else {
+        // 待办：重复规则
+        let repeatText = '无';
+        if (mockItem.isRepeating) {
+            if (mockItem.repeatType === 'daily') {
+                repeatText = `每隔 ${mockItem.repeatInterval} 天重复`;
+            } else if (mockItem.repeatType === 'weekly') {
+                repeatText = `每周 ${mockItem.repeatDays.join('、')} 重复`;
+            }
+            if (mockItem.repeatEndDate) {
+                repeatText += ` 至 ${formatDateDisplay(mockItem.repeatEndDate)}`;
+            }
+        }
+        fifthRowHTML = `
+            <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">🔄 重复规则</div>
+            <div style="font-size:13px; color:var(--text-primary);">${repeatText}</div>
+        `;
+    }
+
+    // 奖励
+    const rewardText = mockItem.noReward 
+        ? '无奖励' 
+        : `${mockItem.reward.total.count} 颗 ${mockItem.reward.total.color}曜石`;
+
+    // 底部按键
+    const isPaused = mockItem.status === 'paused';
+    const pauseRestartText = isPaused ? '重启' : '暂停';
+
+    modal.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-shrink:0;">
+            <div style="font-size:20px; font-weight:700; display:flex; align-items:center; gap:8px;">
+                <span>${titleText}</span>
+            </div>
+            <button id="pt-detail-close-btn" style="
+                background:none; border:none; color:var(--text-secondary);
+                font-size:24px; cursor:pointer; padding:0 6px;
+            ">✕</button>
+        </div>
+
+        <!-- 第二行：日期 -->
+        <div style="text-align:right; font-size:13px; color:var(--text-secondary); margin-bottom:10px;">
+            ${dateDisplay}
+        </div>
+
+        <!-- 第三行：完整标题 -->
+        <div style="font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:12px; word-break:break-word;">
+            ${mockItem.fullTitle}
+        </div>
+
+        <!-- 第四行：时间 -->
+        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px; padding:8px 12px; background:var(--primary-bg); border-radius:8px;">
+            🕐 ${timeRange}
+        </div>
+
+        <!-- 第五行：差异部分 -->
+        <div style="margin-bottom:12px; padding:8px 12px; background:var(--primary-bg); border-radius:8px;">
+            ${fifthRowHTML}
+        </div>
+
+        <!-- 第六行：奖励 -->
+        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px; padding:8px 12px; background:var(--primary-bg); border-radius:8px; display:flex; justify-content:space-between;">
+            <span>🏆 完成奖励</span>
+            <span style="font-weight:600; color:var(--accent-color);">${rewardText}</span>
+        </div>
+
+        <!-- 第七行：状态 -->
+        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; padding:8px 12px; background:var(--primary-bg); border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📊 状态</span>
+            <span style="font-weight:600; color:${statusColor};">
+                ${statusIcon} ${statusLabel}
+            </span>
+        </div>
+
+        <!-- 底部按键 -->
+        <div style="display:flex; gap:8px; flex-wrap:wrap; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
+            <button class="pt-detail-action-btn" data-action="edit" style="
+                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:13px; font-weight:600;
+                cursor:pointer; font-family:var(--font-family);
+                transition:all 0.2s;
+            ">✏️ 修改</button>
+
+            <button class="pt-detail-action-btn" data-action="pause" style="
+                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:13px; font-weight:600;
+                cursor:pointer; font-family:var(--font-family);
+                transition:all 0.2s;
+            ">${pauseRestartText}</button>
+
+            <button class="pt-detail-action-btn" data-action="complete" style="
+                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+                border:none; background:var(--accent-color);
+                color:#fff; font-size:13px; font-weight:600;
+                cursor:pointer; font-family:var(--font-family);
+                box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);
+                transition:all 0.2s;
+            ">✅ 已完成</button>
+
+            <button class="pt-detail-action-btn" data-action="close" style="
+                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:13px; font-weight:600;
+                cursor:pointer; font-family:var(--font-family);
+                transition:all 0.2s;
+            ">关闭</button>
+        </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // --- 事件绑定 ---
+    // 关闭按钮
+    const closeBtn = modal.querySelector('#pt-detail-close-btn');
+    const closeFn = () => { overlay.remove(); };
+    closeBtn.addEventListener('click', closeFn);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
+
+    // 底部按键（占位）
+    modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const action = this.dataset.action;
+            const label = this.textContent.trim();
+            // 关闭按键特殊处理
+            if (action === 'close') {
+                closeFn();
+                return;
+            }
+            // 其他按键弹出占位提示
+            if (typeof showToast === 'function') {
+                showToast(`🔧 「${label}」功能开发中，敬请期待 ✦`, 'info');
+            } else {
+                alert(`「${label}」功能开发中`);
+            }
+        });
+    });
+}
+
+// ============================================================
+// 状态计算函数（自然时间判定，延后半天）
+// ============================================================
+
+/**
+ * 展开重复待办的所有实例日期
+ * @param {Object} item - 待办条目
+ * @returns {Array<string>} 日期数组 ['2026-08-18', '2026-08-21', ...]
+ */
+function expandRepeatDates(item) {
+    if (!item.isRepeating) {
+        return [item.startDate];
+    }
+    
+    const dates = [];
+    const start = new Date(item.startDate);
+    const end = item.repeatEndDate ? new Date(item.repeatEndDate) : new Date(start);
+    end.setFullYear(end.getFullYear() + 10); // 无结束日期默认10年
+    
+    const current = new Date(start);
+    
+    if (item.repeatType === 'daily') {
+        // 按天数重复
+        const interval = item.repeatInterval || 1;
+        while (current <= end) {
+            dates.push(formatDateStr(current));
+            current.setDate(current.getDate() + interval);
+        }
+    } else if (item.repeatType === 'weekly') {
+        // 按星期重复
+        const weekdays = item.repeatDays || []; // ['一','二','三']
+        const weekdayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0 };
+        const targetDays = weekdays.map(d => weekdayMap[d]).filter(d => d !== undefined);
+        
+        if (targetDays.length === 0) {
+            // 如果没选任何星期，默认按开始日期
+            return [item.startDate];
+        }
+        
+        // 从开始日期开始，逐个检查
+        const checkDate = new Date(start);
+        // 最多检查2年，防止死循环
+        const maxAttempts = 730;
+        let attempts = 0;
+        
+        while (checkDate <= end && attempts < maxAttempts) {
+            const dayOfWeek = checkDate.getDay(); // 0=周日
+            if (targetDays.includes(dayOfWeek)) {
+                dates.push(formatDateStr(checkDate));
+            }
+            checkDate.setDate(checkDate.getDate() + 1);
+            attempts++;
+        }
+    }
+    
+    return dates.length > 0 ? dates : [item.startDate];
+}
+
+/**
+ * 格式化日期为 YYYY-MM-DD
+ */
+function formatDateStr(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + d;
+}
+
+/**
+ * 计算条目在当前日期的状态（自然时间判定，延后半天）
+ * @param {Object} item - 条目对象
+ * @param {string} dateStr - 要查询的日期（可选，默认今天）
+ * @returns {string} '未开始' | '进行中' | '已过期'
+ */
+function calculateItemStatus(item, dateStr) {
+    // 如果已有手动完成状态，优先使用（后续再做）
+    // if (item.status === 'completed') return '已完成';
+    
+    const today = dateStr ? new Date(dateStr) : new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // 确定要检查的日期（如果是重复待办，检查具体实例）
+    let targetDate = item.startDate;
+    
+    // 如果是重复待办，判断今天是否在重复实例中
+    if (item.isRepeating) {
+        const allDates = expandRepeatDates(item);
+        // 找到今天对应的实例日期（如果今天不在实例中，找最近的一个）
+        const todayStr = formatDateStr(today);
+        const match = allDates.find(d => d === todayStr);
+        if (match) {
+            targetDate = match;
+        } else {
+            // 如果今天不是重复日，找今天之前最近的一个重复日
+            const beforeToday = allDates.filter(d => d <= todayStr);
+            if (beforeToday.length > 0) {
+                targetDate = beforeToday[beforeToday.length - 1];
+            } else {
+                // 如果今天之前没有，说明还没开始
+                return '未开始';
+            }
+        }
+    }
+    
+    const startDate = new Date(targetDate);
+    startDate.setHours(0, 0, 0, 0);
+    
+    // 结束日期：如果是重复待办，结束日期是当前实例的日期（当天）
+    // 否则使用 item.endDate
+    let endDate;
+    if (item.isRepeating) {
+        // 重复待办的每个实例只持续当天
+        endDate = new Date(targetDate);
+    } else {
+        endDate = new Date(item.endDate || item.startDate);
+    }
+    endDate.setHours(0, 0, 0, 0);
+    
+    // 延后半天：结束日期的次日中午12点
+    const expireThreshold = new Date(endDate);
+    expireThreshold.setDate(expireThreshold.getDate() + 1);
+    expireThreshold.setHours(12, 0, 0, 0);
+    
+    const now = new Date();
+    
+    // 未开始：当前日期 < 开始日期
+    if (now < startDate) {
+        return '未开始';
+    }
+    
+    // 进行中：当前日期 < 过期阈值
+    if (now < expireThreshold) {
+        return '进行中';
+    }
+    
+    // 已过期：当前日期 >= 过期阈值
+    return '已过期';
+}
+
+/**
+ * 获取状态对应的颜色
+ */
+function getStatusColor(status) {
+    switch (status) {
+        case '未开始': return '#95A5A6';   // 灰色
+        case '进行中': return '#2ECC71';   // 绿色
+        case '已过期': return '#E74C3C';   // 红色
+        default: return '#95A5A6';
+    }
+}
+
+/**
+ * 获取状态对应的图标
+ */
+function getStatusIcon(status) {
+    switch (status) {
+        case '未开始': return '⏳';
+        case '进行中': return '●';
+        case '已过期': return '⚠️';
+        default: return '';
+    }
+}
+
+/**
+ * 获取状态对应的显示文字
+ */
+function getStatusLabel(status) {
+    switch (status) {
+        case '未开始': return '未开始';
+        case '进行中': return '进行中';
+        case '已过期': return '已过期';
+        default: return '';
+    }
+}
 
     function showComingSoon(label) {
         if (typeof showToast === 'function') {
@@ -1738,6 +2171,14 @@ window.updatePlanTodoCards = function (dateStr) {
 
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
+
+// 暴露状态计算函数供外部使用
+window.calculateItemStatus = calculateItemStatus;
+window.getStatusColor = getStatusColor;
+window.getStatusIcon = getStatusIcon;
+window.getStatusLabel = getStatusLabel;
+window.expandRepeatDates = expandRepeatDates;
+window.showPlanTodoDetail = showPlanTodoDetail;
 
 // ============================================================
 // 颜色选择器交互（更新版 - 支持实时预览）
