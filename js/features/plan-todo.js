@@ -2481,7 +2481,7 @@ function handleComplete(itemId) {
     }
 
 // ============================================================
-// 总况功能
+// 总况功能（只统计计划）
 // ============================================================
 function openOverview() {
     // 收集所有计划（从所有日期中获取，去重）
@@ -2497,13 +2497,7 @@ function openOverview() {
                 }
             });
         }
-        if (day.todos) {
-            day.todos.forEach(t => {
-                if (!allItems.some(item => item.id === t.id)) {
-                    allItems.push({ ...t, _sourceDate: date });
-                }
-            });
-        }
+        // 不收集待办
     }
     
     // 按创建时间排序
@@ -2682,7 +2676,7 @@ function openOverview() {
                     font-size:10px; color:var(--text-secondary); opacity:0.5; flex-shrink:0;
                     padding:2px 8px; background:var(--secondary-bg); border-radius:10px;
                 ">
-                    ${isPlan ? '计划' : '待办'}
+                    计划
                 </div>
             </div>
         `;
