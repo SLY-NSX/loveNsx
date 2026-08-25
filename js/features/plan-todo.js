@@ -1069,50 +1069,44 @@ function refreshCards() {
 }
 
 // ============================================================
-// 三级详情页（测试版，使用模拟数据）
+// 三级详情页
 // ============================================================
 function showPlanTodoDetail(recordId, type, dateStr) {
-    // 构建模拟数据（根据类型不同）
-    const isPlan = type === 'plan';
-    const now = new Date();
-    const todayStr = getTodayStr();
+    // 从存储中查找真实条目
+    let targetItem = null;
+    let targetDate = '';
+    let targetType = type || 'todo';
     
-    // 模拟条目数据
-    const mockItem = {
-        id: recordId,
-        type: type,
-        primaryLabel: isPlan ? '学习' : '购物',
-        primaryColor: '#3498DB',
-        secondaryTitle: isPlan ? '看完一本书' : '买牛奶',
-        fullTitle: isPlan ? '学习.看完一本书' : '购物.买牛奶',
-        startDate: dateStr || todayStr,
-        endDate: dateStr || todayStr,
-        isRepeating: false,
-        repeatType: 'weekly',
-        repeatDays: ['一', '三', '五'],
-        repeatInterval: 2,
-        repeatEndDate: '2026-09-30',
-        stages: isPlan ? [
-            { start: '2026-08-18', end: '2026-08-25', note: '收集资料，确定方向' },
-            { start: '2026-08-26', end: '2026-09-05', note: '撰写初稿' }
-        ] : [],
-        reward: {
-            total: { count: 5, color: '金' },
-            stages: isPlan ? [
-                { count: 2, color: '银', noReward: false },
-                { count: 3, color: '银', noReward: false }
-            ] : []
-        },
-        noReward: false,
-        status: 'active',
-        createdAt: Date.now(),
-        updatedAt: Date.now()
-    };
-
-    // 如果是待办且没有重复，模拟重复规则显示"无"
-    if (!isPlan && !mockItem.isRepeating) {
-        mockItem.isRepeating = false;
+    const allData = getAllData();
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            const found = day.plans.find(p => p.id === recordId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'plan';
+                break;
+            }
+        }
+        if (day.todos) {
+            const found = day.todos.find(t => t.id === recordId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'todo';
+                break;
+            }
+        }
     }
+    
+    if (!targetItem) {
+        showToast('未找到该条目', 'error');
+        return;
+    }
+    
+    const isPlan = targetType === 'plan';
+    const todayStr = getTodayStr();
 
     // 构建模态框
     const overlay = document.createElement('div');
@@ -1144,31 +1138,32 @@ function showPlanTodoDetail(recordId, type, dateStr) {
         position: relative;
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     `;
-// 计算状态
-const status = calculateItemStatus(mockItem);
-const statusColor = getStatusColor(status);
-const statusIcon = getStatusIcon(status);
-const statusLabel = getStatusLabel(status);
 
-// 判断按钮是否可用
-const isEditable = status !== '已过期' && status !== '已完成';
-const isPaused = mockItem.status === 'paused';
-const pauseRestartText = isPaused ? '重启' : '暂停';
+    // 计算状态
+    const status = calculateItemStatus(targetItem);
+    const statusColor = getStatusColor(status);
+    const statusIcon = getStatusIcon(status);
+    const statusLabel = getStatusLabel(status);
+
+    // 判断按钮是否可用
+    const isEditable = status !== '已过期' && status !== '已完成';
+    const isPaused = targetItem.status === 'paused';
+    const pauseRestartText = isPaused ? '重启' : '暂停';
 
     // 构建内容
     const titleText = isPlan ? '📅 计划' : '📋 今日待办';
-    const dateDisplay = formatDateDisplay(mockItem.startDate);
+    const dateDisplay = formatDateDisplay(targetItem.startDate);
     const timeRange = isPlan 
-        ? `${formatDateDisplay(mockItem.startDate)} 至 ${formatDateDisplay(mockItem.endDate)}`
-        : `${formatDateDisplay(mockItem.startDate)}（当天）`;
+        ? `${formatDateDisplay(targetItem.startDate)} 至 ${formatDateDisplay(targetItem.endDate)}`
+        : `${formatDateDisplay(targetItem.startDate)}（当天）`;
 
     // 第五行：待办显示重复规则，计划显示阶段进程
     let fifthRowHTML = '';
     if (isPlan) {
         // 计划：阶段进程
-        if (mockItem.stages && mockItem.stages.length > 0) {
-            let stagesHTML = mockItem.stages.map((stage, idx) => {
-                const reward = mockItem.reward.stages[idx] || { count: 0, color: '黑', noReward: true };
+        if (targetItem.stages && targetItem.stages.length > 0) {
+            let stagesHTML = targetItem.stages.map((stage, idx) => {
+                const reward = targetItem.reward.stages[idx] || { count: 0, color: '黑', noReward: true };
                 return `
                     <div style="margin-top:6px; padding:8px 10px; background:var(--primary-bg); border-radius:8px; border-left:3px solid var(--accent-color);">
                         <div style="font-weight:600; font-size:13px; color:var(--text-primary);">阶段 ${idx+1}</div>
@@ -1190,14 +1185,14 @@ const pauseRestartText = isPaused ? '重启' : '暂停';
     } else {
         // 待办：重复规则
         let repeatText = '无';
-        if (mockItem.isRepeating) {
-            if (mockItem.repeatType === 'daily') {
-                repeatText = `每隔 ${mockItem.repeatInterval} 天重复`;
-            } else if (mockItem.repeatType === 'weekly') {
-                repeatText = `每周 ${mockItem.repeatDays.join('、')} 重复`;
+        if (targetItem.isRepeating) {
+            if (targetItem.repeatType === 'daily') {
+                repeatText = `每隔 ${targetItem.repeatInterval} 天重复`;
+            } else if (targetItem.repeatType === 'weekly') {
+                repeatText = `每周 ${targetItem.repeatDays.join('、')} 重复`;
             }
-            if (mockItem.repeatEndDate) {
-                repeatText += ` 至 ${formatDateDisplay(mockItem.repeatEndDate)}`;
+            if (targetItem.repeatEndDate) {
+                repeatText += ` 至 ${formatDateDisplay(targetItem.repeatEndDate)}`;
             }
         }
         fifthRowHTML = `
@@ -1207,9 +1202,9 @@ const pauseRestartText = isPaused ? '重启' : '暂停';
     }
 
     // 奖励
-    const rewardText = mockItem.noReward 
+    const rewardText = targetItem.noReward 
         ? '无奖励' 
-        : `${mockItem.reward.total.count} 颗 ${mockItem.reward.total.color}曜石`;
+        : `${targetItem.reward.total.count} 颗 ${targetItem.reward.total.color}曜石`;
 
     modal.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-shrink:0;">
@@ -1229,7 +1224,7 @@ const pauseRestartText = isPaused ? '重启' : '暂停';
 
         <!-- 第三行：完整标题 -->
         <div style="font-size:18px; font-weight:700; color:var(--text-primary); margin-bottom:12px; word-break:break-word;">
-            ${mockItem.fullTitle}
+            ${targetItem.fullTitle}
         </div>
 
         <!-- 第四行：时间 -->
@@ -1256,89 +1251,90 @@ const pauseRestartText = isPaused ? '重启' : '暂停';
             </span>
         </div>
 
-<!-- 底部按键（只保留三个，关闭功能移交给右上角 ×） -->
-<div style="display:flex; gap:8px; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
-    <button class="pt-detail-action-btn" data-action="edit" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
-        flex:1; padding:10px 0; border-radius:10px;
-        border:1.5px solid var(--border-color); background:transparent;
-        color:var(--text-secondary); font-size:13px; font-weight:600;
-        cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
-        transition:all 0.2s;
-    ">✏️ 修改</button>
+        <!-- 底部按键 -->
+        <div style="display:flex; gap:8px; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
+            <button class="pt-detail-action-btn" data-action="edit" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
+                flex:1; padding:10px 0; border-radius:10px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:13px; font-weight:600;
+                cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
+                transition:all 0.2s;
+            ">✏️ 修改</button>
 
-    <button class="pt-detail-action-btn" data-action="pause" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
-        flex:1; padding:10px 0; border-radius:10px;
-        border:1.5px solid var(--border-color); background:transparent;
-        color:var(--text-secondary); font-size:13px; font-weight:600;
-        cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
-        transition:all 0.2s;
-    ">${pauseRestartText}</button>
+            <button class="pt-detail-action-btn" data-action="pause" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
+                flex:1; padding:10px 0; border-radius:10px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:13px; font-weight:600;
+                cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
+                transition:all 0.2s;
+            ">${pauseRestartText}</button>
 
-    <button class="pt-detail-action-btn" data-action="complete" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
-        flex:1; padding:10px 0; border-radius:10px;
-        border:none; background:var(--accent-color);
-        color:#fff; font-size:13px; font-weight:600;
-        cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
-        box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);
-        transition:all 0.2s;
-    ">✅ 已完成</button>
-</div>
+            <button class="pt-detail-action-btn" data-action="complete" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
+                flex:1; padding:10px 0; border-radius:10px;
+                border:none; background:var(--accent-color);
+                color:#fff; font-size:13px; font-weight:600;
+                cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
+                box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);
+                transition:all 0.2s;
+            ">✅ 已完成</button>
+        </div>
     `;
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+    
     const closeFn = () => { overlay.remove(); };
     document.getElementById('pt-detail-close-btn').addEventListener('click', closeFn);
-// 底部按键
-modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
-    btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        const action = this.dataset.action;
-        const label = this.textContent.trim();
-        
-        // 关闭键已移除，不再需要 action === 'close' 的判断
-        
-        if (action === 'edit') {
-            if (!isEditable) {
-                showToast('已过期或已完成的条目不可修改', 'warning');
+    
+    // 底部按键
+    modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const action = this.dataset.action;
+            const label = this.textContent.trim();
+            
+            if (action === 'edit') {
+                if (!isEditable) {
+                    showToast('已过期或已完成的条目不可修改', 'warning');
+                    return;
+                }
+                openEditModal(targetItem.id);
+                closeFn();
                 return;
             }
-            openEditModal(mockItem.id);
-            closeFn();
-            return;
-        }
-        
-        if (action === 'pause') {
-            if (!isEditable) {
-                showToast('已过期或已完成的条目不可操作', 'warning');
+            
+            if (action === 'pause') {
+                if (!isEditable) {
+                    showToast('已过期或已完成的条目不可操作', 'warning');
+                    return;
+                }
+                handlePauseRestart(targetItem.id, targetItem);
                 return;
             }
-            handlePauseRestart(mockItem.id, mockItem);
-            return;
-        }
-        
-        if (action === 'complete') {
-            if (!isEditable) {
-                showToast('已过期或已完成的条目不可操作', 'warning');
+            
+            if (action === 'complete') {
+                if (!isEditable) {
+                    showToast('已过期或已完成的条目不可操作', 'warning');
+                    return;
+                }
+                const currentStatus = calculateItemStatus(targetItem);
+                if (currentStatus !== '进行中') {
+                    showToast('只有进行中的条目才能标记为已完成', 'warning');
+                    return;
+                }
+                handleComplete(targetItem.id);
                 return;
             }
-            const currentStatus = calculateItemStatus(mockItem);
-            if (currentStatus !== '进行中') {
-                showToast('只有进行中的条目才能标记为已完成', 'warning');
-                return;
+            
+            // 其他按键占位
+            if (typeof showToast === 'function') {
+                showToast(`🔧 「${label}」功能开发中，敬请期待 ✦`, 'info');
+            } else {
+                alert(`「${label}」功能开发中`);
             }
-            handleComplete(mockItem.id);
-            return;
-        }
-        
-        // 其他按键占位
-        if (typeof showToast === 'function') {
-            showToast(`🔧 「${label}」功能开发中，敬请期待 ✦`, 'info');
-        } else {
-            alert(`「${label}」功能开发中`);
-        }
+        });
     });
-});
+    
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
 }
 
