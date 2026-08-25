@@ -482,12 +482,16 @@ function showPlanTodoDetail(recordId, type, dateStr) {
         position: relative;
         box-shadow: 0 20px 60px rgba(0,0,0,0.5);
     `;
+// 计算状态
+const status = calculateItemStatus(mockItem);
+const statusColor = getStatusColor(status);
+const statusIcon = getStatusIcon(status);
+const statusLabel = getStatusLabel(status);
 
-    // 计算状态
-    const status = calculateItemStatus(mockItem);
-    const statusColor = getStatusColor(status);
-    const statusIcon = getStatusIcon(status);
-    const statusLabel = getStatusLabel(status);
+// 判断按钮是否可用
+const isEditable = status !== '已过期' && status !== '已完成';
+const isPaused = mockItem.status === 'paused';
+const pauseRestartText = isPaused ? '重启' : '暂停';
 
     // 构建内容
     const titleText = isPlan ? '📅 计划' : '📋 今日待办';
@@ -545,10 +549,6 @@ function showPlanTodoDetail(recordId, type, dateStr) {
         ? '无奖励' 
         : `${mockItem.reward.total.count} 颗 ${mockItem.reward.total.color}曜石`;
 
-    // 底部按键
-    const isPaused = mockItem.status === 'paused';
-    const pauseRestartText = isPaused ? '重启' : '暂停';
-
     modal.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-shrink:0;">
             <div style="font-size:20px; font-weight:700; display:flex; align-items:center; gap:8px;">
@@ -594,72 +594,106 @@ function showPlanTodoDetail(recordId, type, dateStr) {
             </span>
         </div>
 
-        <!-- 底部按键 -->
-        <div style="display:flex; gap:8px; flex-wrap:wrap; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
-            <button class="pt-detail-action-btn" data-action="edit" style="
-                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
-                border:1.5px solid var(--border-color); background:transparent;
-                color:var(--text-secondary); font-size:13px; font-weight:600;
-                cursor:pointer; font-family:var(--font-family);
-                transition:all 0.2s;
-            ">✏️ 修改</button>
+<!-- 底部按键 -->
+<div style="display:flex; gap:8px; flex-wrap:wrap; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
+    <button class="pt-detail-action-btn" data-action="edit" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
+        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+        border:1.5px solid var(--border-color); background:transparent;
+        color:var(--text-secondary); font-size:13px; font-weight:600;
+        cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
+        transition:all 0.2s;
+    ">✏️ 修改</button>
 
-            <button class="pt-detail-action-btn" data-action="pause" style="
-                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
-                border:1.5px solid var(--border-color); background:transparent;
-                color:var(--text-secondary); font-size:13px; font-weight:600;
-                cursor:pointer; font-family:var(--font-family);
-                transition:all 0.2s;
-            ">${pauseRestartText}</button>
+    <button class="pt-detail-action-btn" data-action="pause" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
+        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+        border:1.5px solid var(--border-color); background:transparent;
+        color:var(--text-secondary); font-size:13px; font-weight:600;
+        cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
+        transition:all 0.2s;
+    ">${pauseRestartText}</button>
 
-            <button class="pt-detail-action-btn" data-action="complete" style="
-                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
-                border:none; background:var(--accent-color);
-                color:#fff; font-size:13px; font-weight:600;
-                cursor:pointer; font-family:var(--font-family);
-                box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);
-                transition:all 0.2s;
-            ">✅ 已完成</button>
+    <button class="pt-detail-action-btn" data-action="complete" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
+        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+        border:none; background:var(--accent-color);
+        color:#fff; font-size:13px; font-weight:600;
+        cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
+        box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);
+        transition:all 0.2s;
+    ">✅ 已完成</button>
 
-            <button class="pt-detail-action-btn" data-action="close" style="
-                flex:1; min-width:60px; padding:10px 0; border-radius:10px;
-                border:1.5px solid var(--border-color); background:transparent;
-                color:var(--text-secondary); font-size:13px; font-weight:600;
-                cursor:pointer; font-family:var(--font-family);
-                transition:all 0.2s;
-            ">关闭</button>
-        </div>
+    <button class="pt-detail-action-btn" data-action="close" style="
+        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+        border:1.5px solid var(--border-color); background:transparent;
+        color:var(--text-secondary); font-size:13px; font-weight:600;
+        cursor:pointer; font-family:var(--font-family);
+        transition:all 0.2s;
+    ">关闭</button>
+</div>
     `;
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
+const closeFn = () => { overlay.remove(); };
 
-    // --- 事件绑定 ---
-    // 关闭按钮
-    const closeBtn = modal.querySelector('#pt-detail-close-btn');
-    const closeFn = () => { overlay.remove(); };
-    closeBtn.addEventListener('click', closeFn);
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
-
-    // 底部按键（占位）
-    modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            const action = this.dataset.action;
-            const label = this.textContent.trim();
-            // 关闭按键特殊处理
-            if (action === 'close') {
-                closeFn();
+// 底部按键
+// 底部按键
+modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const action = this.dataset.action;
+        const label = this.textContent.trim();
+        
+        if (action === 'close') {
+            closeFn();
+            return;
+        }
+        
+        if (action === 'edit') {
+            // 修改功能
+            if (!isEditable) {
+                showToast('已过期或已完成的条目不可修改', 'warning');
                 return;
             }
-            // 其他按键弹出占位提示
-            if (typeof showToast === 'function') {
-                showToast(`🔧 「${label}」功能开发中，敬请期待 ✦`, 'info');
-            } else {
-                alert(`「${label}」功能开发中`);
+            // 打开修改模态框
+            openEditModal(mockItem.id);
+            closeFn();
+            return;
+        }
+        
+        if (action === 'pause') {
+            // 暂停/重启功能
+            if (!isEditable) {
+                showToast('已过期或已完成的条目不可操作', 'warning');
+                return;
             }
-        });
+            handlePauseRestart(mockItem.id, mockItem);
+            return;
+        }
+        
+        if (action === 'complete') {
+            // 已完成功能
+            if (!isEditable) {
+                showToast('已过期或已完成的条目不可操作', 'warning');
+                return;
+            }
+            // 只有进行中才能完成
+            const currentStatus = calculateItemStatus(mockItem);
+            if (currentStatus !== '进行中') {
+                showToast('只有进行中的条目才能标记为已完成', 'warning');
+                return;
+            }
+            handleComplete(mockItem.id);
+            return;
+        }
+        
+        // 其他按键占位
+        if (typeof showToast === 'function') {
+            showToast(`🔧 「${label}」功能开发中，敬请期待 ✦`, 'info');
+        } else {
+            alert(`「${label}」功能开发中`);
+        }
     });
+});
 }
 
 // ============================================================
@@ -737,7 +771,11 @@ function formatDateStr(date) {
  * @returns {string} '未开始' | '进行中' | '已过期'
  */
 function calculateItemStatus(item, dateStr) {
-    // 如果已有手动完成状态，优先使用（后续再做）
+    // 如果已暂停，永远显示为「已暂停」
+    if (item.status === 'paused') {
+        return '已暂停';
+    }
+        // 如果已有手动完成状态，优先使用（后续再做）
     // if (item.status === 'completed') return '已完成';
     
     const today = dateStr ? new Date(dateStr) : new Date();
@@ -804,37 +842,866 @@ function calculateItemStatus(item, dateStr) {
 /**
  * 获取状态对应的颜色
  */
-function getStatusColor(status) {
-    switch (status) {
-        case '未开始': return '#95A5A6';   // 灰色
-        case '进行中': return '#2ECC71';   // 绿色
-        case '已过期': return '#E74C3C';   // 红色
-        default: return '#95A5A6';
-    }
-}
-
-/**
- * 获取状态对应的图标
- */
-function getStatusIcon(status) {
-    switch (status) {
-        case '未开始': return '⏳';
-        case '进行中': return '●';
-        case '已过期': return '⚠️';
-        default: return '';
-    }
-}
-
-/**
- * 获取状态对应的显示文字
- */
 function getStatusLabel(status) {
     switch (status) {
         case '未开始': return '未开始';
         case '进行中': return '进行中';
         case '已过期': return '已过期';
+        case '已暂停': return '已暂停';
         default: return '';
     }
+}
+
+function getStatusColor(status) {
+    switch (status) {
+        case '未开始': return '#95A5A6';
+        case '进行中': return '#2ECC71';
+        case '已过期': return '#E74C3C';
+        case '已暂停': return '#F39C12';  // 橙色
+        default: return '#95A5A6';
+    }
+}
+
+function getStatusIcon(status) {
+    switch (status) {
+        case '未开始': return '⏳';
+        case '进行中': return '●';
+        case '已过期': return '⚠️';
+        case '已暂停': return '⏸️';
+        default: return '';
+    }
+}
+
+// ============================================================
+// 暂停/重启 处理函数
+// ============================================================
+function handlePauseRestart(itemId, mockItem) {
+    // 从存储中查找真实条目
+    let targetItem = null;
+    let targetDate = '';
+    let targetType = '';
+    
+    const allData = getAllData();
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            const found = day.plans.find(p => p.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'plan';
+                break;
+            }
+        }
+        if (day.todos) {
+            const found = day.todos.find(t => t.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'todo';
+                break;
+            }
+        }
+    }
+    
+    if (!targetItem) {
+        showToast('未找到该条目', 'error');
+        return;
+    }
+    
+    const currentStatus = calculateItemStatus(targetItem);
+    const isPaused = targetItem.status === 'paused';
+    
+    // 如果当前是已暂停 → 重启
+    if (isPaused) {
+        // 弹出结束日期选择器
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 100003;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            padding: 12px;
+        `;
+        
+        overlay.innerHTML = `
+            <div style="background:var(--secondary-bg); border-radius:20px; padding:24px; max-width:340px; width:100%; border:1px solid var(--border-color);">
+                <div style="font-size:18px; font-weight:700; margin-bottom:12px; text-align:center; color:var(--text-primary);">
+                    🔄 重启计划/待办
+                </div>
+                <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; text-align:center; line-height:1.6;">
+                    请设置新的结束日期，系统将根据此日期重新判定状态。
+                </div>
+                <div style="margin-bottom:16px;">
+                    <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">新的结束日期</label>
+                    <input type="date" id="pt-restart-end-date" value="${getTodayStr()}" style="
+                        width:100%; padding:10px 12px; border:1.5px solid var(--border-color);
+                        border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+                        font-size:14px; outline:none; font-family:var(--font-family);
+                        box-sizing:border-box;
+                    ">
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button id="pt-restart-cancel" style="
+                        flex:1; padding:10px 0; border-radius:10px;
+                        border:1.5px solid var(--border-color); background:transparent;
+                        color:var(--text-secondary); font-size:14px; font-weight:600;
+                        cursor:pointer; font-family:var(--font-family);
+                    ">取消</button>
+                    <button id="pt-restart-confirm" style="
+                        flex:2; padding:10px 0; border-radius:10px;
+                        border:none; background:var(--accent-color); color:#fff;
+                        font-size:14px; font-weight:600; cursor:pointer;
+                        font-family:var(--font-family);
+                        box-shadow: 0 2px 8px rgba(var(--accent-color-rgb),0.3);
+                    ">确认重启</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        overlay.querySelector('#pt-restart-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+        
+        overlay.querySelector('#pt-restart-confirm').addEventListener('click', function() {
+            const newEndDate = document.getElementById('pt-restart-end-date').value;
+            if (!newEndDate) {
+                showToast('请选择结束日期', 'warning');
+                return;
+            }
+            if (newEndDate < targetItem.startDate) {
+                showToast('结束日期不能早于开始日期', 'warning');
+                return;
+            }
+            
+            // 更新存储
+            targetItem.status = 'active';  // 恢复为进行中
+            targetItem.endDate = newEndDate;
+            targetItem.updatedAt = Date.now();
+            
+            const allData = getAllData();
+            for (const date in allData) {
+                const day = allData[date];
+                if (targetType === 'plan' && day.plans) {
+                    const idx = day.plans.findIndex(p => p.id === itemId);
+                    if (idx !== -1) {
+                        day.plans[idx] = targetItem;
+                        break;
+                    }
+                } else if (targetType === 'todo' && day.todos) {
+                    const idx = day.todos.findIndex(t => t.id === itemId);
+                    if (idx !== -1) {
+                        day.todos[idx] = targetItem;
+                        break;
+                    }
+                }
+            }
+            saveAllData(allData);
+            
+            showToast('✅ 已重启，结束日期已更新', 'success');
+            overlay.remove();
+            
+            // 刷新详情页
+            const detailOverlay = document.getElementById('pt-detail-overlay');
+            if (detailOverlay) detailOverlay.remove();
+            // 重新打开详情页
+            showPlanTodoDetail(itemId, targetType, targetDate);
+            
+            // 刷新卡片
+            const currentDate = document.querySelector('.calendar-day.selected');
+            if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+                const day = currentDate.dataset.day;
+                const month = currentDate.dataset.month;
+                const year = currentDate.dataset.year;
+                const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                window.updatePlanTodoCards(dateStr);
+            }
+        });
+        
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+        return;
+    }
+    
+    // 当前不是已暂停 → 暂停
+    if (currentStatus === '已过期' || currentStatus === '已完成') {
+        showToast('已过期或已完成的条目不可暂停', 'warning');
+        return;
+    }
+    
+    // 确认暂停
+    targetItem.status = 'paused';
+    targetItem.updatedAt = Date.now();
+    
+    const allData = getAllData();
+    for (const date in allData) {
+        const day = allData[date];
+        if (targetType === 'plan' && day.plans) {
+            const idx = day.plans.findIndex(p => p.id === itemId);
+            if (idx !== -1) {
+                day.plans[idx] = targetItem;
+                break;
+            }
+        } else if (targetType === 'todo' && day.todos) {
+            const idx = day.todos.findIndex(t => t.id === itemId);
+            if (idx !== -1) {
+                day.todos[idx] = targetItem;
+                break;
+            }
+        }
+    }
+    saveAllData(allData);
+    
+    showToast('⏸️ 已暂停，结束日期已失效', 'info');
+    
+    // 刷新详情页
+    const detailOverlay = document.getElementById('pt-detail-overlay');
+    if (detailOverlay) detailOverlay.remove();
+    showPlanTodoDetail(itemId, targetType, targetDate);
+    
+    // 刷新卡片
+    const currentDate = document.querySelector('.calendar-day.selected');
+    if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+        const day = currentDate.dataset.day;
+        const month = currentDate.dataset.month;
+        const year = currentDate.dataset.year;
+        const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        window.updatePlanTodoCards(dateStr);
+    }
+}
+// ============================================================
+// 修改模态框
+// ============================================================
+function openEditModal(itemId) {
+    // 从存储中查找条目
+    let targetItem = null;
+    let targetDate = '';
+    let targetType = '';
+    
+    const allData = getAllData();
+    for (const date in allData) {
+        const day = allData[date];
+        // 查找计划
+        if (day.plans) {
+            const found = day.plans.find(p => p.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'plan';
+                break;
+            }
+        }
+        // 查找待办
+        if (day.todos) {
+            const found = day.todos.find(t => t.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'todo';
+                break;
+            }
+        }
+    }
+    
+    if (!targetItem) {
+        showToast('未找到该条目', 'error');
+        return;
+    }
+    
+    const isPlan = targetType === 'plan';
+    
+    // 构建模态框
+    const overlay = document.createElement('div');
+    overlay.id = 'pt-edit-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100002;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(8px);
+        animation: companionToastIn 0.3s ease;
+        padding: 12px;
+        box-sizing: border-box;
+        overflow-y: auto;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: var(--secondary-bg);
+        max-width: 560px;
+        width: 100%;
+        max-height: 90vh;
+        border-radius: 24px;
+        padding: 20px 20px 16px;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    `;
+    
+    // 构建可编辑内容
+    let editHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-shrink:0;">
+            <div style="font-size:20px; font-weight:700; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-edit" style="color:var(--accent-color);"></i>
+                <span>修改 ${isPlan ? '计划' : '待办'}</span>
+            </div>
+            <button id="pt-edit-close-btn" style="
+                background:none; border:none; color:var(--text-secondary);
+                font-size:24px; cursor:pointer; padding:0 6px;
+            ">✕</button>
+        </div>
+        
+        <!-- 标题（只读） -->
+        <div style="margin-bottom:12px; padding:10px 14px; background:var(--primary-bg); border-radius:10px;">
+            <div style="font-size:11px; color:var(--text-secondary); margin-bottom:4px;">标题（不可修改）</div>
+            <div style="font-size:16px; font-weight:600; color:var(--text-primary);">${targetItem.fullTitle}</div>
+        </div>
+    `;
+    
+    if (isPlan) {
+        // ===== 计划修改 =====
+        editHTML += `
+            <!-- 结束日期 -->
+            <div style="margin-bottom:12px;">
+                <label style="font-size:12px; color:var(--text-secondary); display:block; margin-bottom:4px;">结束日期</label>
+                <input type="date" id="pt-edit-plan-end" value="${targetItem.endDate}" style="
+                    width:100%; padding:8px 10px; border:1.5px solid var(--border-color);
+                    border-radius:10px; background:var(--primary-bg); color:var(--text-primary);
+                    font-size:13px; outline:none; font-family:var(--font-family);
+                    box-sizing:border-box;
+                ">
+            </div>
+            
+            <!-- 阶段管理 -->
+            <div style="margin-bottom:12px; border-top:1px dashed var(--border-color); padding-top:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <span style="font-size:12px; color:var(--text-secondary); font-weight:500;">📌 阶段拆分</span>
+                    <button id="pt-edit-add-stage-btn" style="
+                        padding:4px 14px; border:none; border-radius:8px;
+                        background:rgba(var(--accent-color-rgb),0.15); color:var(--accent-color);
+                        font-size:12px; font-weight:600; cursor:pointer;
+                        font-family:var(--font-family);
+                    ">+ 添加阶段</button>
+                </div>
+                <div id="pt-edit-stage-list" style="display:flex; flex-direction:column; gap:6px;">
+                    ${targetItem.stages && targetItem.stages.length > 0 ? targetItem.stages.map((stage, idx) => `
+                        <div style="background:var(--primary-bg); border-radius:8px; padding:8px 10px; border:1px solid var(--border-color);">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                                <span style="font-size:11px; font-weight:600; color:var(--text-secondary);">阶段 ${idx+1}</span>
+                                <button class="pt-edit-remove-stage" data-index="${idx}" style="
+                                    background:none; border:none; color:var(--text-secondary); cursor:pointer;
+                                    font-size:12px; padding:0 4px; opacity:0.5;
+                                ">✕</button>
+                            </div>
+                            <div style="display:flex; gap:6px; margin-bottom:4px;">
+                                <input type="date" value="${stage.start}" class="pt-edit-stage-start" data-index="${idx}" style="
+                                    flex:1; padding:4px 6px; border:1px solid var(--border-color);
+                                    border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                                    font-size:11px; outline:none; font-family:var(--font-family);
+                                ">
+                                <span style="font-size:11px; color:var(--text-secondary); display:flex; align-items:center;">~</span>
+                                <input type="date" value="${stage.end}" class="pt-edit-stage-end" data-index="${idx}" style="
+                                    flex:1; padding:4px 6px; border:1px solid var(--border-color);
+                                    border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                                    font-size:11px; outline:none; font-family:var(--font-family);
+                                ">
+                            </div>
+                            <input type="text" placeholder="阶段说明（选填）" value="${stage.note || ''}" class="pt-edit-stage-note" data-index="${idx}" style="
+                                width:100%; padding:4px 8px; border:1px solid var(--border-color);
+                                border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                                font-size:11px; outline:none; font-family:var(--font-family);
+                                box-sizing:border-box;
+                            ">
+                        </div>
+                    `).join('') : `
+                        <div style="font-size:12px; color:var(--text-secondary); opacity:0.5; text-align:center; padding:8px 0;">暂无阶段</div>
+                    `}
+                </div>
+            </div>
+        `;
+    } else {
+        // ===== 待办修改 =====
+        const isRepeating = targetItem.isRepeating || false;
+        const repeatType = targetItem.repeatType || 'weekly';
+        const repeatDays = targetItem.repeatDays || [];
+        const repeatInterval = targetItem.repeatInterval || 1;
+        const repeatEndDate = targetItem.repeatEndDate || '';
+        
+        editHTML += `
+            <!-- 是否重复 -->
+            <div style="margin-bottom:10px;">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; color:var(--text-secondary);">
+                    <input type="checkbox" id="pt-edit-repeat-toggle" ${isRepeating ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent-color);">
+                    重复
+                </label>
+            </div>
+            
+            <div id="pt-edit-repeat-detail" style="${isRepeating ? 'display:block' : 'display:none'}; padding:10px 12px; background:var(--primary-bg); border-radius:10px; margin-bottom:10px;">
+                <div style="display:flex; gap:12px; margin-bottom:8px;">
+                    <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
+                        <input type="radio" name="pt-edit-repeat-type" value="weekly" ${repeatType === 'weekly' ? 'checked' : ''}> 按星期
+                    </label>
+                    <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:4px; cursor:pointer;">
+                        <input type="radio" name="pt-edit-repeat-type" value="daily" ${repeatType === 'daily' ? 'checked' : ''}> 按天数
+                    </label>
+                </div>
+                
+                <div id="pt-edit-repeat-weekly" style="display:${repeatType === 'weekly' ? 'flex' : 'none'}; gap:4px; flex-wrap:wrap;">
+                    ${['一','二','三','四','五','六','日'].map(d => `
+                        <label style="font-size:12px; color:var(--text-secondary); display:flex; align-items:center; gap:3px; cursor:pointer; padding:2px 6px; background:rgba(var(--border-color),0.3); border-radius:6px;">
+                            <input type="checkbox" value="${d}" ${repeatDays.includes(d) ? 'checked' : ''} style="width:14px;height:14px;accent-color:var(--accent-color);"> ${d}
+                        </label>
+                    `).join('')}
+                </div>
+                
+                <div id="pt-edit-repeat-daily" style="display:${repeatType === 'daily' ? 'flex' : 'none'}; align-items:center; gap:6px; margin-top:4px;">
+                    <span style="font-size:12px; color:var(--text-secondary);">每隔</span>
+                    <input type="number" id="pt-edit-repeat-interval" value="${repeatInterval}" min="1" max="30" style="
+                        width:50px; padding:4px 6px; border:1px solid var(--border-color);
+                        border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                        font-size:13px; text-align:center; outline:none;
+                    ">
+                    <span style="font-size:12px; color:var(--text-secondary);">天</span>
+                </div>
+                
+                <div style="display:flex; gap:8px; margin-top:8px; border-top:1px solid var(--border-color); padding-top:8px;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">开始日期（不可修改）</label>
+                        <input type="date" value="${targetItem.startDate}" disabled style="
+                            width:100%; padding:6px 8px; border:1.5px solid var(--border-color);
+                            border-radius:8px; background:var(--primary-bg); color:var(--text-secondary);
+                            font-size:12px; outline:none; font-family:var(--font-family);
+                            box-sizing:border-box; opacity:0.6;
+                        ">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:var(--text-secondary); display:block; margin-bottom:3px;">结束日期（选填）</label>
+                        <input type="date" id="pt-edit-repeat-end" value="${repeatEndDate}" style="
+                            width:100%; padding:6px 8px; border:1.5px solid var(--border-color);
+                            border-radius:8px; background:var(--primary-bg); color:var(--text-primary);
+                            font-size:12px; outline:none; font-family:var(--font-family);
+                            box-sizing:border-box;
+                        ">
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    editHTML += `
+        <!-- 底部按钮 -->
+        <div style="display:flex; gap:10px; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
+            <button id="pt-edit-cancel-btn" style="
+                flex:1; padding:11px 0; border-radius:12px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:15px; font-weight:600;
+                cursor:pointer; font-family:var(--font-family);
+            ">取消</button>
+            <button id="pt-edit-save-btn" style="
+                flex:2; padding:11px 0; border-radius:12px;
+                border:none; background:var(--accent-color); color:#fff;
+                font-size:15px; font-weight:600; cursor:pointer;
+                font-family:var(--font-family);
+                box-shadow: 0 2px 10px rgba(var(--accent-color-rgb),0.3);
+            ">💾 保存修改</button>
+        </div>
+    `;
+    
+    modal.innerHTML = editHTML;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    document.getElementById('pt-edit-close-btn').addEventListener('click', closeFn);
+    document.getElementById('pt-edit-cancel-btn').addEventListener('click', closeFn);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
+    
+    if (isPlan) {
+        // 计划：阶段增删改
+        let editStages = targetItem.stages ? targetItem.stages.map(s => ({ ...s })) : [];
+        
+        function renderEditStages() {
+            const container = document.getElementById('pt-edit-stage-list');
+            if (!container) return;
+            
+            if (editStages.length === 0) {
+                container.innerHTML = `<div style="font-size:12px; color:var(--text-secondary); opacity:0.5; text-align:center; padding:8px 0;">暂无阶段</div>`;
+                return;
+            }
+            
+            container.innerHTML = editStages.map((stage, idx) => `
+                <div style="background:var(--primary-bg); border-radius:8px; padding:8px 10px; border:1px solid var(--border-color);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-size:11px; font-weight:600; color:var(--text-secondary);">阶段 ${idx+1}</span>
+                        <button class="pt-edit-remove-stage" data-index="${idx}" style="
+                            background:none; border:none; color:var(--text-secondary); cursor:pointer;
+                            font-size:12px; padding:0 4px; opacity:0.5;
+                        ">✕</button>
+                    </div>
+                    <div style="display:flex; gap:6px; margin-bottom:4px;">
+                        <input type="date" value="${stage.start}" class="pt-edit-stage-start" data-index="${idx}" style="
+                            flex:1; padding:4px 6px; border:1px solid var(--border-color);
+                            border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                            font-size:11px; outline:none; font-family:var(--font-family);
+                        ">
+                        <span style="font-size:11px; color:var(--text-secondary); display:flex; align-items:center;">~</span>
+                        <input type="date" value="${stage.end}" class="pt-edit-stage-end" data-index="${idx}" style="
+                            flex:1; padding:4px 6px; border:1px solid var(--border-color);
+                            border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                            font-size:11px; outline:none; font-family:var(--font-family);
+                        ">
+                    </div>
+                    <input type="text" placeholder="阶段说明（选填）" value="${stage.note || ''}" class="pt-edit-stage-note" data-index="${idx}" style="
+                        width:100%; padding:4px 8px; border:1px solid var(--border-color);
+                        border-radius:6px; background:var(--primary-bg); color:var(--text-primary);
+                        font-size:11px; outline:none; font-family:var(--font-family);
+                        box-sizing:border-box;
+                    ">
+                </div>
+            `).join('');
+            
+            // 绑定删除事件
+            container.querySelectorAll('.pt-edit-remove-stage').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const idx = parseInt(this.dataset.index);
+                    editStages.splice(idx, 1);
+                    renderEditStages();
+                });
+            });
+            
+            // 绑定修改事件
+            container.querySelectorAll('.pt-edit-stage-start').forEach(input => {
+                input.addEventListener('change', function() {
+                    const idx = parseInt(this.dataset.index);
+                    editStages[idx].start = this.value;
+                });
+            });
+            container.querySelectorAll('.pt-edit-stage-end').forEach(input => {
+                input.addEventListener('change', function() {
+                    const idx = parseInt(this.dataset.index);
+                    editStages[idx].end = this.value;
+                });
+            });
+            container.querySelectorAll('.pt-edit-stage-note').forEach(input => {
+                input.addEventListener('input', function() {
+                    const idx = parseInt(this.dataset.index);
+                    editStages[idx].note = this.value;
+                });
+            });
+        }
+        
+        renderEditStages();
+        
+        // 添加阶段
+        document.getElementById('pt-edit-add-stage-btn').addEventListener('click', function() {
+            const planStart = document.getElementById('pt-edit-plan-end')?.value || getTodayStr();
+            editStages.push({
+                start: planStart,
+                end: planStart,
+                note: ''
+            });
+            renderEditStages();
+        });
+        
+        // 保存计划修改
+        document.getElementById('pt-edit-save-btn').addEventListener('click', function() {
+            const newEndDate = document.getElementById('pt-edit-plan-end').value;
+            if (!newEndDate) {
+                showToast('请填写结束日期', 'warning');
+                return;
+            }
+            if (newEndDate < targetItem.startDate) {
+                showToast('结束日期不能早于开始日期', 'warning');
+                return;
+            }
+            
+            // 验证阶段
+            for (const stage of editStages) {
+                if (!stage.start || !stage.end) continue;
+                if (stage.start < targetItem.startDate || stage.end > newEndDate || stage.start > stage.end) {
+                    showToast('阶段起止时间超出整体范围或顺序有误', 'warning');
+                    return;
+                }
+            }
+            
+            // 保存到存储
+            const allData = getAllData();
+            let found = false;
+            for (const date in allData) {
+                const day = allData[date];
+                if (day.plans) {
+                    const idx = day.plans.findIndex(p => p.id === targetItem.id);
+                    if (idx !== -1) {
+                        day.plans[idx].endDate = newEndDate;
+                        day.plans[idx].stages = editStages;
+                        day.plans[idx].updatedAt = Date.now();
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (found) {
+                saveAllData(allData);
+                showToast('✅ 修改已保存！', 'success');
+                closeFn();
+                // 刷新卡片
+                const currentDate = document.querySelector('.calendar-day.selected');
+                if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+                    const day = currentDate.dataset.day;
+                    const month = currentDate.dataset.month;
+                    const year = currentDate.dataset.year;
+                    const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                    window.updatePlanTodoCards(dateStr);
+                }
+            } else {
+                showToast('保存失败，未找到条目', 'error');
+            }
+        });
+        
+    } else {
+        // ===== 待办修改 =====
+        // 重复开关
+        const repeatToggle = document.getElementById('pt-edit-repeat-toggle');
+        const repeatDetail = document.getElementById('pt-edit-repeat-detail');
+        
+        repeatToggle.addEventListener('change', function() {
+            repeatDetail.style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // 重复方式切换
+        const repeatRadios = document.querySelectorAll('input[name="pt-edit-repeat-type"]');
+        repeatRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const weekly = document.getElementById('pt-edit-repeat-weekly');
+                const daily = document.getElementById('pt-edit-repeat-daily');
+                if (this.value === 'weekly') {
+                    weekly.style.display = 'flex';
+                    daily.style.display = 'none';
+                } else {
+                    weekly.style.display = 'none';
+                    daily.style.display = 'flex';
+                }
+            });
+        });
+        
+        // 保存待办修改
+        document.getElementById('pt-edit-save-btn').addEventListener('click', function() {
+            const isRepeating = repeatToggle.checked;
+            let repeatType = 'weekly';
+            let repeatDays = [];
+            let repeatInterval = 1;
+            let repeatEndDate = '';
+            
+            if (isRepeating) {
+                const radios = document.querySelectorAll('input[name="pt-edit-repeat-type"]');
+                radios.forEach(r => { if (r.checked) repeatType = r.value; });
+                
+                if (repeatType === 'weekly') {
+                    const checkboxes = document.querySelectorAll('#pt-edit-repeat-weekly input[type="checkbox"]:checked');
+                    repeatDays = Array.from(checkboxes).map(cb => cb.value);
+                    if (repeatDays.length === 0) {
+                        showToast('请至少选择一个星期几', 'warning');
+                        return;
+                    }
+                } else {
+                    const intervalEl = document.getElementById('pt-edit-repeat-interval');
+                    repeatInterval = parseInt(intervalEl?.value) || 1;
+                    if (repeatInterval < 1) {
+                        showToast('间隔天数至少为1', 'warning');
+                        return;
+                    }
+                }
+                
+                const endEl = document.getElementById('pt-edit-repeat-end');
+                repeatEndDate = endEl?.value || '';
+                if (repeatEndDate && repeatEndDate < targetItem.startDate) {
+                    showToast('结束日期不能早于开始日期', 'warning');
+                    return;
+                }
+            }
+            
+            // 保存到存储
+            const allData = getAllData();
+            let found = false;
+            for (const date in allData) {
+                const day = allData[date];
+                if (day.todos) {
+                    const idx = day.todos.findIndex(t => t.id === targetItem.id);
+                    if (idx !== -1) {
+                        day.todos[idx].isRepeating = isRepeating;
+                        day.todos[idx].repeatType = repeatType;
+                        day.todos[idx].repeatDays = repeatDays;
+                        day.todos[idx].repeatInterval = repeatInterval;
+                        day.todos[idx].repeatEndDate = repeatEndDate;
+                        day.todos[idx].updatedAt = Date.now();
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (found) {
+                saveAllData(allData);
+                showToast('✅ 修改已保存！', 'success');
+                closeFn();
+                const currentDate = document.querySelector('.calendar-day.selected');
+                if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+                    const day = currentDate.dataset.day;
+                    const month = currentDate.dataset.month;
+                    const year = currentDate.dataset.year;
+                    const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                    window.updatePlanTodoCards(dateStr);
+                }
+            } else {
+                showToast('保存失败，未找到条目', 'error');
+            }
+        });
+    }
+}
+// ============================================================
+// 已完成 处理函数
+// ============================================================
+function handleComplete(itemId) {
+    // 从存储中查找条目
+    let targetItem = null;
+    let targetDate = '';
+    let targetType = '';
+    
+    const allData = getAllData();
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            const found = day.plans.find(p => p.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'plan';
+                break;
+            }
+        }
+        if (day.todos) {
+            const found = day.todos.find(t => t.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'todo';
+                break;
+            }
+        }
+    }
+    
+    if (!targetItem) {
+        showToast('未找到该条目', 'error');
+        return;
+    }
+    
+    // 二次确认
+    const fullTitle = targetItem.fullTitle || `${targetItem.primaryLabel}.${targetItem.secondaryTitle}`;
+    const rewardText = targetItem.noReward 
+        ? '无奖励' 
+        : `${targetItem.reward.total.count} 颗 ${targetItem.reward.total.color}曜石`;
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100003;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        padding: 12px;
+    `;
+    
+    overlay.innerHTML = `
+        <div style="background:var(--secondary-bg); border-radius:20px; padding:24px; max-width:340px; width:100%; border:1px solid var(--border-color);">
+            <div style="font-size:18px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text-primary);">
+                ✅ 确认完成
+            </div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; text-align:center; line-height:1.8;">
+                确定要将 <strong style="color:var(--accent-color);">「${fullTitle}」</strong><br>
+                标记为已完成吗？
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary); text-align:center; margin-bottom:16px; padding:8px; background:var(--primary-bg); border-radius:8px;">
+                🏆 奖励：${rewardText}
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="pt-complete-cancel" style="
+                    flex:1; padding:10px 0; border-radius:10px;
+                    border:1.5px solid var(--border-color); background:transparent;
+                    color:var(--text-secondary); font-size:14px; font-weight:600;
+                    cursor:pointer; font-family:var(--font-family);
+                ">取消</button>
+                <button id="pt-complete-confirm" style="
+                    flex:2; padding:10px 0; border-radius:10px;
+                    border:none; background:var(--accent-color); color:#fff;
+                    font-size:14px; font-weight:600; cursor:pointer;
+                    font-family:var(--font-family);
+                    box-shadow: 0 2px 8px rgba(var(--accent-color-rgb),0.3);
+                ">✅ 确认完成</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    overlay.querySelector('#pt-complete-cancel').addEventListener('click', function() {
+        overlay.remove();
+    });
+    
+    overlay.querySelector('#pt-complete-confirm').addEventListener('click', function() {
+        // 更新状态
+        targetItem.status = 'completed';
+        targetItem.updatedAt = Date.now();
+        
+        const allData = getAllData();
+        for (const date in allData) {
+            const day = allData[date];
+            if (targetType === 'plan' && day.plans) {
+                const idx = day.plans.findIndex(p => p.id === itemId);
+                if (idx !== -1) {
+                    day.plans[idx] = targetItem;
+                    break;
+                }
+            } else if (targetType === 'todo' && day.todos) {
+                const idx = day.todos.findIndex(t => t.id === itemId);
+                if (idx !== -1) {
+                    day.todos[idx] = targetItem;
+                    break;
+                }
+            }
+        }
+        saveAllData(allData);
+        
+        overlay.remove();
+        
+        // 弹出完成通知
+        const rewardMsg = targetItem.noReward 
+            ? '无奖励' 
+            : `🏆 已发放 ${targetItem.reward.total.count} 颗 ${targetItem.reward.total.color}曜石！`;
+        
+        showToast(`✅ 已完成「${fullTitle}」！${rewardMsg}`, 'success');
+        
+        // 刷新详情页
+        const detailOverlay = document.getElementById('pt-detail-overlay');
+        if (detailOverlay) detailOverlay.remove();
+        showPlanTodoDetail(itemId, targetType, targetDate);
+        
+        // 刷新卡片
+        const currentDate = document.querySelector('.calendar-day.selected');
+        if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+            const day = currentDate.dataset.day;
+            const month = currentDate.dataset.month;
+            const year = currentDate.dataset.year;
+            const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            window.updatePlanTodoCards(dateStr);
+        }
+    });
+    
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+    });
 }
 
     function showComingSoon(label) {
@@ -2176,6 +3043,9 @@ window.getStatusIcon = getStatusIcon;
 window.getStatusLabel = getStatusLabel;
 window.expandRepeatDates = expandRepeatDates;
 window.showPlanTodoDetail = showPlanTodoDetail;
+window.openEditModal = openEditModal;
+window.handlePauseRestart = handlePauseRestart;
+window.handleComplete = handleComplete;
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
 
