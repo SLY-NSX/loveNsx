@@ -857,211 +857,257 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // 新的异步导出函数
-    window.exportAllData = async function () {
-        var allData = {
-            _exportedAt: new Date().toISOString(),
-            _version: '2.2'  // 版本号升级，包含更多数据
-        };
+window.exportAllData = async function () {
+    var allData = {
+        _exportedAt: new Date().toISOString(),
+        _version: '2.3'  // 版本号升级，包含计划与待办
+    };
 
-        // ---- 同步获取聊天记录 ----
-        if (typeof messages !== 'undefined' && Array.isArray(messages)) {
-            allData.messages = messages.map(function (m) {
-                return Object.assign({}, m, {
-                    timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
-                });
+    // ---- 同步获取聊天记录 ----
+    if (typeof messages !== 'undefined' && Array.isArray(messages)) {
+        allData.messages = messages.map(function (m) {
+            return Object.assign({}, m, {
+                timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
             });
-        }
+        });
+    }
 
-        // ---- 同步获取设置 ----
-        if (typeof settings !== 'undefined') {
-            allData.settings = settings;
-        }
+    // ---- 同步获取设置 ----
+    if (typeof settings !== 'undefined') {
+        allData.settings = settings;
+    }
 
-        // ---- 异步获取好奇驿站数据 ----
+    // ---- 异步获取好奇驿站数据 ----
+    try {
+        const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
+        const curiosityData = await localforage.getItem(curiosityKey);
+        if (curiosityData) {
+            allData.curiosity = curiosityData;
+        }
+    } catch (e) {
+        console.warn('[exportAllData] 无法读取好奇驿站数据:', e);
+    }
+
+    // ---- 异步获取额外数据（信封投递、回复库、拍一拍、贴纸、收藏） ----
+    for (var i = 0; i < EXTRA_KEYS.length; i++) {
+        var key = EXTRA_KEYS[i];
         try {
-            const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
-            const curiosityData = await localforage.getItem(curiosityKey);
-            if (curiosityData) {
-                allData.curiosity = curiosityData;
+            var fullKey = getStorageKey(key);
+            var data = await localforage.getItem(fullKey);
+            if (data !== null && data !== undefined) {
+                allData[key] = data;
             }
         } catch (e) {
-            console.warn('[exportAllData] 无法读取好奇驿站数据:', e);
+            console.warn('[exportAllData] 无法读取 ' + key + ':', e);
         }
+    }
 
-        // ---- 异步获取额外数据（信封投递、回复库、拍一拍、贴纸、收藏） ----
-        for (var i = 0; i < EXTRA_KEYS.length; i++) {
-            var key = EXTRA_KEYS[i];
-            try {
-                var fullKey = getStorageKey(key);
-                var data = await localforage.getItem(fullKey);
-                if (data !== null && data !== undefined) {
-                    allData[key] = data;
-                }
-            } catch (e) {
-                console.warn('[exportAllData] 无法读取 ' + key + ':', e);
-            }
-        }
-
-        // ---- 同步获取陪伴数据（localStorage） ----
-        var companionData = {
-            records: [],
-            musicList: [],
-            session: null,
-            accident: null
-        };
-        try {
-            var recordsRaw = localStorage.getItem('companion_records');
-            if (recordsRaw) companionData.records = JSON.parse(recordsRaw);
-        } catch (e) {}
-        try {
-            var musicRaw = localStorage.getItem('companion_music_list');
-            if (musicRaw) companionData.musicList = JSON.parse(musicRaw);
-        } catch (e) {}
-        try {
-            var sessionRaw = localStorage.getItem('companion_session');
-            if (sessionRaw) companionData.session = JSON.parse(sessionRaw);
-        } catch (e) {}
-        try {
-            companionData.accident = localStorage.getItem('companionAccident') || null;
-        } catch (e) {}
-        allData.companion = companionData;
-
-        // ---- 导出 JSON 文件 ----
-        var json = JSON.stringify(allData, null, 2);
-        var blob = new Blob([json], { type: 'application/json' });
-        var url = URL.createObjectURL(blob);
-        var a = document.createElement('a');
-        a.href = url;
-        a.download = 'backup_full_' + new Date().toISOString().split('T')[0] + '.json';
-        a.click();
-        URL.revokeObjectURL(url);
-
-        if (typeof showNotification === 'function') {
-            showNotification('全量备份导出成功 ✓', 'success');
-        }
+    // ---- 同步获取陪伴数据（localStorage） ----
+    var companionData = {
+        records: [],
+        musicList: [],
+        session: null,
+        accident: null
     };
+    try {
+        var recordsRaw = localStorage.getItem('companion_records');
+        if (recordsRaw) companionData.records = JSON.parse(recordsRaw);
+    } catch (e) {}
+    try {
+        var musicRaw = localStorage.getItem('companion_music_list');
+        if (musicRaw) companionData.musicList = JSON.parse(musicRaw);
+    } catch (e) {}
+    try {
+        var sessionRaw = localStorage.getItem('companion_session');
+        if (sessionRaw) companionData.session = JSON.parse(sessionRaw);
+    } catch (e) {}
+    try {
+        companionData.accident = localStorage.getItem('companionAccident') || null;
+    } catch (e) {}
+    allData.companion = companionData;
+
+    // ===== 新增：计划与待办数据 =====
+    try {
+        var planTodoRaw = localStorage.getItem('plan_todo_data');
+        if (planTodoRaw) {
+            allData.plan_todo_data = JSON.parse(planTodoRaw);
+        }
+    } catch (e) {
+        console.warn('[exportAllData] 无法读取 plan_todo_data:', e);
+    }
+    try {
+        var planTodoMetaRaw = localStorage.getItem('plan_todo_meta');
+        if (planTodoMetaRaw) {
+            allData.plan_todo_meta = JSON.parse(planTodoMetaRaw);
+        }
+    } catch (e) {
+        console.warn('[exportAllData] 无法读取 plan_todo_meta:', e);
+    }
+    // ===== 新增结束 =====
+
+    // ---- 导出 JSON 文件 ----
+    var json = JSON.stringify(allData, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'backup_full_' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+
+    if (typeof showNotification === 'function') {
+        showNotification('全量备份导出成功 ✓', 'success');
+    }
+};
 
     // 新的异步导入函数
-    window.importAllData = function (file) {
-        var reader = new FileReader();
-        reader.onload = async function (e) {
-            try {
-                var data = JSON.parse(e.target.result);
+window.importAllData = function (file) {
+    var reader = new FileReader();
+    reader.onload = async function (e) {
+        try {
+            var data = JSON.parse(e.target.result);
 
-                // ---- 导入好奇驿站数据 ----
-                if (data.curiosity) {
-                    try {
-                        const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
-                        await localforage.setItem(curiosityKey, data.curiosity);
-                        if (typeof loadCuriosityData === 'function') {
-                            await loadCuriosityData();
-                        }
-                        if (typeof renderCuriosityLists === 'function') {
-                            renderCuriosityLists();
-                        }
-                        if (typeof showNotification === 'function') {
-                            showNotification('好奇驿站数据导入成功 ✓', 'success');
-                        }
-                    } catch (err) {
-                        console.warn('[importAllData] 导入好奇驿站失败:', err);
+            // ---- 导入好奇驿站数据 ----
+            if (data.curiosity) {
+                try {
+                    const curiosityKey = (window.APP_PREFIX || '') + 'curiosityData';
+                    await localforage.setItem(curiosityKey, data.curiosity);
+                    if (typeof loadCuriosityData === 'function') {
+                        await loadCuriosityData();
                     }
-                }
-
-                // ---- 导入额外数据（信封投递、回复库、拍一拍、贴纸、收藏） ----
-                for (var i = 0; i < EXTRA_KEYS.length; i++) {
-                    var key = EXTRA_KEYS[i];
-                    if (data[key] !== undefined && data[key] !== null) {
-                        try {
-                            var fullKey = getStorageKey(key);
-                            await localforage.setItem(fullKey, data[key]);
-                            console.log('[importAllData] 已导入 ' + key);
-                        } catch (err) {
-                            console.warn('[importAllData] 导入 ' + key + ' 失败:', err);
-                        }
-                    }
-                }
-
-                // 导入完成后，如果有对应函数，重新加载数据
-                if (data.envelopeData && typeof loadEnvelopeData === 'function') {
-                    try { await loadEnvelopeData(); } catch(e) {}
-                }
-                if (data.customReplies && typeof renderReplyLibrary === 'function') {
-                    try { renderReplyLibrary(); } catch(e) {}
-                }
-                if (data.favorites && typeof renderFavoritesList === 'function') {
-                    try { renderFavoritesList(); } catch(e) {}
-                }
-
-                // ---- 导入陪伴数据（同步） ----
-                if (data.companion) {
-                    var comp = data.companion;
-                    if (comp.records && Array.isArray(comp.records)) {
-                        try {
-                            localStorage.setItem('companion_records', JSON.stringify(comp.records));
-                            if (typeof window._companionRecords !== 'undefined') {
-                                window._companionRecords = comp.records;
-                            }
-                            if (typeof loadCompanionRecordsData === 'function') {
-                                loadCompanionRecordsData();
-                            }
-                        } catch (e) {}
-                    }
-                    if (comp.musicList && Array.isArray(comp.musicList)) {
-                        try {
-                            localStorage.setItem('companion_music_list', JSON.stringify(comp.musicList));
-                        } catch (e) {}
-                    }
-                    if (comp.session) {
-                        try {
-                            localStorage.setItem('companion_session', JSON.stringify(comp.session));
-                        } catch (e) {}
-                    }
-                    if (comp.accident !== undefined && comp.accident !== null) {
-                        try {
-                            localStorage.setItem('companionAccident', comp.accident);
-                        } catch (e) {}
+                    if (typeof renderCuriosityLists === 'function') {
+                        renderCuriosityLists();
                     }
                     if (typeof showNotification === 'function') {
-                        showNotification('陪伴数据导入成功 ✓', 'success');
+                        showNotification('好奇驿站数据导入成功 ✓', 'success');
                     }
-                }
-
-                // ---- 导入聊天记录 ----
-                if (data.messages && Array.isArray(data.messages) && typeof messages !== 'undefined') {
-                    try {
-                        messages = data.messages.map(function (m) {
-                            return Object.assign({}, m, {
-                                timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
-                            });
-                        });
-                        if (typeof renderMessages === 'function') renderMessages();
-                        if (typeof throttledSaveData === 'function') throttledSaveData();
-                    } catch (e) {}
-                }
-
-                // ---- 导入设置 ----
-                if (data.settings && typeof settings !== 'undefined') {
-                    try {
-                        Object.assign(settings, data.settings);
-                        if (typeof updateUI === 'function') updateUI();
-                        if (typeof throttledSaveData === 'function') throttledSaveData();
-                    } catch (e) {}
-                }
-
-                if (typeof showNotification === 'function') {
-                    showNotification('全量导入完成', 'success');
-                }
-
-            } catch (err) {
-                console.error('[importAllData] 导入失败:', err);
-                if (typeof showNotification === 'function') {
-                    showNotification('文件解析失败，请检查文件格式', 'error');
+                } catch (err) {
+                    console.warn('[importAllData] 导入好奇驿站失败:', err);
                 }
             }
-        };
-        reader.readAsText(file);
-    };
 
+            // ---- 导入额外数据（信封投递、回复库、拍一拍、贴纸、收藏） ----
+            for (var i = 0; i < EXTRA_KEYS.length; i++) {
+                var key = EXTRA_KEYS[i];
+                if (data[key] !== undefined && data[key] !== null) {
+                    try {
+                        var fullKey = getStorageKey(key);
+                        await localforage.setItem(fullKey, data[key]);
+                        console.log('[importAllData] 已导入 ' + key);
+                    } catch (err) {
+                        console.warn('[importAllData] 导入 ' + key + ' 失败:', err);
+                    }
+                }
+            }
+
+            // 导入完成后，如果有对应函数，重新加载数据
+            if (data.envelopeData && typeof loadEnvelopeData === 'function') {
+                try { await loadEnvelopeData(); } catch(e) {}
+            }
+            if (data.customReplies && typeof renderReplyLibrary === 'function') {
+                try { renderReplyLibrary(); } catch(e) {}
+            }
+            if (data.favorites && typeof renderFavoritesList === 'function') {
+                try { renderFavoritesList(); } catch(e) {}
+            }
+
+            // ---- 导入陪伴数据（同步） ----
+            if (data.companion) {
+                var comp = data.companion;
+                if (comp.records && Array.isArray(comp.records)) {
+                    try {
+                        localStorage.setItem('companion_records', JSON.stringify(comp.records));
+                        if (typeof window._companionRecords !== 'undefined') {
+                            window._companionRecords = comp.records;
+                        }
+                        if (typeof loadCompanionRecordsData === 'function') {
+                            loadCompanionRecordsData();
+                        }
+                    } catch (e) {}
+                }
+                if (comp.musicList && Array.isArray(comp.musicList)) {
+                    try {
+                        localStorage.setItem('companion_music_list', JSON.stringify(comp.musicList));
+                    } catch (e) {}
+                }
+                if (comp.session) {
+                    try {
+                        localStorage.setItem('companion_session', JSON.stringify(comp.session));
+                    } catch (e) {}
+                }
+                if (comp.accident !== undefined && comp.accident !== null) {
+                    try {
+                        localStorage.setItem('companionAccident', comp.accident);
+                    } catch (e) {}
+                }
+                if (typeof showNotification === 'function') {
+                    showNotification('陪伴数据导入成功 ✓', 'success');
+                }
+            }
+
+            // ===== 新增：导入计划与待办数据 =====
+            if (data.plan_todo_data) {
+                try {
+                    localStorage.setItem('plan_todo_data', JSON.stringify(data.plan_todo_data));
+                    // 刷新内存中的计划数据
+                    if (typeof window._planTodoData !== 'undefined') {
+                        window._planTodoData = data.plan_todo_data;
+                    }
+                    // 刷新卡片显示
+                    if (typeof window._refreshPlanTodo === 'function') {
+                        setTimeout(window._refreshPlanTodo, 300);
+                    }
+                    if (typeof showNotification === 'function') {
+                        showNotification('计划与待办数据导入成功 ✓', 'success');
+                    }
+                } catch (e) {
+                    console.warn('[importAllData] 导入 plan_todo_data 失败:', e);
+                }
+            }
+            if (data.plan_todo_meta) {
+                try {
+                    localStorage.setItem('plan_todo_meta', JSON.stringify(data.plan_todo_meta));
+                } catch (e) {
+                    console.warn('[importAllData] 导入 plan_todo_meta 失败:', e);
+                }
+            }
+            // ===== 新增结束 =====
+
+            // ---- 导入聊天记录 ----
+            if (data.messages && Array.isArray(data.messages) && typeof messages !== 'undefined') {
+                try {
+                    messages = data.messages.map(function (m) {
+                        return Object.assign({}, m, {
+                            timestamp: m.timestamp ? new Date(m.timestamp) : new Date()
+                        });
+                    });
+                    if (typeof renderMessages === 'function') renderMessages();
+                    if (typeof throttledSaveData === 'function') throttledSaveData();
+                } catch (e) {}
+            }
+
+            // ---- 导入设置 ----
+            if (data.settings && typeof settings !== 'undefined') {
+                try {
+                    Object.assign(settings, data.settings);
+                    if (typeof updateUI === 'function') updateUI();
+                    if (typeof throttledSaveData === 'function') throttledSaveData();
+                } catch (e) {}
+            }
+
+            if (typeof showNotification === 'function') {
+                showNotification('全量导入完成', 'success');
+            }
+
+        } catch (err) {
+            console.error('[importAllData] 导入失败:', err);
+            if (typeof showNotification === 'function') {
+                showNotification('文件解析失败，请检查文件格式', 'error');
+            }
+        }
+    };
+    reader.readAsText(file);
+};
     console.log('[data.js] 全量备份已增强，包含好奇驿站、信封投递、自定义回复、拍一拍、贴纸、收藏');
 })();
 
