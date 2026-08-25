@@ -267,6 +267,134 @@
         };
     }
 
+// ============================================================
+// 注入测试数据（仅用于开发测试）
+// ============================================================
+function injectTestData(dateStr) {
+    // 检查是否已有测试数据，避免重复注入
+    const allData = getAllData();
+    if (allData._test_injected) return;
+    
+    // 获取当前日期
+    const today = dateStr || getTodayStr();
+    
+    // 构建测试数据
+    const testData = {
+        // 测试待办1：正在进行中（今天的）
+        todos: [
+            {
+                id: 'test_todo_1',
+                type: 'todo',
+                primaryLabel: '学习',
+                primaryColor: '#3498DB',
+                secondaryTitle: '背单词50个',
+                fullTitle: '学习.背单词50个',
+                startDate: today,
+                endDate: today,
+                isRepeating: false,
+                repeatType: 'weekly',
+                repeatDays: [],
+                repeatInterval: 0,
+                repeatEndDate: '',
+                stages: [],
+                reward: {
+                    total: { count: 3, color: '金' },
+                    stages: []
+                },
+                noReward: false,
+                status: 'active',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            },
+            // 测试待办2：正在进行中（今天的）
+            {
+                id: 'test_todo_2',
+                type: 'todo',
+                primaryLabel: '工作',
+                primaryColor: '#E67E22',
+                secondaryTitle: '完成项目报告',
+                fullTitle: '工作.完成项目报告',
+                startDate: today,
+                endDate: today,
+                isRepeating: false,
+                repeatType: 'weekly',
+                repeatDays: [],
+                repeatInterval: 0,
+                repeatEndDate: '',
+                stages: [],
+                reward: {
+                    total: { count: 5, color: '银' },
+                    stages: []
+                },
+                noReward: false,
+                status: 'active',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            }
+        ],
+        // 测试计划：正在进行中
+        plans: [
+            {
+                id: 'test_plan_1',
+                type: 'plan',
+                primaryLabel: '健身',
+                primaryColor: '#2ECC71',
+                secondaryTitle: '减脂计划',
+                fullTitle: '健身.减脂计划',
+                startDate: today,
+                endDate: (() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 14);
+                    return d.toISOString().split('T')[0];
+                })(),
+                isRepeating: false,
+                repeatType: 'weekly',
+                repeatDays: [],
+                repeatInterval: 0,
+                repeatEndDate: '',
+                stages: [
+                    { start: today, end: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })(), note: '适应期：每周3次有氧' },
+                    { start: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })(), end: (() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toISOString().split('T')[0]; })(), note: '强化期：增加力量训练' }
+                ],
+                reward: {
+                    total: { count: 10, color: '金' },
+                    stages: [
+                        { count: 3, color: '银', noReward: false },
+                        { count: 7, color: '金', noReward: false }
+                    ]
+                },
+                noReward: false,
+                status: 'active',
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            }
+        ]
+    };
+    
+    // 存入数据（按日期索引）
+    const dayData = getDayData(today);
+    if (!dayData.todos) dayData.todos = [];
+    if (!dayData.plans) dayData.plans = [];
+    
+    // 合并数据（避免覆盖已有数据）
+    testData.todos.forEach(item => {
+        const exists = dayData.todos.some(t => t.id === item.id);
+        if (!exists) dayData.todos.push(item);
+    });
+    testData.plans.forEach(item => {
+        const exists = dayData.plans.some(p => p.id === item.id);
+        if (!exists) dayData.plans.push(item);
+    });
+    
+    saveDayData(today, dayData);
+    
+    // 标记已注入
+    allData._test_injected = true;
+    saveAllData(allData);
+    
+    console.log('[plan-todo] 测试数据已注入 ✅');
+}
+
     // ============================================================
     // 卡片渲染（更新下方两张卡片的内容）
     // ============================================================
@@ -594,10 +722,10 @@ const pauseRestartText = isPaused ? '重启' : '暂停';
             </span>
         </div>
 
-<!-- 底部按键 -->
-<div style="display:flex; gap:8px; flex-wrap:wrap; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
+<!-- 底部按键（只保留三个，关闭功能移交给右上角 ×） -->
+<div style="display:flex; gap:8px; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
     <button class="pt-detail-action-btn" data-action="edit" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
-        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+        flex:1; padding:10px 0; border-radius:10px;
         border:1.5px solid var(--border-color); background:transparent;
         color:var(--text-secondary); font-size:13px; font-weight:600;
         cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
@@ -605,7 +733,7 @@ const pauseRestartText = isPaused ? '重启' : '暂停';
     ">✏️ 修改</button>
 
     <button class="pt-detail-action-btn" data-action="pause" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
-        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+        flex:1; padding:10px 0; border-radius:10px;
         border:1.5px solid var(--border-color); background:transparent;
         color:var(--text-secondary); font-size:13px; font-weight:600;
         cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
@@ -613,29 +741,20 @@ const pauseRestartText = isPaused ? '重启' : '暂停';
     ">${pauseRestartText}</button>
 
     <button class="pt-detail-action-btn" data-action="complete" ${!isEditable ? 'disabled style="opacity:0.4;cursor:not-allowed;"' : ''} style="
-        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
+        flex:1; padding:10px 0; border-radius:10px;
         border:none; background:var(--accent-color);
         color:#fff; font-size:13px; font-weight:600;
         cursor:${!isEditable ? 'not-allowed' : 'pointer'}; font-family:var(--font-family);
         box-shadow:0 2px 8px rgba(var(--accent-color-rgb),0.3);
         transition:all 0.2s;
     ">✅ 已完成</button>
-
-    <button class="pt-detail-action-btn" data-action="close" style="
-        flex:1; min-width:60px; padding:10px 0; border-radius:10px;
-        border:1.5px solid var(--border-color); background:transparent;
-        color:var(--text-secondary); font-size:13px; font-weight:600;
-        cursor:pointer; font-family:var(--font-family);
-        transition:all 0.2s;
-    ">关闭</button>
 </div>
     `;
 
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-const closeFn = () => { overlay.remove(); };
-
-// 底部按键
+    const closeFn = () => { overlay.remove(); };
+    document.getElementById('pt-detail-close-btn').addEventListener('click', closeFn);
 // 底部按键
 modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
     btn.addEventListener('click', function(e) {
@@ -643,25 +762,19 @@ modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
         const action = this.dataset.action;
         const label = this.textContent.trim();
         
-        if (action === 'close') {
-            closeFn();
-            return;
-        }
+        // 关闭键已移除，不再需要 action === 'close' 的判断
         
         if (action === 'edit') {
-            // 修改功能
             if (!isEditable) {
                 showToast('已过期或已完成的条目不可修改', 'warning');
                 return;
             }
-            // 打开修改模态框
             openEditModal(mockItem.id);
             closeFn();
             return;
         }
         
         if (action === 'pause') {
-            // 暂停/重启功能
             if (!isEditable) {
                 showToast('已过期或已完成的条目不可操作', 'warning');
                 return;
@@ -671,12 +784,10 @@ modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
         }
         
         if (action === 'complete') {
-            // 已完成功能
             if (!isEditable) {
                 showToast('已过期或已完成的条目不可操作', 'warning');
                 return;
             }
-            // 只有进行中才能完成
             const currentStatus = calculateItemStatus(mockItem);
             if (currentStatus !== '进行中') {
                 showToast('只有进行中的条目才能标记为已完成', 'warning');
@@ -694,6 +805,7 @@ modal.querySelectorAll('.pt-detail-action-btn').forEach(btn => {
         }
     });
 });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
 }
 
 // ============================================================
@@ -3046,6 +3158,7 @@ window.showPlanTodoDetail = showPlanTodoDetail;
 window.openEditModal = openEditModal;
 window.handlePauseRestart = handlePauseRestart;
 window.handleComplete = handleComplete;
+window.injectTestData = injectTestData;
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
 
