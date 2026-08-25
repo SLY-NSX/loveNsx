@@ -328,143 +328,194 @@ function getDayStats(dateStr) {
     };
 }
 
-    // ============================================================
-    // 卡片渲染（更新下方两张卡片的内容）
-    // ============================================================
-    function renderCards(dateStr) {
-        const container = document.getElementById('plan-todo-container');
-        if (!container) return;
+// ============================================================
+// 卡片渲染（更新下方两张卡片的内容）
+// ============================================================
+function renderCards(dateStr) {
+    const container = document.getElementById('plan-todo-container');
+    if (!container) return;
 
-        const parts = dateStr.split('-');
-        const year = parseInt(parts[0]);
-        const month = parseInt(parts[1]) - 1;
-        const day = parseInt(parts[2]);
-        const dateObj = new Date(year, month, day);
+    const parts = dateStr.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1;
+    const day = parseInt(parts[2]);
+    const dateObj = new Date(year, month, day);
 
-        // 获取农历信息
-        let lunarDateStr = '农历??月??';
-        let lunarYearInfo = '????年.??';
-        let weekDayStr = '星期?';
-        if (typeof Lunar !== 'undefined') {
-            try {
-                const lunar = Lunar.fromDate(dateObj);
-                lunarDateStr = `农历${lunar.lunarMonthName}${lunar.lunarDayName}`;
-                lunarYearInfo = `${lunar.lunarYearName}${lunar.lunarYearShengXiao}年`;
-                weekDayStr = lunar.weekDay || dateObj.toLocaleDateString('zh-CN', { weekday: 'long' });
-            } catch (e) { /* 回退到公历 */ }
-        }
-        if (lunarDateStr === '农历??月??') {
-            const d = new Date(dateObj);
-            lunarDateStr = `农历${d.getMonth()+1}月${d.getDate()}日`;
-            lunarYearInfo = `${d.getFullYear()}年`;
-            weekDayStr = d.toLocaleDateString('zh-CN', { weekday: 'long' });
-        }
+    // 获取农历信息
+    let lunarDateStr = '农历??月??';
+    let lunarYearInfo = '????年.??';
+    let weekDayStr = '星期?';
+    if (typeof Lunar !== 'undefined') {
+        try {
+            const lunar = Lunar.fromDate(dateObj);
+            lunarDateStr = `农历${lunar.lunarMonthName}${lunar.lunarDayName}`;
+            lunarYearInfo = `${lunar.lunarYearName}${lunar.lunarYearShengXiao}年`;
+            weekDayStr = lunar.weekDay || dateObj.toLocaleDateString('zh-CN', { weekday: 'long' });
+        } catch (e) { /* 回退到公历 */ }
+    }
+    if (lunarDateStr === '农历??月??') {
+        const d = new Date(dateObj);
+        lunarDateStr = `农历${d.getMonth()+1}月${d.getDate()}日`;
+        lunarYearInfo = `${d.getFullYear()}年`;
+        weekDayStr = d.toLocaleDateString('zh-CN', { weekday: 'long' });
+    }
 
-        // 获取统计数据
-        const stats = getDayStats(dateStr);
+    // 获取统计数据（计划 + 待办）
+    const stats = getDayStats(dateStr);
 
-        // 计划卡片显示：距离完成倒计时（模拟，后续可替换为真实数据）
-        const mockDays = Math.floor(Math.random() * 30) + 1;
-        const mockTitles = ['标题1', '标题2'];
-        const planDateStr = `${year}年${month+1}月${day}日`;
-
-        container.innerHTML = `
-            <!-- 计划卡片 -->
-            <div class="plan-todo-card" data-type="plan" style="
-                background: var(--primary-bg);
-                border: 1px solid var(--border-color);
-                border-left: 4px solid var(--accent-color);
-                border-radius: 10px;
-                padding: 14px 16px;
-                cursor: pointer;
-                transition: background 0.2s, transform 0.1s;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-            ">
-                <div style="font-weight: 700; font-size: 17px; color: var(--text-primary);">📅 ${planDateStr}</div>
-                <div style="font-size: 14px; color: var(--text-secondary);">距离完成【${mockTitles.join('、')}】还有 ${mockDays} 天</div>
-                <div style="font-size: 14px; color: var(--text-secondary);">共 ${stats.plansCount} 项计划正在进行中</div>
-            </div>
-
-            <!-- 待办卡片 -->
-            <div class="plan-todo-card" data-type="todo" style="
-                background: var(--primary-bg);
-                border: 1px solid var(--border-color);
-                border-left: 4px solid var(--accent-color);
-                border-radius: 10px;
-                padding: 14px 16px;
-                cursor: pointer;
-                transition: background 0.2s, transform 0.1s;
-                display: flex;
-                flex-direction: column;
-                gap: 4px;
-            ">
-                <div style="font-weight: 700; font-size: 17px; color: var(--text-primary);">📆 ${lunarDateStr}</div>
-                <div style="font-size: 14px; color: var(--text-secondary);">${lunarYearInfo} · ${weekDayStr}</div>
-                <div style="font-size: 14px; color: var(--text-secondary);">今日待办共 ${stats.todosTotal} 项，已完成 ${stats.todosCompleted} 项</div>
-            </div>
-
-            <!-- 按钮行 -->
-            <div style="
-                display: flex;
-                justify-content: flex-end;
-                gap: 10px;
-                margin-top: 6px;
-                padding: 0 2px;
-            ">
-                <button class="plan-todo-action-btn" data-action="overview" style="
-                    padding: 6px 18px;
-                    border-radius: 20px;
-                    border: 1px solid var(--border-color);
-                    background: transparent;
-                    color: var(--text-secondary);
-                    font-size: 13px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    font-family: var(--font-family);
-                    transition: all 0.2s;
-                ">总况</button>
-                <button class="plan-todo-action-btn" data-action="create" style="
-                    padding: 6px 18px;
-                    border-radius: 20px;
-                    border: none;
-                    background: var(--accent-color);
-                    color: #fff;
-                    font-size: 13px;
-                    font-weight: 500;
-                    cursor: pointer;
-                    font-family: var(--font-family);
-                    transition: all 0.2s;
-                    box-shadow: 0 2px 8px rgba(var(--accent-color-rgb), 0.25);
-                ">新建</button>
-            </div>
-        `;
-
-        // ---------- 事件绑定 ----------
-// 卡片点击 → 二级列表
-container.querySelectorAll('.plan-todo-card').forEach(card => {
-    card.addEventListener('click', function (e) {
-        e.stopPropagation();
-        const type = this.dataset.type === 'plan' ? 'plan' : 'todo';
-        // 打开二级列表
-        openPlanTodoList(type, dateStr);
-    });
-});
-
-        // 按钮点击
-        container.querySelectorAll('.plan-todo-action-btn').forEach(btn => {
-            btn.addEventListener('click', function (e) {
-                e.stopPropagation();
-                const action = this.dataset.action;
-                if (action === 'create') {
-                    openCreateModal(dateStr);
-                } else {
-                    showComingSoon('总况');
+    // ----- 计划卡片：计算真实数据 -----
+    const allData = getAllData();
+    let activePlans = [];
+    
+    // 收集所有包含 dateStr 的进行中计划（去重）
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            day.plans.forEach(p => {
+                if (p.startDate <= dateStr && p.endDate >= dateStr && p.status === 'active') {
+                    if (!activePlans.some(item => item.id === p.id)) {
+                        activePlans.push(p);
+                    }
                 }
             });
-        });
+        }
     }
+    
+    // 计算距离完成最近的一项计划
+    let closestPlan = null;
+    let closestDays = Infinity;
+    
+    if (activePlans.length > 0) {
+        // 按结束日期排序，找最近的一个
+        const sorted = [...activePlans].sort((a, b) => a.endDate.localeCompare(b.endDate));
+        const today = new Date(dateStr);
+        today.setHours(0, 0, 0, 0);
+        
+        for (const p of sorted) {
+            const endDate = new Date(p.endDate);
+            endDate.setHours(0, 0, 0, 0);
+            // 只取结束日期 >= 今天 的计划
+            if (endDate >= today) {
+                const diffTime = endDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                closestPlan = p;
+                closestDays = diffDays;
+                break;
+            }
+        }
+    }
+    
+    // 构建计划卡片显示文字
+    let planTitleText = '';
+    let planSubText = '';
+    
+    if (closestPlan) {
+        const daysText = closestDays === 0 ? '今天' : `${closestDays}天`;
+        planTitleText = `距离完成【${closestPlan.fullTitle}】还有 ${daysText}`;
+        planSubText = `共 ${activePlans.length} 项计划正在进行中`;
+    } else {
+        planTitleText = '暂无排期';
+        planSubText = `共 ${activePlans.length} 项计划正在进行中`;
+    }
+
+    const planDateStr = `${year}年${month+1}月${day}日`;
+
+    container.innerHTML = `
+        <!-- 计划卡片 -->
+        <div class="plan-todo-card" data-type="plan" style="
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        ">
+            <div style="font-weight: 700; font-size: 17px; color: var(--text-primary);">📅 ${planDateStr}</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">${planTitleText}</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">${planSubText}</div>
+        </div>
+
+        <!-- 待办卡片 -->
+        <div class="plan-todo-card" data-type="todo" style="
+            background: var(--primary-bg);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        ">
+            <div style="font-weight: 700; font-size: 17px; color: var(--text-primary);">📆 ${lunarDateStr}</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">${lunarYearInfo} · ${weekDayStr}</div>
+            <div style="font-size: 14px; color: var(--text-secondary);">今日待办共 ${stats.todosTotal} 项，已完成 ${stats.todosCompleted} 项</div>
+        </div>
+
+        <!-- 按钮行 -->
+        <div style="
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 6px;
+            padding: 0 2px;
+        ">
+            <button class="plan-todo-action-btn" data-action="overview" style="
+                padding: 6px 18px;
+                border-radius: 20px;
+                border: 1px solid var(--border-color);
+                background: transparent;
+                color: var(--text-secondary);
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                font-family: var(--font-family);
+                transition: all 0.2s;
+            ">总况</button>
+            <button class="plan-todo-action-btn" data-action="create" style="
+                padding: 6px 18px;
+                border-radius: 20px;
+                border: none;
+                background: var(--accent-color);
+                color: #fff;
+                font-size: 13px;
+                font-weight: 500;
+                cursor: pointer;
+                font-family: var(--font-family);
+                transition: all 0.2s;
+                box-shadow: 0 2px 8px rgba(var(--accent-color-rgb), 0.25);
+            ">新建</button>
+        </div>
+    `;
+
+    // ---------- 事件绑定 ----------
+    // 卡片点击 → 二级列表
+    container.querySelectorAll('.plan-todo-card').forEach(card => {
+        card.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const type = this.dataset.type === 'plan' ? 'plan' : 'todo';
+            openPlanTodoList(type, dateStr);
+        });
+    });
+
+// 按钮点击
+container.querySelectorAll('.plan-todo-action-btn').forEach(btn => {
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        const action = this.dataset.action;
+        if (action === 'create') {
+            openCreateModal(dateStr);
+        } else if (action === 'overview') {
+            openOverview();  // ← 调用总况
+        }
+    });
+});
+}
 
 // ============================================================
 // 二级列表（计划/待办列表）
@@ -2429,6 +2480,325 @@ function handleComplete(itemId) {
         }
     }
 
+// ============================================================
+// 总况功能
+// ============================================================
+function openOverview() {
+    // 收集所有计划（从所有日期中获取，去重）
+    const allData = getAllData();
+    let allItems = [];
+    
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            day.plans.forEach(p => {
+                if (!allItems.some(item => item.id === p.id)) {
+                    allItems.push({ ...p, _sourceDate: date });
+                }
+            });
+        }
+        if (day.todos) {
+            day.todos.forEach(t => {
+                if (!allItems.some(item => item.id === t.id)) {
+                    allItems.push({ ...t, _sourceDate: date });
+                }
+            });
+        }
+    }
+    
+    // 按创建时间排序
+    allItems.sort((a, b) => a.createdAt - b.createdAt);
+    
+    // 构建模态框
+    const overlay = document.createElement('div');
+    overlay.id = 'pt-overview-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100005;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(8px);
+        animation: companionToastIn 0.3s ease;
+        padding: 12px;
+        box-sizing: border-box;
+        overflow-y: auto;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: var(--secondary-bg);
+        max-width: 520px;
+        width: 100%;
+        max-height: 90vh;
+        border-radius: 24px;
+        padding: 20px 20px 16px;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    `;
+    
+    // 状态分类
+    const statuses = [
+        { key: 'all', label: '全部' },
+        { key: '进行中', label: '进行中' },
+        { key: '未开始', label: '未开始' },
+        { key: '已暂停', label: '已暂停' },
+        { key: '已完成', label: '已完成' },
+        { key: '已过期', label: '已过期' }
+    ];
+    
+    // 当前选中的状态
+    let currentStatus = 'all';
+    
+    // 渲染列表
+    function renderOverviewList(statusKey) {
+        const container = document.getElementById('pt-overview-list');
+        if (!container) return;
+        
+        // 过滤条目
+        let filtered = [];
+        if (statusKey === 'all') {
+            filtered = allItems;
+        } else {
+            filtered = allItems.filter(item => {
+                const status = calculateItemStatus(item);
+                return status === statusKey;
+            });
+        }
+        
+        // 按状态分组显示（仅在"全部"模式下分组）
+        if (statusKey === 'all') {
+            const groups = {};
+            filtered.forEach(item => {
+                const status = calculateItemStatus(item);
+                if (!groups[status]) groups[status] = [];
+                groups[status].push(item);
+            });
+            
+            // 按状态顺序排列
+            const statusOrder = ['进行中', '未开始', '已暂停', '已完成', '已过期'];
+            let html = '';
+            let totalCount = filtered.length;
+            
+            // 显示总数
+            html += `
+                <div style="font-size:13px; color:var(--text-secondary); padding:6px 0 12px; border-bottom:1px solid var(--border-color);">
+                    共 <strong style="color:var(--accent-color);">${totalCount}</strong> 项
+                </div>
+            `;
+            
+            statusOrder.forEach(statusKey => {
+                const items = groups[statusKey] || [];
+                if (items.length === 0) return;
+                
+                const statusColor = getStatusColor(statusKey);
+                const statusIcon = getStatusIcon(statusKey);
+                
+                html += `
+                    <div style="margin-top:12px;">
+                        <div style="font-size:12px; font-weight:600; color:${statusColor}; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                            ${statusIcon} ${statusKey} · ${items.length} 项
+                        </div>
+                        ${items.map(item => renderListItem(item)).join('')}
+                    </div>
+                `;
+            });
+            
+            if (totalCount === 0) {
+                html = `
+                    <div style="text-align:center; padding:40px 20px; color:var(--text-secondary); opacity:0.6;">
+                        <i class="fas fa-inbox" style="font-size:32px; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                        <div style="font-size:14px;">暂无任何计划或待办</div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+            
+        } else {
+            // 单一状态模式
+            const statusColor = getStatusColor(statusKey);
+            const statusIcon = getStatusIcon(statusKey);
+            
+            let html = `
+                <div style="font-size:13px; color:var(--text-secondary); padding:6px 0 12px; border-bottom:1px solid var(--border-color);">
+                    ${statusIcon} <strong style="color:${statusColor};">${statusKey}</strong> · 共 <strong style="color:var(--accent-color);">${filtered.length}</strong> 项
+                </div>
+            `;
+            
+            if (filtered.length === 0) {
+                html += `
+                    <div style="text-align:center; padding:40px 20px; color:var(--text-secondary); opacity:0.6;">
+                        <div style="font-size:14px;">暂无 ${statusKey} 的条目</div>
+                    </div>
+                `;
+            } else {
+                html += filtered.map(item => renderListItem(item)).join('');
+            }
+            
+            container.innerHTML = html;
+        }
+    }
+    
+    // 渲染单个列表项
+    function renderListItem(item) {
+        const status = calculateItemStatus(item);
+        const statusColor = getStatusColor(status);
+        const statusIcon = getStatusIcon(status);
+        const statusLabel = getStatusLabel(status);
+        const isPlan = item.type === 'plan';
+        
+        // 显示日期信息
+        let dateInfo = '';
+        if (isPlan) {
+            dateInfo = `📅 ${formatDateDisplay(item.startDate)} → ${formatDateDisplay(item.endDate)}`;
+        } else {
+            dateInfo = `📋 ${formatDateDisplay(item.startDate)}`;
+        }
+        
+        return `
+            <div class="pt-overview-list-item" data-id="${item.id}" style="
+                display:flex; align-items:center; gap:12px;
+                padding:10px 12px; margin-bottom:6px;
+                background:var(--primary-bg); border-radius:10px;
+                border-left:4px solid ${item.primaryColor || 'var(--accent-color)'};
+                cursor:pointer; transition: all 0.2s;
+            " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-size:13px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${item.fullTitle}
+                    </div>
+                    <div style="display:flex; gap:10px; margin-top:3px; font-size:11px; color:var(--text-secondary); flex-wrap:wrap;">
+                        <span>${dateInfo}</span>
+                        <span style="color:${statusColor};">
+                            ${statusIcon} ${statusLabel}
+                        </span>
+                    </div>
+                </div>
+                <div style="
+                    font-size:10px; color:var(--text-secondary); opacity:0.5; flex-shrink:0;
+                    padding:2px 8px; background:var(--secondary-bg); border-radius:10px;
+                ">
+                    ${isPlan ? '计划' : '待办'}
+                </div>
+            </div>
+        `;
+    }
+    
+    // 构建模态框内容
+    modal.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-shrink:0;">
+            <div style="font-size:18px; font-weight:700; display:flex; align-items:center; gap:8px;">
+                <i class="fas fa-chart-bar" style="color:var(--accent-color);"></i>
+                <span>📊 总况</span>
+            </div>
+            <button id="pt-overview-close-btn" style="
+                background:none; border:none; color:var(--text-secondary);
+                font-size:24px; cursor:pointer; padding:0 6px;
+            ">✕</button>
+        </div>
+        
+        <!-- 标签切换 -->
+        <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:12px; flex-shrink:0;">
+            ${statuses.map(s => `
+                <button class="pt-overview-tab" data-status="${s.key}" style="
+                    flex:1; min-width:40px; padding:6px 8px; border:none; border-radius:8px;
+                    font-size:11px; font-weight:600; cursor:pointer;
+                    background:${s.key === 'all' ? 'var(--accent-color)' : 'var(--primary-bg)'};
+                    color:${s.key === 'all' ? '#fff' : 'var(--text-secondary)'};
+                    font-family:var(--font-family); transition: all 0.2s;
+                    white-space:nowrap;
+                ">${s.label}</button>
+            `).join('')}
+        </div>
+        
+        <!-- 列表内容 -->
+        <div id="pt-overview-list" style="flex:1; overflow-y:auto; padding-right:4px; margin-bottom:12px; min-height:100px;">
+            <!-- 由 JS 动态渲染 -->
+        </div>
+        
+        <!-- 底部按钮 -->
+        <div style="display:flex; gap:10px; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
+            <button id="pt-overview-close-btn-bottom" style="
+                flex:1; padding:10px 0; border-radius:10px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:14px; font-weight:600;
+                cursor:pointer; font-family:var(--font-family);
+            ">关闭</button>
+        </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // --- 事件绑定 ---
+    const closeFn = () => { overlay.remove(); };
+    
+    document.getElementById('pt-overview-close-btn').addEventListener('click', closeFn);
+    document.getElementById('pt-overview-close-btn-bottom').addEventListener('click', closeFn);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
+    
+    // 标签切换
+    document.querySelectorAll('.pt-overview-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const status = this.dataset.status;
+            currentStatus = status;
+            
+            // 更新标签样式
+            document.querySelectorAll('.pt-overview-tab').forEach(t => {
+                const isActive = t.dataset.status === status;
+                t.style.background = isActive ? 'var(--accent-color)' : 'var(--primary-bg)';
+                t.style.color = isActive ? '#fff' : 'var(--text-secondary)';
+            });
+            
+            renderOverviewList(status);
+        });
+    });
+    
+    // 列表项点击 → 三级详情页
+    modal.addEventListener('click', function(e) {
+        const itemEl = e.target.closest('.pt-overview-list-item');
+        if (!itemEl) return;
+        
+        const id = itemEl.dataset.id;
+        // 查找条目获取类型和日期
+        const allData = getAllData();
+        let foundType = '';
+        let foundDate = '';
+        for (const date in allData) {
+            const day = allData[date];
+            if (day.plans) {
+                const found = day.plans.find(p => p.id === id);
+                if (found) {
+                    foundType = 'plan';
+                    foundDate = date;
+                    break;
+                }
+            }
+            if (day.todos) {
+                const found = day.todos.find(t => t.id === id);
+                if (found) {
+                    foundType = 'todo';
+                    foundDate = date;
+                    break;
+                }
+            }
+        }
+        if (foundType) {
+            closeFn();
+            showPlanTodoDetail(id, foundType, foundDate);
+        } else {
+            showToast('条目不存在', 'error');
+        }
+    });
+    
+    // 初始渲染
+    renderOverviewList('all');
+}
+
     // ============================================================
     // 🆕 新建模态框（核心功能）
     // ============================================================
@@ -3766,6 +4136,7 @@ window.handleComplete = handleComplete;
 window.handleDeleteItem = handleDeleteItem;
 window.getRepeatInstances = getRepeatInstances;
 window.cleanupMeta = cleanupMeta;
+window.openOverview = openOverview;
 window.refreshCards = refreshCards;
 window.openPlanTodoList = openPlanTodoList;
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
