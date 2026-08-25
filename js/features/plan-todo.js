@@ -99,6 +99,50 @@
         saveAllData(all);
     }
 
+// ============================================================
+// 获取某一天的完整数据（包含重复待办的展开实例）
+// ============================================================
+function getDayDataWithExpanded(dateStr) {
+    const all = getAllData();
+    const result = { plans: [], todos: [] };
+    
+    // 1. 获取该日期的计划（计划直接存储在该日期下）
+    if (all[dateStr] && all[dateStr].plans) {
+        result.plans = all[dateStr].plans.filter(p => p.status !== 'completed');
+    }
+    
+    // 2. 获取该日期的待办（包含从其他日期展开的重复实例）
+    const allTodos = [];
+    for (const date in all) {
+        if (all[date] && all[date].todos) {
+            all[date].todos.forEach(t => {
+                allTodos.push({ ...t, _sourceDate: date });
+            });
+        }
+    }
+    
+    // 筛选出今天应该显示的待办
+    allTodos.forEach(t => {
+        if (t.isRepeating) {
+            // 重复待办：检查今天是否在重复实例中
+            const allDates = expandRepeatDates(t);
+            if (allDates.includes(dateStr)) {
+                // 为今天创建一个"实例副本"
+                const instance = { ...t };
+                // 实例的日期是今天
+                result.todos.push(instance);
+            }
+        } else {
+            // 非重复待办：检查日期是否匹配
+            if (t.startDate === dateStr) {
+                result.todos.push({ ...t });
+            }
+        }
+    });
+    
+    return result;
+}
+
     // 获取所有条目（用于去重检测）
     function getAllItems() {
         const all = getAllData();
@@ -251,21 +295,38 @@ function checkDuplicate(type, primaryLabel, secondaryTitle, excludeId) {
     // ============================================================
     // 获取某一天的统计信息
     // ============================================================
-    function getDayStats(dateStr) {
-        const dayData = getDayData(dateStr);
-        const plans = dayData.plans || [];
-        const todos = dayData.todos || [];
-
-        const activePlans = plans.filter(p => p.status === 'active');
-        const activeTodos = todos.filter(t => t.status === 'active');
-        const completedTodos = todos.filter(t => t.status === 'completed');
-
-        return {
-            plansCount: activePlans.length,
-            todosTotal: activeTodos.length + completedTodos.length,
-            todosCompleted: completedTodos.length
-        };
+// ============================================================
+// 获取某一天的统计信息（包含跨天计划和重复待办）
+// ============================================================
+function getDayStats(dateStr) {
+    // 1. 统计计划：从所有日期中查找包含 dateStr 的计划（去重）
+    const allData = getAllData();
+    let activePlans = [];
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            day.plans.forEach(p => {
+                if (p.startDate <= dateStr && p.endDate >= dateStr && p.status === 'active') {
+                    if (!activePlans.some(item => item.id === p.id)) {
+                        activePlans.push(p);
+                    }
+                }
+            });
+        }
     }
+    
+    // 2. 统计待办：使用展开函数获取当天的待办实例
+    const dayData = getDayDataWithExpanded(dateStr);
+    const todos = dayData.todos || [];
+    const activeTodos = todos.filter(t => t.status === 'active');
+    const completedTodos = todos.filter(t => t.status === 'completed');
+
+    return {
+        plansCount: activePlans.length,
+        todosTotal: activeTodos.length + completedTodos.length,
+        todosCompleted: completedTodos.length
+    };
+}
 
     // ============================================================
     // 卡片渲染（更新下方两张卡片的内容）
@@ -414,14 +475,28 @@ function openPlanTodoList(type, dateStr) {
     
     // 收集该日期下所有符合条件的条目
     let items = [];
-    const dayData = getDayData(dateStr);
+    const dayData = getDayDataWithExpanded(dateStr);
     
-    if (isPlan) {
-        // 计划：截止日期 >= 选中日期 的计划（包含该日期及之后的）
-        const plans = dayData.plans || [];
-        items = plans.filter(p => p.endDate >= dateStr);
-        // 按结束日期排序
-        items.sort((a, b) => a.endDate.localeCompare(b.endDate));
+if (isPlan) {
+    // 计划：从所有日期中查找，筛选出在 dateStr 范围内的计划
+    const allData = getAllData();
+    items = [];
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            day.plans.forEach(p => {
+                // 如果该计划的起止日期包含 dateStr
+                if (p.startDate <= dateStr && p.endDate >= dateStr && p.status !== 'completed') {
+                    // 去重（同一个计划可能在多个日期出现，只取一次）
+                    if (!items.some(item => item.id === p.id)) {
+                        items.push({ ...p });
+                    }
+                }
+            });
+        }
+    }
+    // 按结束日期排序
+    items.sort((a, b) => a.endDate.localeCompare(b.endDate));
     } else {
         // 待办：当日日期的所有待办（包括重复待办的实例）
         const todos = dayData.todos || [];
