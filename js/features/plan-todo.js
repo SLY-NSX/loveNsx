@@ -509,14 +509,13 @@ function injectTestData(dateStr) {
         `;
 
         // ---------- 事件绑定 ----------
-// 卡片点击 → 三级详情页（测试用）
+// 卡片点击 → 二级列表
 container.querySelectorAll('.plan-todo-card').forEach(card => {
     card.addEventListener('click', function (e) {
         e.stopPropagation();
         const type = this.dataset.type === 'plan' ? 'plan' : 'todo';
-        // 用模拟数据打开详情页
-        const mockId = 'mock_' + Date.now();
-        showPlanTodoDetail(mockId, type, dateStr);
+        // 打开二级列表
+        openPlanTodoList(type, dateStr);
     });
 });
 
@@ -533,6 +532,234 @@ container.querySelectorAll('.plan-todo-card').forEach(card => {
             });
         });
     }
+
+// ============================================================
+// 二级列表（计划/待办列表）
+// ============================================================
+function openPlanTodoList(type, dateStr) {
+    const isPlan = type === 'plan';
+    const allData = getAllData();
+    
+    // 收集该日期下所有符合条件的条目
+    let items = [];
+    const dayData = getDayData(dateStr);
+    
+    if (isPlan) {
+        // 计划：截止日期 >= 选中日期 的计划（包含该日期及之后的）
+        const plans = dayData.plans || [];
+        items = plans.filter(p => p.endDate >= dateStr);
+        // 按结束日期排序
+        items.sort((a, b) => a.endDate.localeCompare(b.endDate));
+    } else {
+        // 待办：当日日期的所有待办（包括重复待办的实例）
+        const todos = dayData.todos || [];
+        // 过滤出今天日期的待办（包括重复实例）
+        items = todos.filter(t => {
+            // 如果是重复待办，检查今天是否在重复实例中
+            if (t.isRepeating) {
+                const allDates = expandRepeatDates(t);
+                return allDates.includes(dateStr);
+            }
+            // 非重复待办：开始日期 <= 今天 <= 结束日期
+            return t.startDate <= dateStr && t.endDate >= dateStr;
+        });
+        // 按创建时间排序
+        items.sort((a, b) => a.createdAt - b.createdAt);
+    }
+    
+    // 构建模态框
+    const overlay = document.createElement('div');
+    overlay.id = 'pt-list-overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100001;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(8px);
+        animation: companionToastIn 0.3s ease;
+        padding: 12px;
+        box-sizing: border-box;
+        overflow-y: auto;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: var(--secondary-bg);
+        max-width: 480px;
+        width: 100%;
+        max-height: 85vh;
+        border-radius: 24px;
+        padding: 20px 20px 16px;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    `;
+    
+    // 标题和日期
+    const titleText = isPlan ? '📋 我的计划' : '📋 我的一天';
+    const dateDisplay = formatDateDisplay(dateStr);
+    
+    // 构建列表内容
+    let listHTML = '';
+    if (items.length === 0) {
+        listHTML = `
+            <div style="text-align:center; padding:40px 20px; color:var(--text-secondary); opacity:0.6;">
+                <i class="fas fa-inbox" style="font-size:32px; display:block; margin-bottom:12px; opacity:0.3;"></i>
+                <div style="font-size:14px;">${isPlan ? '暂无计划' : '今日暂无待办'}</div>
+                <div style="font-size:12px; margin-top:4px;">点击下方「新建」来添加</div>
+            </div>
+        `;
+    } else {
+        listHTML = items.map(item => {
+            // 计算状态
+            const status = calculateItemStatus(item);
+            const statusColor = getStatusColor(status);
+            const statusIcon = getStatusIcon(status);
+            const statusLabel = getStatusLabel(status);
+            
+            // 待办：右侧方框（已完成时显示 ✓）
+            let rightCheckbox = '';
+            if (!isPlan) {
+                const isCompleted = status === '已完成';
+                rightCheckbox = `
+                    <div style="
+                        width:28px; height:28px; border-radius:6px; 
+                        border:2px solid ${isCompleted ? 'var(--accent-color)' : 'var(--border-color)'};
+                        background: ${isCompleted ? 'var(--accent-color)' : 'transparent'};
+                        display:flex; align-items:center; justify-content:center;
+                        flex-shrink:0; transition: all 0.2s;
+                    ">
+                        ${isCompleted ? '<span style="color:#fff; font-size:16px;">✓</span>' : ''}
+                    </div>
+                `;
+            }
+            
+            // 截止时间显示（计划显示结束日期，待办显示日期）
+            let timeDisplay = '';
+            if (isPlan) {
+                timeDisplay = `截止：${formatDateDisplay(item.endDate)}`;
+            } else {
+                timeDisplay = formatDateDisplay(dateStr);
+            }
+            
+            return `
+                <div class="pt-list-item" data-id="${item.id}" style="
+                    display:flex; align-items:center; gap:12px;
+                    padding:12px 14px; margin-bottom:8px;
+                    background:var(--primary-bg); border-radius:10px;
+                    border-left:4px solid ${item.primaryColor || 'var(--accent-color)'};
+                    cursor:pointer; transition: all 0.2s;
+                " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
+                    <div style="flex:1; min-width:0;">
+                        <div style="font-size:14px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${item.fullTitle}
+                        </div>
+                        <div style="display:flex; gap:12px; margin-top:4px; font-size:12px; color:var(--text-secondary);">
+                            <span>${timeDisplay}</span>
+                            <span style="color:${statusColor};">
+                                ${statusIcon} ${statusLabel}
+                            </span>
+                        </div>
+                    </div>
+                    ${rightCheckbox}
+                </div>
+            `;
+        }).join('');
+    }
+    
+    modal.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; flex-shrink:0;">
+            <div>
+                <div style="font-size:18px; font-weight:700; color:var(--text-primary);">${titleText}</div>
+                <div style="font-size:13px; color:var(--text-secondary); margin-top:2px;">${dateDisplay}</div>
+            </div>
+            <button id="pt-list-close-btn" style="
+                background:none; border:none; color:var(--text-secondary);
+                font-size:24px; cursor:pointer; padding:0 6px;
+            ">✕</button>
+        </div>
+        
+        <!-- 列表内容（滚动） -->
+        <div style="flex:1; overflow-y:auto; padding-right:4px; margin-bottom:12px;">
+            ${listHTML}
+        </div>
+        
+        <!-- 底部按钮：新建 + 关闭 -->
+        <div style="display:flex; gap:10px; flex-shrink:0; padding-top:12px; border-top:1px solid var(--border-color);">
+            <button id="pt-list-new-btn" style="
+                flex:1; padding:10px 0; border-radius:10px;
+                border:none; background:var(--accent-color); color:#fff;
+                font-size:14px; font-weight:600; cursor:pointer;
+                font-family:var(--font-family);
+                box-shadow: 0 2px 8px rgba(var(--accent-color-rgb),0.3);
+            ">
+                <i class="fas fa-plus" style="margin-right:6px;"></i>新建
+            </button>
+            <button id="pt-list-close-btn-bottom" style="
+                flex:1; padding:10px 0; border-radius:10px;
+                border:1.5px solid var(--border-color); background:transparent;
+                color:var(--text-secondary); font-size:14px; font-weight:600;
+                cursor:pointer; font-family:var(--font-family);
+            ">关闭</button>
+        </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // --- 事件绑定 ---
+    const closeFn = () => { overlay.remove(); };
+    
+    // 关闭按钮
+    document.getElementById('pt-list-close-btn').addEventListener('click', closeFn);
+    document.getElementById('pt-list-close-btn-bottom').addEventListener('click', closeFn);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
+    
+    // 新建按钮
+    document.getElementById('pt-list-new-btn').addEventListener('click', function() {
+        closeFn();
+        openCreateModal(dateStr);
+    });
+    
+    // 列表项点击 → 三级详情页
+    modal.querySelectorAll('.pt-list-item').forEach(el => {
+        el.addEventListener('click', function() {
+            const id = this.dataset.id;
+            // 查找条目获取类型
+            const allData = getAllData();
+            let foundType = '';
+            let foundDate = '';
+            for (const date in allData) {
+                const day = allData[date];
+                if (day.plans) {
+                    const found = day.plans.find(p => p.id === id);
+                    if (found) {
+                        foundType = 'plan';
+                        foundDate = date;
+                        break;
+                    }
+                }
+                if (day.todos) {
+                    const found = day.todos.find(t => t.id === id);
+                    if (found) {
+                        foundType = 'todo';
+                        foundDate = date;
+                        break;
+                    }
+                }
+            }
+            if (foundType) {
+                closeFn();
+                showPlanTodoDetail(id, foundType, foundDate);
+            } else {
+                showToast('条目不存在', 'error');
+            }
+        });
+    });
+}
 
 // ============================================================
 // 三级详情页（测试版，使用模拟数据）
@@ -3158,6 +3385,7 @@ window.showPlanTodoDetail = showPlanTodoDetail;
 window.openEditModal = openEditModal;
 window.handlePauseRestart = handlePauseRestart;
 window.handleComplete = handleComplete;
+window.openPlanTodoList = openPlanTodoList;
 window.injectTestData = injectTestData;
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
