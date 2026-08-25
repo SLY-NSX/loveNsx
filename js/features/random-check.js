@@ -264,28 +264,37 @@
         };
     }
 
-    // ============================================================
-    // 发送系统消息（类似 call.js 的 sendCallEvent）
-    // ============================================================
-    function sendSystemMessage(message) {
-        // 尝试使用 call.js 的 _addCallBubble 函数
-        if (typeof window._addCallBubble === 'function') {
-            window._addCallBubble('fa-eye', message, 'partner', null);
-            return;
-        }
+// ============================================================
+// 发送系统消息（像未接电话一样显示在对话中间）
+// ============================================================
+function sendSystemMessage(message) {
+    // 使用 call.js 的 _addCallEvent 方式（系统消息，居中显示）
+    if (typeof window._addCallEvent === 'function') {
+        // 第一个参数：图标（传空字符串表示无图标）
+        // 第二个参数：消息内容
+        // 第三个参数：详情（传 null）
+        // 第四个参数：是否可交互（传 false）
+        window._addCallEvent('', message, null, false);
+        return;
+    }
 
-        // fallback：使用 _addCallEvent
-        if (typeof window._addCallEvent === 'function') {
-            window._addCallEvent('fa-eye', message);
-            return;
+    // fallback：直接在聊天中插入系统消息
+    try {
+        const chatContainer = document.getElementById('chat-container') || document.querySelector('.chat-container');
+        if (chatContainer) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'system-message';
+            msgDiv.textContent = message;
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
         }
-
-        // 最终 fallback：在控制台输出
+    } catch (e) {
         console.log('[random-check]', message);
         if (typeof showToast === 'function') {
             showToast(message, 'info');
         }
     }
+}
 
     // ============================================================
     // 执行一次随机查看
