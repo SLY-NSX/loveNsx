@@ -169,36 +169,36 @@
         const found = list.find(item => item.name === name.trim());
         return found ? found.color : COLORS[0].value;
     }
+// ============================================================
+// 去重检测函数（修正版）
+// ============================================================
+function checkDuplicate(type, primaryLabel, secondaryTitle, excludeId) {
+    const allItems = getAllItems();
+    const filtered = excludeId ? allItems.filter(item => item.id !== excludeId) : allItems;
 
-    // ============================================================
-    // 去重检测函数
-    // ============================================================
-    function checkDuplicate(type, primaryLabel, secondaryTitle, excludeId) {
-        const allItems = getAllItems();
-        const filtered = excludeId ? allItems.filter(item => item.id !== excludeId) : allItems;
-
-        if (type === 'plan') {
-            // 计划：一级标题唯一
-            const samePrimary = filtered.filter(item => item._type === 'plan' && item.primaryLabel === primaryLabel);
-            if (samePrimary.length > 0) {
-                return { conflict: 'primary', message: `计划中已存在一级标题「${primaryLabel}」，请勿重复创建` };
-            }
-            // 计划：完整标题唯一
-            const fullTitle = primaryLabel + '.' + secondaryTitle;
-            const sameFull = filtered.filter(item => item._type === 'plan' && item.fullTitle === fullTitle);
-            if (sameFull.length > 0) {
-                return { conflict: 'full', message: `计划中已存在「${fullTitle}」，请勿重复创建` };
-            }
-        } else if (type === 'todo') {
-            // 待办：一级标题唯一
-            const samePrimary = filtered.filter(item => item._type === 'todo' && item.primaryLabel === primaryLabel);
-            if (samePrimary.length > 0) {
-                return { conflict: 'primary', message: `待办中已存在一级标题「${primaryLabel}」，请勿重复创建` };
-            }
-            // 待办：二级标题无限制，通过
+    if (type === 'plan') {
+        // 计划：一级标题唯一
+        const samePrimary = filtered.filter(item => item._type === 'plan' && item.primaryLabel === primaryLabel);
+        if (samePrimary.length > 0) {
+            return { conflict: 'primary', message: `计划中已存在一级标题「${primaryLabel}」，请勿重复创建` };
         }
-        return null; // 无冲突
+        // 计划：完整标题唯一（一级.二级）
+        const fullTitle = primaryLabel + '.' + secondaryTitle;
+        const sameFull = filtered.filter(item => item._type === 'plan' && item.fullTitle === fullTitle);
+        if (sameFull.length > 0) {
+            return { conflict: 'full', message: `计划中已存在「${fullTitle}」，请勿重复创建` };
+        }
+    } else if (type === 'todo') {
+        // 待办：一级标题唯一
+        const samePrimary = filtered.filter(item => item._type === 'todo' && item.primaryLabel === primaryLabel);
+        if (samePrimary.length > 0) {
+            return { conflict: 'primary', message: `待办中已存在一级标题「${primaryLabel}」，请勿重复创建` };
+        }
+        // ✅ 待办：二级标题无限制（不做任何检测）
+        // ✅ 待办：完整标题无限制（不做任何检测）
     }
+    return null; // 无冲突
+}
 
     // ============================================================
     // 保存新条目
