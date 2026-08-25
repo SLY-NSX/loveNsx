@@ -267,134 +267,6 @@
         };
     }
 
-// ============================================================
-// 注入测试数据（仅用于开发测试）
-// ============================================================
-function injectTestData(dateStr) {
-    // 检查是否已有测试数据，避免重复注入
-    const allData = getAllData();
-    if (allData._test_injected) return;
-    
-    // 获取当前日期
-    const today = dateStr || getTodayStr();
-    
-    // 构建测试数据
-    const testData = {
-        // 测试待办1：正在进行中（今天的）
-        todos: [
-            {
-                id: 'test_todo_1',
-                type: 'todo',
-                primaryLabel: '学习',
-                primaryColor: '#3498DB',
-                secondaryTitle: '背单词50个',
-                fullTitle: '学习.背单词50个',
-                startDate: today,
-                endDate: today,
-                isRepeating: false,
-                repeatType: 'weekly',
-                repeatDays: [],
-                repeatInterval: 0,
-                repeatEndDate: '',
-                stages: [],
-                reward: {
-                    total: { count: 3, color: '金' },
-                    stages: []
-                },
-                noReward: false,
-                status: 'active',
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            },
-            // 测试待办2：正在进行中（今天的）
-            {
-                id: 'test_todo_2',
-                type: 'todo',
-                primaryLabel: '工作',
-                primaryColor: '#E67E22',
-                secondaryTitle: '完成项目报告',
-                fullTitle: '工作.完成项目报告',
-                startDate: today,
-                endDate: today,
-                isRepeating: false,
-                repeatType: 'weekly',
-                repeatDays: [],
-                repeatInterval: 0,
-                repeatEndDate: '',
-                stages: [],
-                reward: {
-                    total: { count: 5, color: '银' },
-                    stages: []
-                },
-                noReward: false,
-                status: 'active',
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            }
-        ],
-        // 测试计划：正在进行中
-        plans: [
-            {
-                id: 'test_plan_1',
-                type: 'plan',
-                primaryLabel: '健身',
-                primaryColor: '#2ECC71',
-                secondaryTitle: '减脂计划',
-                fullTitle: '健身.减脂计划',
-                startDate: today,
-                endDate: (() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 14);
-                    return d.toISOString().split('T')[0];
-                })(),
-                isRepeating: false,
-                repeatType: 'weekly',
-                repeatDays: [],
-                repeatInterval: 0,
-                repeatEndDate: '',
-                stages: [
-                    { start: today, end: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })(), note: '适应期：每周3次有氧' },
-                    { start: (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })(), end: (() => { const d = new Date(); d.setDate(d.getDate() + 14); return d.toISOString().split('T')[0]; })(), note: '强化期：增加力量训练' }
-                ],
-                reward: {
-                    total: { count: 10, color: '金' },
-                    stages: [
-                        { count: 3, color: '银', noReward: false },
-                        { count: 7, color: '金', noReward: false }
-                    ]
-                },
-                noReward: false,
-                status: 'active',
-                createdAt: Date.now(),
-                updatedAt: Date.now()
-            }
-        ]
-    };
-    
-    // 存入数据（按日期索引）
-    const dayData = getDayData(today);
-    if (!dayData.todos) dayData.todos = [];
-    if (!dayData.plans) dayData.plans = [];
-    
-    // 合并数据（避免覆盖已有数据）
-    testData.todos.forEach(item => {
-        const exists = dayData.todos.some(t => t.id === item.id);
-        if (!exists) dayData.todos.push(item);
-    });
-    testData.plans.forEach(item => {
-        const exists = dayData.plans.some(p => p.id === item.id);
-        if (!exists) dayData.plans.push(item);
-    });
-    
-    saveDayData(today, dayData);
-    
-    // 标记已注入
-    allData._test_injected = true;
-    saveAllData(allData);
-    
-    console.log('[plan-todo] 测试数据已注入 ✅');
-}
-
     // ============================================================
     // 卡片渲染（更新下方两张卡片的内容）
     // ============================================================
@@ -652,8 +524,9 @@ function openPlanTodoList(type, dateStr) {
                     background:var(--primary-bg); border-radius:10px;
                     border-left:4px solid ${item.primaryColor || 'var(--accent-color)'};
                     cursor:pointer; transition: all 0.2s;
-                " onmouseover="this.style.transform='translateX(4px)'" onmouseout="this.style.transform='translateX(0)'">
-                    <div style="flex:1; min-width:0;">
+                    position:relative;
+                ">
+                    <div style="flex:1; min-width:0;" class="pt-list-item-content">
                         <div style="font-size:14px; font-weight:600; color:var(--text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                             ${item.fullTitle}
                         </div>
@@ -665,6 +538,14 @@ function openPlanTodoList(type, dateStr) {
                         </div>
                     </div>
                     ${rightCheckbox}
+                    <!-- 删除按钮 -->
+                    <button class="pt-list-delete-btn" data-id="${item.id}" data-type="${type}" style="
+                        background:#E74C3C; color:#fff; border:none; border-radius:8px;
+                        padding:6px 14px; font-size:12px; font-weight:600; cursor:pointer;
+                        opacity:0; transition: opacity 0.25s ease, transform 0.25s ease;
+                        font-family:var(--font-family); flex-shrink:0;
+                        transform: translateX(10px);
+                    ">删除</button>
                 </div>
             `;
         }).join('');
@@ -724,41 +605,467 @@ function openPlanTodoList(type, dateStr) {
         openCreateModal(dateStr);
     });
     
-    // 列表项点击 → 三级详情页
+    // 列表项点击 → 三级详情页（排除删除按钮点击）
     modal.querySelectorAll('.pt-list-item').forEach(el => {
-        el.addEventListener('click', function() {
-            const id = this.dataset.id;
-            // 查找条目获取类型
+        // 点击内容区域进入详情
+        const content = el.querySelector('.pt-list-item-content');
+        if (content) {
+            content.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const parent = this.closest('.pt-list-item');
+                const id = parent.dataset.id;
+                // 查找条目获取类型
+                const allData = getAllData();
+                let foundType = '';
+                let foundDate = '';
+                for (const date in allData) {
+                    const day = allData[date];
+                    if (day.plans) {
+                        const found = day.plans.find(p => p.id === id);
+                        if (found) {
+                            foundType = 'plan';
+                            foundDate = date;
+                            break;
+                        }
+                    }
+                    if (day.todos) {
+                        const found = day.todos.find(t => t.id === id);
+                        if (found) {
+                            foundType = 'todo';
+                            foundDate = date;
+                            break;
+                        }
+                    }
+                }
+                if (foundType) {
+                    closeFn();
+                    showPlanTodoDetail(id, foundType, foundDate);
+                } else {
+                    showToast('条目不存在', 'error');
+                }
+            });
+        }
+        
+        // 删除按钮点击
+        const deleteBtn = el.querySelector('.pt-list-delete-btn');
+        if (deleteBtn) {
+            deleteBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const id = this.dataset.id;
+                const type = this.dataset.type;
+                handleDeleteItem(id, type, closeFn, dateStr);
+            });
+        }
+        
+        // 移动端左滑支持
+        let startX = 0;
+        let isSwiping = false;
+        el.addEventListener('touchstart', function(e) {
+            startX = e.touches[0].clientX;
+            isSwiping = true;
+        }, { passive: true });
+        
+        el.addEventListener('touchmove', function(e) {
+            if (!isSwiping) return;
+            const deltaX = e.touches[0].clientX - startX;
+            if (deltaX < -30) {
+                this.classList.add('swiped');
+                document.querySelectorAll('.pt-list-item.swiped').forEach(other => {
+                    if (other !== this) other.classList.remove('swiped');
+                });
+                isSwiping = false;
+            } else if (deltaX > 30) {
+                this.classList.remove('swiped');
+                isSwiping = false;
+            }
+        }, { passive: true });
+        
+        el.addEventListener('touchend', function() {
+            isSwiping = false;
+        }, { passive: true });
+    });
+}
+
+// ============================================================
+// 删除处理函数
+// ============================================================
+function handleDeleteItem(itemId, type, closeListFn, currentDateStr) {
+    // 从存储中查找条目
+    let targetItem = null;
+    let targetDate = '';
+    let targetType = type; // 'plan' 或 'todo'
+    let targetDayData = null;
+    
+    const allData = getAllData();
+    for (const date in allData) {
+        const day = allData[date];
+        if (type === 'plan' && day.plans) {
+            const found = day.plans.find(p => p.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetDayData = day;
+                break;
+            }
+        } else if (type === 'todo' && day.todos) {
+            const found = day.todos.find(t => t.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetDayData = day;
+                break;
+            }
+        }
+    }
+    
+    if (!targetItem) {
+        showToast('未找到该条目', 'error');
+        return;
+    }
+    
+    const isPlan = type === 'plan';
+    const isRepeating = targetItem.isRepeating || false;
+    const fullTitle = targetItem.fullTitle || `${targetItem.primaryLabel}.${targetItem.secondaryTitle}`;
+    
+    // ===== 计划：简单二次确认 =====
+    if (isPlan) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 100004;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            padding: 12px;
+        `;
+        
+        overlay.innerHTML = `
+            <div style="background:var(--secondary-bg); border-radius:20px; padding:24px; max-width:340px; width:100%; border:1px solid var(--border-color);">
+                <div style="font-size:18px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text-primary);">
+                    ⚠️ 确认删除
+                </div>
+                <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; text-align:center; line-height:1.8;">
+                    确定要永久删除计划<br>
+                    <strong style="color:var(--accent-color);">「${fullTitle}」</strong><br>
+                    吗？此操作不可恢复。
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button id="pt-delete-cancel" style="
+                        flex:1; padding:10px 0; border-radius:10px;
+                        border:1.5px solid var(--border-color); background:transparent;
+                        color:var(--text-secondary); font-size:14px; font-weight:600;
+                        cursor:pointer; font-family:var(--font-family);
+                    ">取消</button>
+                    <button id="pt-delete-confirm" style="
+                        flex:2; padding:10px 0; border-radius:10px;
+                        border:none; background:#E74C3C; color:#fff;
+                        font-size:14px; font-weight:600; cursor:pointer;
+                        font-family:var(--font-family);
+                        box-shadow: 0 2px 8px rgba(231,76,60,0.3);
+                    ">确认删除</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        overlay.querySelector('#pt-delete-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+        
+        overlay.querySelector('#pt-delete-confirm').addEventListener('click', function() {
+            // 执行删除：遍历所有日期，删除该计划的所有实例
             const allData = getAllData();
-            let foundType = '';
-            let foundDate = '';
             for (const date in allData) {
                 const day = allData[date];
                 if (day.plans) {
-                    const found = day.plans.find(p => p.id === id);
-                    if (found) {
-                        foundType = 'plan';
-                        foundDate = date;
-                        break;
-                    }
-                }
-                if (day.todos) {
-                    const found = day.todos.find(t => t.id === id);
-                    if (found) {
-                        foundType = 'todo';
-                        foundDate = date;
-                        break;
-                    }
+                    day.plans = day.plans.filter(p => p.id !== itemId);
                 }
             }
-            if (foundType) {
-                closeFn();
-                showPlanTodoDetail(id, foundType, foundDate);
-            } else {
-                showToast('条目不存在', 'error');
+            saveAllData(allData);
+            
+            // 清理 meta 中对应的一级标题（如果没有其他条目使用）
+            cleanupMeta('plan', targetItem.primaryLabel);
+            
+            overlay.remove();
+            showToast(`已删除「${fullTitle}」`, 'success');
+            
+            // 关闭列表，刷新卡片
+            if (closeListFn) closeListFn();
+            const currentDate = document.querySelector('.calendar-day.selected');
+            if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+                const day = currentDate.dataset.day;
+                const month = currentDate.dataset.month;
+                const year = currentDate.dataset.year;
+                const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                window.updatePlanTodoCards(dateStr);
             }
         });
+        
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+        return;
+    }
+    
+    // ===== 待办：判断是否重复 =====
+    if (!isRepeating) {
+        // 非重复待办：简单二次确认
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed; inset: 0; z-index: 100004;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(4px);
+            padding: 12px;
+        `;
+        
+        overlay.innerHTML = `
+            <div style="background:var(--secondary-bg); border-radius:20px; padding:24px; max-width:340px; width:100%; border:1px solid var(--border-color);">
+                <div style="font-size:18px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text-primary);">
+                    ⚠️ 确认删除
+                </div>
+                <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; text-align:center; line-height:1.8;">
+                    确定要永久删除待办<br>
+                    <strong style="color:var(--accent-color);">「${fullTitle}」</strong><br>
+                    吗？此操作不可恢复。
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button id="pt-delete-cancel" style="
+                        flex:1; padding:10px 0; border-radius:10px;
+                        border:1.5px solid var(--border-color); background:transparent;
+                        color:var(--text-secondary); font-size:14px; font-weight:600;
+                        cursor:pointer; font-family:var(--font-family);
+                    ">取消</button>
+                    <button id="pt-delete-confirm" style="
+                        flex:2; padding:10px 0; border-radius:10px;
+                        border:none; background:#E74C3C; color:#fff;
+                        font-size:14px; font-weight:600; cursor:pointer;
+                        font-family:var(--font-family);
+                        box-shadow: 0 2px 8px rgba(231,76,60,0.3);
+                    ">确认删除</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        
+        overlay.querySelector('#pt-delete-cancel').addEventListener('click', function() {
+            overlay.remove();
+        });
+        
+        overlay.querySelector('#pt-delete-confirm').addEventListener('click', function() {
+            // 执行删除
+            const allData = getAllData();
+            for (const date in allData) {
+                const day = allData[date];
+                if (day.todos) {
+                    day.todos = day.todos.filter(t => t.id !== itemId);
+                }
+            }
+            saveAllData(allData);
+            cleanupMeta('todo', targetItem.primaryLabel);
+            
+            overlay.remove();
+            showToast(`已删除「${fullTitle}」`, 'success');
+            
+            if (closeListFn) closeListFn();
+            const currentDate = document.querySelector('.calendar-day.selected');
+            if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+                const day = currentDate.dataset.day;
+                const month = currentDate.dataset.month;
+                const year = currentDate.dataset.year;
+                const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+                window.updatePlanTodoCards(dateStr);
+            }
+        });
+        
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.remove();
+        });
+        return;
+    }
+    
+    // ===== 重复待办：三选一 =====
+    const allInstances = getRepeatInstances(itemId, targetItem);
+    const todayStr = getTodayStr();
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100004;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        padding: 12px;
+    `;
+    
+    overlay.innerHTML = `
+        <div style="background:var(--secondary-bg); border-radius:20px; padding:24px; max-width:360px; width:100%; border:1px solid var(--border-color);">
+            <div style="font-size:18px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text-primary);">
+                ⚠️ 删除重复待办
+            </div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; text-align:center; line-height:1.6;">
+                <strong style="color:var(--accent-color);">「${fullTitle}」</strong><br>
+                这是一个重复待办，请选择删除范围：
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+                <button id="pt-delete-option-today" style="
+                    padding:12px 0; border-radius:10px;
+                    border:1.5px solid var(--border-color); background:var(--primary-bg);
+                    color:var(--text-primary); font-size:13px; font-weight:500; cursor:pointer;
+                    font-family:var(--font-family); text-align:center; transition:all 0.2s;
+                " onmouseover="this.style.borderColor='var(--accent-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    📅 仅删除今天（${formatDateDisplay(todayStr)}）
+                </button>
+                <button id="pt-delete-option-future" style="
+                    padding:12px 0; border-radius:10px;
+                    border:1.5px solid var(--border-color); background:var(--primary-bg);
+                    color:var(--text-primary); font-size:13px; font-weight:500; cursor:pointer;
+                    font-family:var(--font-family); text-align:center; transition:all 0.2s;
+                " onmouseover="this.style.borderColor='var(--accent-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    📅 删除今天及以后所有实例
+                </button>
+                <button id="pt-delete-option-all" style="
+                    padding:12px 0; border-radius:10px;
+                    border:1.5px solid var(--border-color); background:var(--primary-bg);
+                    color:var(--text-primary); font-size:13px; font-weight:500; cursor:pointer;
+                    font-family:var(--font-family); text-align:center; transition:all 0.2s;
+                " onmouseover="this.style.borderColor='var(--accent-color)'" onmouseout="this.style.borderColor='var(--border-color)'">
+                    🗑️ 删除全部（所有历史及未来实例）
+                </button>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="pt-delete-cancel" style="
+                    flex:1; padding:10px 0; border-radius:10px;
+                    border:1.5px solid var(--border-color); background:transparent;
+                    color:var(--text-secondary); font-size:14px; font-weight:600;
+                    cursor:pointer; font-family:var(--font-family);
+                ">取消</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    // 取消
+    overlay.querySelector('#pt-delete-cancel').addEventListener('click', function() {
+        overlay.remove();
     });
+    
+    // 仅删除今天
+    overlay.querySelector('#pt-delete-option-today').addEventListener('click', function() {
+        const allData = getAllData();
+        for (const date in allData) {
+            const day = allData[date];
+            if (day.todos) {
+                if (date === todayStr) {
+                    day.todos = day.todos.filter(t => t.id !== itemId);
+                }
+            }
+        }
+        saveAllData(allData);
+        overlay.remove();
+        showToast(`已删除今天的「${fullTitle}」`, 'success');
+        if (closeListFn) closeListFn();
+        refreshCards();
+    });
+    
+    // 删除今天及以后
+    overlay.querySelector('#pt-delete-option-future').addEventListener('click', function() {
+        const allData = getAllData();
+        for (const date in allData) {
+            const day = allData[date];
+            if (day.todos) {
+                if (date >= todayStr) {
+                    day.todos = day.todos.filter(t => t.id !== itemId);
+                }
+            }
+        }
+        saveAllData(allData);
+        overlay.remove();
+        showToast(`已删除「${fullTitle}」今天及以后的所有实例`, 'success');
+        if (closeListFn) closeListFn();
+        refreshCards();
+    });
+    
+    // 删除全部
+    overlay.querySelector('#pt-delete-option-all').addEventListener('click', function() {
+        const allData = getAllData();
+        for (const date in allData) {
+            const day = allData[date];
+            if (day.todos) {
+                day.todos = day.todos.filter(t => t.id !== itemId);
+            }
+        }
+        saveAllData(allData);
+        cleanupMeta('todo', targetItem.primaryLabel);
+        overlay.remove();
+        showToast(`已删除「${fullTitle}」全部实例`, 'success');
+        if (closeListFn) closeListFn();
+        refreshCards();
+    });
+    
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+    });
+}
+
+// ============================================================
+// 辅助：获取重复待办的所有实例
+// ============================================================
+function getRepeatInstances(itemId, targetItem) {
+    const allData = getAllData();
+    const instances = [];
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.todos) {
+            const found = day.todos.find(t => t.id === itemId);
+            if (found) {
+                instances.push({ date: date, item: found });
+            }
+        }
+    }
+    return instances;
+}
+
+// ============================================================
+// 辅助：清理 Meta 中无用的标题
+// ============================================================
+function cleanupMeta(type, primaryLabel) {
+    if (!primaryLabel) return;
+    const meta = getMeta();
+    const list = meta[type] || [];
+    // 检查该一级标题下是否还有条目
+    const allData = getAllData();
+    let hasEntry = false;
+    for (const date in allData) {
+        const day = allData[date];
+        if (type === 'plan' && day.plans) {
+            if (day.plans.some(p => p.primaryLabel === primaryLabel)) {
+                hasEntry = true;
+                break;
+            }
+        } else if (type === 'todo' && day.todos) {
+            if (day.todos.some(t => t.primaryLabel === primaryLabel)) {
+                hasEntry = true;
+                break;
+            }
+        }
+    }
+    if (!hasEntry) {
+        meta[type] = list.filter(item => item.name !== primaryLabel);
+        saveMeta(meta);
+    }
+}
+
+// ============================================================
+// 辅助：刷新卡片
+// ============================================================
+function refreshCards() {
+    const currentDate = document.querySelector('.calendar-day.selected');
+    if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+        const day = currentDate.dataset.day;
+        const month = currentDate.dataset.month;
+        const year = currentDate.dataset.year;
+        const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        window.updatePlanTodoCards(dateStr);
+    }
 }
 
 // ============================================================
@@ -3385,8 +3692,11 @@ window.showPlanTodoDetail = showPlanTodoDetail;
 window.openEditModal = openEditModal;
 window.handlePauseRestart = handlePauseRestart;
 window.handleComplete = handleComplete;
+window.handleDeleteItem = handleDeleteItem;
+window.getRepeatInstances = getRepeatInstances;
+window.cleanupMeta = cleanupMeta;
+window.refreshCards = refreshCards;
 window.openPlanTodoList = openPlanTodoList;
-window.injectTestData = injectTestData;
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
 
