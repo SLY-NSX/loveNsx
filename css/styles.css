@@ -12041,3 +12041,15 @@ html[data-theme="dark"] #comp-records-title-icon {
     font-weight: bold !important;
     border-radius: 4px;
 }
+
+/* 计划/待办列表项 - 悬停显示删除按钮（PC） */
+.pt-list-item:hover .pt-list-delete-btn {
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+}
+
+/* 移动端左滑删除 */
+.pt-list-item.swiped .pt-list-delete-btn {
+    opacity: 1 !important;
+    transform: translateX(0) !important;
+}
