@@ -980,9 +980,9 @@ function handlePauseRestart(itemId, mockItem) {
             targetItem.endDate = newEndDate;
             targetItem.updatedAt = Date.now();
             
-            const allData = getAllData();
-            for (const date in allData) {
-                const day = allData[date];
+            const updatedData = getAllData();  // ← 改名
+            for (const date in updatedData) {
+                const day = updatedData[date];
                 if (targetType === 'plan' && day.plans) {
                     const idx = day.plans.findIndex(p => p.id === itemId);
                     if (idx !== -1) {
@@ -997,7 +997,7 @@ function handlePauseRestart(itemId, mockItem) {
                     }
                 }
             }
-            saveAllData(allData);
+            saveAllData(updatedData);
             
             showToast('✅ 已重启，结束日期已更新', 'success');
             overlay.remove();
@@ -1035,9 +1035,9 @@ function handlePauseRestart(itemId, mockItem) {
     targetItem.status = 'paused';
     targetItem.updatedAt = Date.now();
     
-    const allData = getAllData();
-    for (const date in allData) {
-        const day = allData[date];
+    const updatedData = getAllData();  // ← 改名
+    for (const date in updatedData) {
+        const day = updatedData[date];
         if (targetType === 'plan' && day.plans) {
             const idx = day.plans.findIndex(p => p.id === itemId);
             if (idx !== -1) {
@@ -1052,7 +1052,7 @@ function handlePauseRestart(itemId, mockItem) {
             }
         }
     }
-    saveAllData(allData);
+    saveAllData(updatedData);
     
     showToast('⏸️ 已暂停，结束日期已失效', 'info');
     
@@ -1655,9 +1655,9 @@ function handleComplete(itemId) {
         targetItem.status = 'completed';
         targetItem.updatedAt = Date.now();
         
-        const allData = getAllData();
-        for (const date in allData) {
-            const day = allData[date];
+    const updatedData = getAllData();
+    for (const date in updatedData) {
+        const day = updatedData[date];
             if (targetType === 'plan' && day.plans) {
                 const idx = day.plans.findIndex(p => p.id === itemId);
                 if (idx !== -1) {
@@ -1672,7 +1672,7 @@ function handleComplete(itemId) {
                 }
             }
         }
-        saveAllData(allData);
+        saveAllData(updatedData);
         
         overlay.remove();
         
