@@ -43,11 +43,11 @@ window.__isCompanionActive = function() {
         isEnding: false,
         _autoStopped: false,
         volumePercent: 20,
-
     };
 
     // ★ 新增：当前活动记录的ID（用于实时更新）
     let activeRecordId = null;
+
     let audioElement = null;
     let _isSoftLooping = false;
     let _softLoopTargetGain = 0.2;
@@ -2162,9 +2162,7 @@ function resetSession() {
         renderSetupUI();
     }
 
-    // ============================================================
-    // 初始化
-    // ============================================================
+
 function initCompanionFeature() {
     console.log('[companion] 陪伴功能已加载（实时记录版）');
     window.showCompanionPicker = showCompanionPicker;
@@ -2188,11 +2186,6 @@ function initCompanionFeature() {
         checkAndRecoverOngoingRecord();
     });
 
-    // ★ 备用：如果事件未触发，5秒后也检查一次
-    setTimeout(function() {
-        console.log('[companion] 5秒兜底检查 ongoing 记录');
-        checkAndRecoverOngoingRecord();
-    }, 5000);
 }
 
     // 页面卸载时清理
@@ -2377,8 +2370,7 @@ function bindCompanionCalendarEvents() {
 // ============================================================
 
 let _compRecordsCurrentDate = new Date();
-let _selectedDateStr = null;
-let _selectedElement = null;
+
 // 辅助函数：获取记录并过滤掉 ongoing
 function getFilteredRecords() {
     const records = window._companionRecords || [];
@@ -2807,63 +2799,37 @@ function renderCompanionCalendar() {
         `;
     }
     grid.innerHTML = html;
-grid.style.cssText = `
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 4px;
-    width: 100%;
-    margin-bottom: 8px;
-`;
-    const statsEl = document.getElementById('comp-records-stats');
-    if (statsEl) {
-        const totalDays = Object.keys(dayMap).length;
-        const totalRecords = monthRecords.length;
-        statsEl.textContent = `本月陪伴: ${totalDays} 天 · ${totalRecords} 次`;
-    }
 
-grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
-    el.addEventListener('click', function() {
-        const day = parseInt(this.dataset.day);
-        const month = parseInt(this.dataset.month);
-        const year = parseInt(this.dataset.year);
-        const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-
-        if (_selectedDateStr === dateStr) {
-            // 已选中，再次点击 → 打开陪伴记录详情
-            showCompanionDayDetail(dateStr);
-        } else {
-            // 清除之前高亮
-            if (_selectedElement) {
-                _selectedElement.classList.remove('selected');
-            }
-            this.classList.add('selected');
-            _selectedElement = this;
-            _selectedDateStr = dateStr;
-
-            // 更新计划与待办卡片
-            if (typeof window.updatePlanTodoCards === 'function') {
-                window.updatePlanTodoCards(dateStr);
-            }
+const statsEl = document.getElementById('comp-records-stats');
+if (statsEl) {
+    const totalDays = Object.keys(dayMap).length;
+    const totalRecords = monthRecords.length;
+    
+    // 获取当月待办统计数据
+    let todoStats = { total: 0, completed: 0 };
+    if (typeof window.getMonthlyTodoStats === 'function') {
+        try {
+            todoStats = window.getMonthlyTodoStats(year, month);
+        } catch (e) {
+            console.warn('[companion] 获取待办统计失败:', e);
         }
-    });
-});
-// 自动选中本月第一天
-const firstDayEl = grid.querySelector('.calendar-day[data-day="1"]');
-if (firstDayEl) {
-    if (_selectedElement) {
-        _selectedElement.classList.remove('selected');
     }
-    const day = parseInt(firstDayEl.dataset.day);
-    const month = parseInt(firstDayEl.dataset.month);
-    const year = parseInt(firstDayEl.dataset.year);
-    const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-    firstDayEl.classList.add('selected');
-    _selectedElement = firstDayEl;
-    _selectedDateStr = dateStr;
-    if (typeof window.updatePlanTodoCards === 'function') {
-        window.updatePlanTodoCards(dateStr);
-    }
+    
+    statsEl.innerHTML = `
+        <div>本月陪伴: ${totalDays} 天 · ${totalRecords} 次</div>
+        <div style="font-size:12px;opacity:0.7;margin-top:2px;">本月待办: 共 ${todoStats.total} 项 完成 ${todoStats.completed} 项</div>
+    `;
 }
+
+    grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
+        el.addEventListener('click', function() {
+            const day = parseInt(this.dataset.day);
+            const month = parseInt(this.dataset.month);
+            const year = parseInt(this.dataset.year);
+            const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            showCompanionDayDetail(dateStr);
+        });
+    });
 }
 
 function populateCompanionYearMonthSelectors() {

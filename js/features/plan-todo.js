@@ -2547,7 +2547,15 @@ function handleComplete(itemId) {
             }
         }
         saveAllData(updatedData);
-        
+        // ★ 触发奖励统计更新事件
+document.dispatchEvent(new CustomEvent('planTodoCompleted', {
+    detail: {
+        type: targetType,
+        id: itemId,
+        fullTitle: fullTitle,
+        reward: targetItem.reward
+    }
+}));
         overlay.remove();
         
         // 弹出完成通知
@@ -4402,6 +4410,51 @@ window.calculateStageStatus = calculateStageStatus;
 window.getStageStatusLabel = getStageStatusLabel;
 window.getStageStatusColor = getStageStatusColor;
 window.openPlanTodoList = openPlanTodoList;
+
+// ============================================================
+// 获取月度待办统计数据（供陪伴月历调用）
+// ============================================================
+window.getMonthlyTodoStats = function(year, month) {
+    // year: 年份数字, month: 月份数字 (0-11)
+    const allData = getAllData();
+    let totalTodos = 0;
+    let completedTodos = 0;
+    
+    // 遍历所有日期
+    for (const dateStr in allData) {
+        const day = allData[dateStr];
+        if (!day.todos) continue;
+        
+        // 检查该日期是否属于目标月份
+        const dateParts = dateStr.split('-');
+        const dYear = parseInt(dateParts[0]);
+        const dMonth = parseInt(dateParts[1]) - 1; // 存储的是1-12，转为0-11
+        if (dYear !== year || dMonth !== month) continue;
+        
+        // 统计该日期的待办
+        day.todos.forEach(t => {
+            // 只统计非重复待办，或重复待办中属于该月日的实例
+            if (t.isRepeating) {
+                // 重复待办：检查该日期是否在重复实例中
+                const allDates = expandRepeatDates(t);
+                if (allDates.includes(dateStr)) {
+                    totalTodos++;
+                    if (t.status === 'completed') completedTodos++;
+                }
+            } else {
+                // 非重复待办：直接统计
+                totalTodos++;
+                if (t.status === 'completed') completedTodos++;
+            }
+        });
+    }
+    
+    return {
+        total: totalTodos,
+        completed: completedTodos
+    };
+};
+
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
 

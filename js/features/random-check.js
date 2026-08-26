@@ -6,21 +6,22 @@
 (function () {
     'use strict';
 
-    // ============================================================
-    // 配置
-    // ============================================================
-    const CONFIG = {
-        // 随机间隔：45分钟 ~ 2小时（毫秒）
-        MIN_INTERVAL: 45 * 60 * 1000,
-        MAX_INTERVAL: 120 * 60 * 1000,
-        // 查看概率（百分比）
-        PROB_DIRECT_END: 40,      // 直接结束，无事发生
-        PROB_VIEW_TODAY: 35,      // 查看当天
-        PROB_VIEW_ADJACENT: 10,   // 查看前一天或后一天
-        PROB_VIEW_DAY_AFTER: 5,   // 查看大后天
-        // 总计 90%，剩余 10% 查看其他随机日期（或无事发生）
-    };
-
+// ============================================================
+// 配置
+// ============================================================
+const CONFIG = {
+    // 随机间隔：45分钟 ~ 2小时（毫秒）
+    MIN_INTERVAL: 45 * 60 * 1000,
+    MAX_INTERVAL: 120 * 60 * 1000,
+    // 查看概率（百分比）
+    PROB_DIRECT_END: 70,      // 直接结束，无事发生
+    // 进入查看后，按以下概率选择日期（百分比）
+    PROB_VIEW_TODAY: 55,      // 查看当天
+    PROB_VIEW_YESTERDAY: 20,  // 查看前一天
+    PROB_VIEW_TOMORROW: 20,   // 查看后一天
+    PROB_VIEW_DAY_AFTER: 5,   // 查看大后天
+    // 总计 100%
+};
     // 状态反馈文案池
     const FEEDBACK = {
         '未开始': [
@@ -191,78 +192,96 @@
         return '已过期';
     }
 
-    // ============================================================
-    // 选择日期和条目
-    // ============================================================
-    function selectDateAndItem() {
-        const allItems = getAllViewableItems();
-        if (allItems.length === 0) {
-            return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
-        }
-
-        // 按日期分组
-        const grouped = {};
-        allItems.forEach(item => {
-            const date = item._date;
-            if (!grouped[date]) grouped[date] = [];
-            grouped[date].push(item);
-        });
-
-        const dates = Object.keys(grouped).sort();
-
-        // 随机选择一个日期
-        // 概率分布：35% 今天，10% 前一天/后一天，5% 大后天，剩余随机
-        const today = new Date().toISOString().split('T')[0];
-        const todayIndex = dates.indexOf(today);
-
-        let targetDate = null;
-
-        const roll = Math.random() * 100;
-
-        if (roll < 35 && todayIndex !== -1) {
-            // 35% 查看当天
-            targetDate = today;
-        } else if (roll < 45 && todayIndex !== -1) {
-            // 10% 查看前一天或后一天
-            const options = [];
-            if (todayIndex > 0) options.push(dates[todayIndex - 1]);
-            if (todayIndex < dates.length - 1) options.push(dates[todayIndex + 1]);
-            if (options.length > 0) {
-                targetDate = randomPick(options);
-            }
-        } else if (roll < 50 && todayIndex !== -1 && todayIndex + 2 < dates.length) {
-            // 5% 查看大后天
-            const targetIdx = todayIndex + 2;
-            if (targetIdx < dates.length) {
-                targetDate = dates[targetIdx];
-            }
-        }
-
-        // 如果没选中特定日期，随机选一个
-        if (!targetDate) {
-            targetDate = randomPick(dates);
-        }
-
-        // 从该日期中随机选一个条目
-        const itemsOnDate = grouped[targetDate] || [];
-        const selectedItem = randomPick(itemsOnDate);
-
-        if (!selectedItem) {
-            return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
-        }
-
-        // 计算状态并获取反馈
-        const status = calculateItemStatus(selectedItem);
-        const feedbackPool = FEEDBACK[status] || ['嗯，我知道了 ✦'];
-        const feedback = randomPick(feedbackPool);
-
-        return {
-            date: targetDate,
-            item: selectedItem,
-            feedback: feedback,
-            status: status
-        };
+// ============================================================
+// 选择日期和条目（重构版 - 只查近4天）
+// ============================================================
+function selectDateAndItem() {
+    // 获取今天、昨天、明天、大后天的日期
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    
+    const dayAfterTomorrow = new Date(today);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+    const dayAfterTomorrowStr = dayAfterTomorrow.toISOString().split('T')[0];
+    
+    const targetDates = [todayStr, yesterdayStr, tomorrowStr, dayAfterTomorrowStr];
+    
+    // 1. 获取所有条目
+    const allItems = getAllViewableItems();
+    
+    // 2. 筛选出近4天内的可查看条目
+    const availableItems = allItems.filter(item => {
+        return targetDates.includes(item._date);
+    });
+    
+    // 3. 如果没有可查看条目 → 返回无条目反馈
+    if (availableItems.length === 0) {
+        return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
     }
+    
+    // 4. 按日期分组（仅近4天）
+    const grouped = {};
+    availableItems.forEach(item => {
+        const date = item._date;
+        if (!grouped[date]) grouped[date] = [];
+        grouped[date].push(item);
+    });
+    
+    // 5. 按概率选择目标日期
+    const roll = Math.random() * 100;
+    let targetDate = null;
+    
+    if (roll < 55) {
+        // 55% 选中今天
+        targetDate = todayStr;
+    } else if (roll < 75) {
+        // 20% 选中昨天
+        targetDate = yesterdayStr;
+    } else if (roll < 95) {
+        // 20% 选中明天
+        targetDate = tomorrowStr;
+    } else {
+        // 5% 选中大后天
+        targetDate = dayAfterTomorrowStr;
+    }
+    
+    // 6. 检查目标日期是否有数据
+    let selectedItem = null;
+    let selectedDate = targetDate;
+    
+    if (grouped[targetDate] && grouped[targetDate].length > 0) {
+        // 目标日期有数据 → 从中随机选一条
+        selectedItem = randomPick(grouped[targetDate]);
+    } else {
+        // 目标日期无数据 → 从所有近4天可查看条目中随机选一条
+        selectedItem = randomPick(availableItems);
+        selectedDate = selectedItem._date;
+    }
+    
+    if (!selectedItem) {
+        return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
+    }
+    
+    // 计算状态并获取反馈
+    const status = calculateItemStatus(selectedItem);
+    const feedbackPool = FEEDBACK[status] || ['嗯，我知道了 ✦'];
+    const feedback = randomPick(feedbackPool);
+    
+    return {
+        date: selectedDate,
+        item: selectedItem,
+        feedback: feedback,
+        status: status
+    };
+}
 
 // ============================================================
 // 发送系统消息（纯文字，无图标，显示在对话中间）
