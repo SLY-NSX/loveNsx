@@ -8,7 +8,7 @@
     var _greetingPage = 'partner'; // 'partner' | 'me'
     // 我的每日数据存储键（天气 + 今日建议，带日期）
     var MY_DAILY_DATA_KEY = 'myDailyData';
-    // 我的今日寄语存储键（永久存储）
+    // 我的今日寄语存储键
     var MY_MOTTO_KEY = 'myDailyMotto';
 
     var PRESETS = [
