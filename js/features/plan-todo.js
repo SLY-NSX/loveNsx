@@ -1286,21 +1286,70 @@ function showPlanTodoDetail(recordId, type, dateStr) {
     // 第五行：待办显示重复规则，计划显示阶段进程
     let fifthRowHTML = '';
     if (isPlan) {
-        // 计划：阶段进程
+        // 计划：阶段进程（带完成方框）
         if (targetItem.stages && targetItem.stages.length > 0) {
+            // 检查整体计划是否可操作
+            const overallStatus = calculateItemStatus(targetItem);
+            const isPlanEditable = overallStatus === '进行中';
+            
             let stagesHTML = targetItem.stages.map((stage, idx) => {
-                const reward = targetItem.reward.stages[idx] || { count: 0, color: '黑', noReward: true };
+                // 阶段状态
+                let stageStatus = '未开始';
+                let stageCompleted = stage.completed || false;
+                
+                if (stageCompleted) {
+                    stageStatus = '已完成';
+                } else {
+                    stageStatus = calculateStageStatus(stage.start, stage.end);
+                }
+                
+                const isCompleted = stageStatus === '已完成';
+                const isExpired = stageStatus === '已过期';
+                const isClickable = isPlanEditable && !isCompleted && !isExpired;
+                
+                const statusColor = getStageStatusColor(stageStatus);
+                const statusLabel = getStageStatusLabel(stageStatus);
+                
+                const reward = targetItem.reward.stages && targetItem.reward.stages[idx] 
+                    ? targetItem.reward.stages[idx] 
+                    : { count: 0, color: '黑', noReward: true };
+                const rewardText = reward.noReward || reward.count === 0 
+                    ? '无' 
+                    : `${reward.count}颗${reward.color}曜石`;
+                
                 return `
-                    <div style="margin-top:6px; padding:8px 10px; background:var(--primary-bg); border-radius:8px; border-left:3px solid var(--accent-color);">
-                        <div style="font-weight:600; font-size:13px; color:var(--text-primary);">阶段 ${idx+1}</div>
-                        <div style="font-size:12px; color:var(--text-secondary);">${formatDateDisplay(stage.start)} 至 ${formatDateDisplay(stage.end)}</div>
-                        ${stage.note ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${stage.note}</div>` : ''}
-                        <div style="font-size:11px; color:var(--accent-color); margin-top:2px;">
-                            奖励：${reward.noReward ? '无' : `${reward.count} 颗 ${reward.color}曜石`}
+                    <div style="margin-top:6px; padding:8px 10px; background:var(--primary-bg); border-radius:8px; border-left:3px solid ${isCompleted ? '#3498DB' : isExpired ? '#E74C3C' : 'var(--accent-color)'}; display:flex; align-items:flex-start; gap:10px;">
+                        <!-- 完成方框 -->
+                        <div class="stage-checkbox" data-stage-index="${idx}" style="
+                            width:24px; height:24px; border-radius:6px; 
+                            border:2px solid ${isCompleted ? '#3498DB' : isExpired ? '#E74C3C' : 'var(--border-color)'};
+                            background: ${isCompleted ? '#3498DB' : 'transparent'};
+                            display:flex; align-items:center; justify-content:center;
+                            flex-shrink:0; margin-top:2px;
+                            cursor: ${isClickable ? 'pointer' : 'not-allowed'};
+                            opacity: ${isClickable ? '1' : '0.6'};
+                            transition: all 0.2s;
+                        " ${!isClickable ? 'disabled' : ''}>
+                            ${isCompleted ? '<span style="color:#fff; font-size:14px;">✓</span>' : ''}
+                            ${isExpired ? '<span style="color:#E74C3C; font-size:12px;">✕</span>' : ''}
+                        </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:600; font-size:13px; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;">
+                                <span>阶段 ${idx+1}</span>
+                                <span style="font-size:11px; color:${statusColor}; font-weight:500;">
+                                    ${statusLabel}
+                                </span>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-secondary);">${formatDateDisplay(stage.start)} 至 ${formatDateDisplay(stage.end)}</div>
+                            ${stage.note ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${stage.note}</div>` : ''}
+                            <div style="font-size:11px; color:var(--accent-color); margin-top:2px;">
+                                🏆 奖励：${rewardText}
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
+            
             fifthRowHTML = `
                 <div style="font-size:13px; font-weight:600; color:var(--text-secondary); margin-bottom:4px;">📌 阶段进程</div>
                 ${stagesHTML}
@@ -1406,6 +1455,19 @@ function showPlanTodoDetail(recordId, type, dateStr) {
         </div>
     `;
 
+    // ★★★ 阶段方框点击事件（必须放在 modal.innerHTML 之后，overlay.appendChild 之前） ★★★
+    modal.querySelectorAll('.stage-checkbox').forEach(el => {
+        el.addEventListener('click', function(e) {
+            e.stopPropagation();
+            // 检查是否可点击
+            if (this.style.cursor === 'not-allowed' || this.hasAttribute('disabled')) {
+                return;
+            }
+            const stageIndex = parseInt(this.dataset.stageIndex);
+            handleStageComplete(targetItem.id, stageIndex);
+        });
+    });
+
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     
@@ -1463,7 +1525,6 @@ function showPlanTodoDetail(recordId, type, dateStr) {
     
     overlay.addEventListener('click', (e) => { if (e.target === overlay) closeFn(); });
 }
-
 // ============================================================
 // 状态计算函数（自然时间判定，延后半天）
 // ============================================================
@@ -1605,6 +1666,51 @@ function calculateItemStatus(item, dateStr) {
     
     // 已过期：当前日期 >= 过期阈值
     return '已过期';
+}
+
+// ============================================================
+// 阶段状态计算（独立于计划整体状态）
+// ============================================================
+function calculateStageStatus(stageStart, stageEnd) {
+    const now = new Date();
+    const startDate = new Date(stageStart);
+    startDate.setHours(0, 0, 0, 0);
+    
+    const endDate = new Date(stageEnd);
+    endDate.setHours(0, 0, 0, 0);
+    
+    // 延后半天
+    const expireThreshold = new Date(endDate);
+    expireThreshold.setDate(expireThreshold.getDate() + 1);
+    expireThreshold.setHours(12, 0, 0, 0);
+    
+    if (now < startDate) {
+        return '未开始';
+    }
+    if (now < expireThreshold) {
+        return '进行中';
+    }
+    return '已过期';
+}
+
+function getStageStatusLabel(status) {
+    switch (status) {
+        case '未开始': return '未开始';
+        case '进行中': return '进行中';
+        case '已完成': return '✅ 已完成';
+        case '已过期': return '⚠️ 已过期';
+        default: return '';
+    }
+}
+
+function getStageStatusColor(status) {
+    switch (status) {
+        case '未开始': return '#95A5A6';
+        case '进行中': return '#2ECC71';
+        case '已完成': return '#3498DB';
+        case '已过期': return '#E74C3C';
+        default: return '#95A5A6';
+    }
 }
 
 /**
@@ -2450,6 +2556,165 @@ function handleComplete(itemId) {
             : `🏆 已发放 ${targetItem.reward.total.count} 颗 ${targetItem.reward.total.color}曜石！`;
         
         showToast(`✅ 已完成「${fullTitle}」！${rewardMsg}`, 'success');
+        
+        // 刷新详情页
+        const detailOverlay = document.getElementById('pt-detail-overlay');
+        if (detailOverlay) detailOverlay.remove();
+        showPlanTodoDetail(itemId, targetType, targetDate);
+        
+        // 刷新卡片
+        const currentDate = document.querySelector('.calendar-day.selected');
+        if (currentDate && typeof window.updatePlanTodoCards === 'function') {
+            const day = currentDate.dataset.day;
+            const month = currentDate.dataset.month;
+            const year = currentDate.dataset.year;
+            const dateStr = year + '-' + String(parseInt(month) + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            window.updatePlanTodoCards(dateStr);
+        }
+    });
+    
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) overlay.remove();
+    });
+}
+
+// ============================================================
+// 阶段完成处理函数
+// ============================================================
+function handleStageComplete(itemId, stageIndex) {
+    // 从存储中查找条目
+    let targetItem = null;
+    let targetDate = '';
+    let targetType = '';
+    
+    const allData = getAllData();
+    for (const date in allData) {
+        const day = allData[date];
+        if (day.plans) {
+            const found = day.plans.find(p => p.id === itemId);
+            if (found) {
+                targetItem = found;
+                targetDate = date;
+                targetType = 'plan';
+                break;
+            }
+        }
+    }
+    
+    if (!targetItem) {
+        showToast('未找到该条目', 'error');
+        return;
+    }
+    
+    // 检查阶段是否存在
+    if (!targetItem.stages || stageIndex >= targetItem.stages.length) {
+        showToast('阶段不存在', 'error');
+        return;
+    }
+    
+    // 检查阶段是否已完成
+    if (targetItem.stages[stageIndex].completed) {
+        showToast('该阶段已完成，不可重复操作', 'warning');
+        return;
+    }
+    
+    // 检查整体计划状态
+    const overallStatus = calculateItemStatus(targetItem);
+    if (overallStatus !== '进行中') {
+        showToast('计划当前状态为「' + overallStatus + '」，不可操作阶段', 'warning');
+        return;
+    }
+    
+    const stage = targetItem.stages[stageIndex];
+    
+    // 检查阶段是否已过期
+    const stageStatus = calculateStageStatus(stage.start, stage.end);
+    if (stageStatus === '已过期') {
+        showToast('该阶段已过期，无法标记完成', 'warning');
+        return;
+    }
+    
+    // 二次确认
+    const fullTitle = targetItem.fullTitle || `${targetItem.primaryLabel}.${targetItem.secondaryTitle}`;
+    const stageName = `阶段 ${stageIndex + 1}`;
+    const reward = targetItem.reward.stages && targetItem.reward.stages[stageIndex] 
+        ? targetItem.reward.stages[stageIndex] 
+        : { count: 0, color: '黑', noReward: true };
+    const rewardText = reward.noReward || reward.count === 0 
+        ? '无奖励' 
+        : `${reward.count} 颗 ${reward.color}曜石`;
+    
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100006;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px);
+        padding: 12px;
+    `;
+    
+    overlay.innerHTML = `
+        <div style="background:var(--secondary-bg); border-radius:20px; padding:24px; max-width:340px; width:100%; border:1px solid var(--border-color);">
+            <div style="font-size:18px; font-weight:700; margin-bottom:8px; text-align:center; color:var(--text-primary);">
+                ✅ 确认阶段完成
+            </div>
+            <div style="font-size:13px; color:var(--text-secondary); margin-bottom:16px; text-align:center; line-height:1.8;">
+                确定要将 <strong style="color:var(--accent-color);">「${fullTitle}」</strong><br>
+                的 <strong>${stageName}</strong> 标记为已完成吗？
+            </div>
+            <div style="font-size:12px; color:var(--text-secondary); text-align:center; margin-bottom:16px; padding:8px; background:var(--primary-bg); border-radius:8px;">
+                🏆 奖励：${rewardText}
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button id="pt-stage-complete-cancel" style="
+                    flex:1; padding:10px 0; border-radius:10px;
+                    border:1.5px solid var(--border-color); background:transparent;
+                    color:var(--text-secondary); font-size:14px; font-weight:600;
+                    cursor:pointer; font-family:var(--font-family);
+                ">取消</button>
+                <button id="pt-stage-complete-confirm" style="
+                    flex:2; padding:10px 0; border-radius:10px;
+                    border:none; background:var(--accent-color); color:#fff;
+                    font-size:14px; font-weight:600; cursor:pointer;
+                    font-family:var(--font-family);
+                    box-shadow: 0 2px 8px rgba(var(--accent-color-rgb),0.3);
+                ">✅ 确认完成</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    overlay.querySelector('#pt-stage-complete-cancel').addEventListener('click', function() {
+        overlay.remove();
+    });
+    
+    overlay.querySelector('#pt-stage-complete-confirm').addEventListener('click', function() {
+        // 标记阶段为已完成
+        targetItem.stages[stageIndex].completed = true;
+        targetItem.stages[stageIndex].completedAt = Date.now();
+        targetItem.updatedAt = Date.now();
+        
+        // 保存到存储
+        const allData = getAllData();
+        for (const date in allData) {
+            const day = allData[date];
+            if (day.plans) {
+                const idx = day.plans.findIndex(p => p.id === itemId);
+                if (idx !== -1) {
+                    day.plans[idx] = targetItem;
+                    break;
+                }
+            }
+        }
+        saveAllData(allData);
+        overlay.remove();
+        
+        // 弹出完成通知
+        const rewardMsg = reward.noReward || reward.count === 0 
+            ? '无奖励' 
+            : `🏆 已发放 ${reward.count} 颗 ${reward.color}曜石！`;
+        
+        showToast(`✅ 「${fullTitle}.${stageName}」已完成！${rewardMsg}`, 'success');
         
         // 刷新详情页
         const detailOverlay = document.getElementById('pt-detail-overlay');
@@ -4132,6 +4397,10 @@ window.getRepeatInstances = getRepeatInstances;
 window.cleanupMeta = cleanupMeta;
 window.openOverview = openOverview;
 window.refreshCards = refreshCards;
+window.handleStageComplete = handleStageComplete;
+window.calculateStageStatus = calculateStageStatus;
+window.getStageStatusLabel = getStageStatusLabel;
+window.getStageStatusColor = getStageStatusColor;
 window.openPlanTodoList = openPlanTodoList;
     console.log('[plan-todo] 完整模块已加载（含新建功能）');
 })();
