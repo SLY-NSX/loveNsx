@@ -2855,22 +2855,26 @@ function renderCompanionCalendar() {
         }
     }, 50);
 
-    // 绑定点击事件
-    grid.querySelectorAll('.calendar-day:not(.empty)').forEach(function(el) {
-        el.addEventListener('click', function() {
-            var day = parseInt(this.dataset.day);
-            var month = parseInt(this.dataset.month);
-            var year = parseInt(this.dataset.year);
-            var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
-            
-            document.querySelectorAll('.calendar-day.selected').forEach(function(d) {
-                d.classList.remove('selected');
-            });
-            this.classList.add('selected');
-            
-            showCompanionDayDetail(dateStr);
+// 绑定点击事件
+grid.querySelectorAll('.calendar-day:not(.empty)').forEach(function(el) {
+    el.addEventListener('click', function() {
+        var day = parseInt(this.dataset.day);
+        var month = parseInt(this.dataset.month);
+        var year = parseInt(this.dataset.year);
+        var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+        
+        document.querySelectorAll('.calendar-day.selected').forEach(function(d) {
+            d.classList.remove('selected');
         });
+        this.classList.add('selected');
+        
+        // ★★★ 更新计划/待办卡片 ★★★
+        if (typeof window.updatePlanTodoCards === 'function') {
+            window.updatePlanTodoCards(dateStr);
+        }
+        
     });
+});
 }
 
 function populateCompanionYearMonthSelectors() {
