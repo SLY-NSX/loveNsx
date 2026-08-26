@@ -176,29 +176,50 @@
         else ensureDrawersOnBody(); 
     }
 
-    function fmt(b) {
-        if (b < 1024) return b + ' B';
-        if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
-        return (b / 1048576).toFixed(2) + ' MB';
-    }
+function fmt(b) {
+    if (b < 1024) return Math.round(b) + ' B';
+    if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1048576).toFixed(2) + ' MB';
+}
 
-    function applyStats(total, msgs, cfg, media) {
-        var pct = Math.min(100, total / (5 * 1024 * 1024) * 100);
-        var g = function (id) { return document.getElementById(id); };
-        var bar = g('dm-storage-bar');
-        if (bar) {
-            bar.style.width = pct.toFixed(1) + '%';
-            bar.style.background = pct > 80
-                ? 'linear-gradient(90deg,#FF3B30,#CC0000)'
-                : pct > 50
-                ? 'linear-gradient(90deg,#FF9F0A,#E07000)'
-                : 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
-        }
-        if (g('dm-storage-total')) g('dm-storage-total').textContent = fmt(total) + ' / ~5 MB';
-        if (g('dm-stat-msgs'))     g('dm-stat-msgs').textContent     = fmt(msgs);
-        if (g('dm-stat-settings')) g('dm-stat-settings').textContent = fmt(cfg);
-        if (g('dm-stat-media'))    g('dm-stat-media').textContent    = fmt(media);
+function applyStats(total, msgs, cfg, media) {
+    var g = function (id) { return document.getElementById(id); };
+
+    // 直接显示手动累加的分类
+    if (g('dm-stat-msgs'))     g('dm-stat-msgs').textContent     = fmt(msgs);
+    if (g('dm-stat-settings')) g('dm-stat-settings').textContent = fmt(cfg);
+    if (g('dm-stat-media'))    g('dm-stat-media').textContent    = fmt(media);
+
+    // 顶部总用量 = total（手动累加），进度条 = total / quota
+    var totalEl = g('dm-storage-total');
+    var barEl   = g('dm-storage-bar');
+
+    if (navigator.storage && navigator.storage.estimate) {
+        navigator.storage.estimate().then(function(est) {
+            var quota = est.quota || 0;
+            var pct = quota > 0 ? Math.min(100, total / quota * 100) : 0;
+            var pctStr = pct.toFixed(1);
+            var quotaStr = quota >= 1073741824 ? (quota/1073741824).toFixed(2)+' GB'
+                         : quota >= 1048576    ? (quota/1048576).toFixed(1)+' MB'
+                         : quota > 0           ? (quota/1024).toFixed(1)+' KB' : '未知';
+            if (totalEl) totalEl.textContent = fmt(total) + ' / ' + quotaStr + ' (' + pctStr + '%)';
+            if (barEl) {
+                barEl.style.width = pctStr + '%';
+                barEl.style.background = pct > 80
+                    ? 'linear-gradient(90deg,#FF3B30,#CC0000)'
+                    : pct > 50
+                    ? 'linear-gradient(90deg,#FF9F0A,#E07000)'
+                    : 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
+            }
+        }).catch(function() {
+            if (totalEl) totalEl.textContent = fmt(total);
+            if (barEl) barEl.style.width = '0%';
+        });
+    } else {
+        if (totalEl) totalEl.textContent = fmt(total);
+        if (barEl) barEl.style.width = '0%';
     }
+}
 
     function updateStats() {
         var total = 0, msgs = 0, cfg = 0, media = 0;
@@ -461,56 +482,7 @@
 })();
 
 function updateStorageUsageBar() {
-    var bar   = document.getElementById('dm-storage-bar')   || document.getElementById('storage-usage-fill');
-    var text  = document.getElementById('dm-storage-total') || document.getElementById('storage-usage-text');
-    if (!bar && !text) return;
-
-    try {
-        if (window.localforage && window.APP_PREFIX) {
-            localforage.keys().then(function(keys) {
-                var promises = keys.map(function(k) {
-                    return localforage.getItem(k).then(function(v) {
-                        if (v === null || v === undefined) return 0;
-                        var str = typeof v === 'string' ? v : JSON.stringify(v);
-                        return (k.length + str.length) * 2;
-                    });
-                });
-                Promise.all(promises).then(function(sizes) {
-                    var total   = sizes.reduce(function(a,b){return a+b;},0);
-                    var usedKB  = (total / 1024).toFixed(1);
-                    var maxBytes = 5 * 1024 * 1024;
-                    var pct     = Math.min(total / maxBytes * 100, 100).toFixed(1);
-                    var fmt     = function(b) { return b<1024 ? b+' B' : b<1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(2)+' MB'; };
-
-                    if (bar) {
-                        bar.style.width = pct + '%';
-                        if (parseFloat(pct) > 80)
-                            bar.style.background = 'linear-gradient(90deg,#FF3B30,#CC0000)';
-                        else if (parseFloat(pct) > 50)
-                            bar.style.background = 'linear-gradient(90deg,#FF9F0A,#E07000)';
-                        else
-                            bar.style.background = 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
-                    }
-                    if (text) text.textContent = fmt(total) + ' / ~5 MB (' + pct + '%)';
-                });
-            }).catch(function() {
-                var ls = 0;
-                for (var i = 0; i < localStorage.length; i++) {
-                    var k = localStorage.key(i) || '';
-                    var v = localStorage.getItem(k) || '';
-                    ls += (k.length + v.length) * 2;
-                }
-                var pct = Math.min(ls / (5*1024*1024) * 100, 100).toFixed(1);
-                if (bar) bar.style.width = pct + '%';
-                if (text) text.textContent = (ls/1024).toFixed(1) + ' KB (localStorage)';
-            });
-        } else {
-            if (text) text.textContent = '暂无数据';
-            if (bar)  bar.style.width  = '0%';
-        }
-    } catch(e) {
-        if (text) text.textContent = '无法读取';
-    }
+    if (typeof window.updateStats === 'function') window.updateStats();
 }
 
 (function() {
