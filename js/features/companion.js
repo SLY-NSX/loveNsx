@@ -2815,9 +2815,10 @@ if (statsEl) {
         }
     }
     
+    // ★ 统一字体大小，与本月陪伴保持一致
     statsEl.innerHTML = `
-        <div>本月陪伴: ${totalDays} 天 · ${totalRecords} 次</div>
-        <div style="font-size:12px;opacity:0.7;margin-top:2px;">本月待办: 共 ${todoStats.total} 项 完成 ${todoStats.completed} 项</div>
+        <div style="font-size:13px;color:var(--text-secondary);">本月陪伴: ${totalDays} 天 · ${totalRecords} 次</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">本月待办: 共 ${todoStats.total} 项 完成 ${todoStats.completed} 项</div>
     `;
 }
 

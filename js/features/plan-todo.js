@@ -2546,8 +2546,9 @@ function handleComplete(itemId) {
                 }
             }
         }
-        saveAllData(updatedData);
-        // ★ 触发奖励统计更新事件
+saveAllData(updatedData);
+
+// ★ 触发奖励统计更新事件
 document.dispatchEvent(new CustomEvent('planTodoCompleted', {
     detail: {
         type: targetType,
@@ -2556,14 +2557,15 @@ document.dispatchEvent(new CustomEvent('planTodoCompleted', {
         reward: targetItem.reward
     }
 }));
-        overlay.remove();
-        
-        // 弹出完成通知
-        const rewardMsg = targetItem.noReward 
-            ? '无奖励' 
-            : `🏆 已发放 ${targetItem.reward.total.count} 颗 ${targetItem.reward.total.color}曜石！`;
-        
-        showToast(`✅ 已完成「${fullTitle}」！${rewardMsg}`, 'success');
+
+overlay.remove();
+
+// 弹出完成通知
+const rewardMsg = targetItem.noReward 
+    ? '无奖励' 
+    : `🏆 已发放 ${targetItem.reward.total.count} 颗 ${targetItem.reward.total.color}曜石！`;
+
+showToast(`✅ 已完成「${fullTitle}」！${rewardMsg}`, 'success');
         
         // 刷新详情页
         const detailOverlay = document.getElementById('pt-detail-overlay');
@@ -2714,15 +2716,26 @@ function handleStageComplete(itemId, stageIndex) {
                 }
             }
         }
-        saveAllData(allData);
-        overlay.remove();
-        
-        // 弹出完成通知
-        const rewardMsg = reward.noReward || reward.count === 0 
-            ? '无奖励' 
-            : `🏆 已发放 ${reward.count} 颗 ${reward.color}曜石！`;
-        
-        showToast(`✅ 「${fullTitle}.${stageName}」已完成！${rewardMsg}`, 'success');
+saveAllData(allData);
+
+// ★ 触发奖励统计更新事件（阶段完成）
+document.dispatchEvent(new CustomEvent('planTodoCompleted', {
+    detail: {
+        type: 'stage',
+        id: itemId,
+        fullTitle: fullTitle + '.' + stageName,
+        reward: reward
+    }
+}));
+
+overlay.remove();
+
+// 弹出完成通知
+const rewardMsg = reward.noReward || reward.count === 0 
+    ? '无奖励' 
+    : `🏆 已发放 ${reward.count} 颗 ${reward.color}曜石！`;
+
+showToast(`✅ 「${fullTitle}.${stageName}」已完成！${rewardMsg}`, 'success');
         
         // 刷新详情页
         const detailOverlay = document.getElementById('pt-detail-overlay');
