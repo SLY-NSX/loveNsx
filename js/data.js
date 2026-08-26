@@ -182,42 +182,54 @@ function fmt(b) {
     return (b / 1048576).toFixed(2) + ' MB';
 }
 
+// 在 applyStats 外部添加一个缓存变量
+var _cachedQuota = null;
+
 function applyStats(total, msgs, cfg, media) {
     var g = function (id) { return document.getElementById(id); };
 
-    // 直接显示手动累加的分类
     if (g('dm-stat-msgs'))     g('dm-stat-msgs').textContent     = fmt(msgs);
     if (g('dm-stat-settings')) g('dm-stat-settings').textContent = fmt(cfg);
     if (g('dm-stat-media'))    g('dm-stat-media').textContent    = fmt(media);
 
-    // 顶部总用量 = total（手动累加），进度条 = total / quota
     var totalEl = g('dm-storage-total');
     var barEl   = g('dm-storage-bar');
 
+    function updateDisplay(quota) {
+        var pct = quota > 0 ? Math.min(100, total / quota * 100) : 0;
+        var pctStr = pct.toFixed(1);
+        var quotaStr = quota >= 1073741824 ? (quota/1073741824).toFixed(2)+' GB'
+                     : quota >= 1048576    ? (quota/1048576).toFixed(1)+' MB'
+                     : quota > 0           ? (quota/1024).toFixed(1)+' KB' : '未知';
+        if (totalEl) totalEl.textContent = fmt(total) + ' / ' + quotaStr + ' (' + pctStr + '%)';
+        if (barEl) {
+            barEl.style.width = pctStr + '%';
+            barEl.style.background = pct > 80
+                ? 'linear-gradient(90deg,#FF3B30,#CC0000)'
+                : pct > 50
+                ? 'linear-gradient(90deg,#FF9F0A,#E07000)'
+                : 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
+        }
+    }
+
+    // 如果有缓存的配额，直接使用
+    if (_cachedQuota !== null) {
+        updateDisplay(_cachedQuota);
+        return;
+    }
+
+    // 没有缓存，调用 estimate 获取
     if (navigator.storage && navigator.storage.estimate) {
         navigator.storage.estimate().then(function(est) {
             var quota = est.quota || 0;
-            var pct = quota > 0 ? Math.min(100, total / quota * 100) : 0;
-            var pctStr = pct.toFixed(1);
-            var quotaStr = quota >= 1073741824 ? (quota/1073741824).toFixed(2)+' GB'
-                         : quota >= 1048576    ? (quota/1048576).toFixed(1)+' MB'
-                         : quota > 0           ? (quota/1024).toFixed(1)+' KB' : '未知';
-            if (totalEl) totalEl.textContent = fmt(total) + ' / ' + quotaStr + ' (' + pctStr + '%)';
-            if (barEl) {
-                barEl.style.width = pctStr + '%';
-                barEl.style.background = pct > 80
-                    ? 'linear-gradient(90deg,#FF3B30,#CC0000)'
-                    : pct > 50
-                    ? 'linear-gradient(90deg,#FF9F0A,#E07000)'
-                    : 'linear-gradient(90deg,var(--accent-color),rgba(var(--accent-color-rgb),0.6))';
-            }
+            _cachedQuota = quota;  // 缓存配额
+            updateDisplay(quota);
         }).catch(function() {
-            if (totalEl) totalEl.textContent = fmt(total);
-            if (barEl) barEl.style.width = '0%';
+            // 如果 estimate 失败，使用 5MB fallback 但不缓存
+            updateDisplay(5 * 1024 * 1024);
         });
     } else {
-        if (totalEl) totalEl.textContent = fmt(total);
-        if (barEl) barEl.style.width = '0%';
+        updateDisplay(5 * 1024 * 1024);
     }
 }
 
