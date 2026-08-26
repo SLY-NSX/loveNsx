@@ -2523,10 +2523,14 @@
                 <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
             </div>
             <div class="calendar-grid" id="comp-records-grid"></div>
-            <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);">
-                <span id="comp-records-stats">本月陪伴: 0 天 · 0 次</span>
-            </div>
-        </div>
+<div id="comp-records-stats" style="font-size:12px;color:var(--text-secondary);">
+    <div id="comp-stats-line1">本月陪伴: 0 天 · 0 次</div>
+    <div id="comp-stats-line2">本月待办: 共 0 项 完成 0 项</div>
+    <div id="reward-stats-container" style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:10px;border-top:1px solid var(--border-color);font-size:13px;color:var(--text-secondary);width:100%;">
+        <span id="reward-stats-text">🏆 奖励合计：暂无奖励</span>
+        <button id="reward-exchange-btn" style="padding:4px 14px;border-radius:16px;border:1px solid var(--accent-color);background:rgba(var(--accent-color-rgb),0.1);color:var(--accent-color);font-size:12px;font-weight:600;cursor:pointer;font-family:var(--font-family);transition:all 0.2s;flex-shrink:0;">兑换</button>
+    </div>
+</div>
 
         <!-- 统计面板 -->
         <div id="comp-records-stats-panel" style="display:none;">
