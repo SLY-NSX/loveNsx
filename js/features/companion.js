@@ -2595,28 +2595,30 @@ function formatTimeFromMinutes(totalMinutes) {
 }
 
 function showCompanionRecords() {
-    const modal = document.getElementById('companion-records-modal');
+    var modal = document.getElementById('companion-records-modal');
     if (!modal) {
         showToast('陪伴记录模块未加载，请刷新页面', 'error');
         return;
     }
     loadCompanionRecordsData();
     _compRecordsCurrentDate = new Date();
-    renderCompanionCalendar();
-    const panelCalendar = document.getElementById('comp-records-calendar-panel');
-    const panelStats = document.getElementById('comp-records-stats-panel');
+    renderCompanionCalendar();  // ← 这里会生成卡片
+    
+    var panelCalendar = document.getElementById('comp-records-calendar-panel');
+    var panelStats = document.getElementById('comp-records-stats-panel');
     if (panelCalendar) panelCalendar.style.display = 'block';
     if (panelStats) panelStats.style.display = 'none';
-    const tabCal = document.getElementById('comp-records-tab-calendar');
-    const tabStat = document.getElementById('comp-records-tab-stats');
+    
+    var tabCal = document.getElementById('comp-records-tab-calendar');
+    var tabStat = document.getElementById('comp-records-tab-stats');
     if (tabCal) tabCal.classList.add('active');
     if (tabStat) tabStat.classList.remove('active');
 
-    // ★ 修复右上角关闭键
-    const closeTop = document.getElementById('close-companion-records');
+    // 关闭按钮
+    var closeTop = document.getElementById('close-companion-records');
     if (closeTop) {
         closeTop.replaceWith(closeTop.cloneNode(true));
-        const newCloseTop = document.getElementById('close-companion-records');
+        var newCloseTop = document.getElementById('close-companion-records');
         if (newCloseTop) {
             newCloseTop.addEventListener('click', function() {
                 hideModal(modal);
@@ -2624,15 +2626,13 @@ function showCompanionRecords() {
         }
     }
 
-    // ★ 隐藏右下角关闭按钮
-    const closeBottom = document.getElementById('close-companion-records-btn');
+    var closeBottom = document.getElementById('close-companion-records-btn');
     if (closeBottom) {
         closeBottom.style.display = 'none';
     }
 
     showModal(modal);
 }
-
 function loadCompanionRecordsData() {
     try {
         const key = 'companion_records';
@@ -2735,7 +2735,6 @@ function showCompanionJumpPanel() {
         }
     });
 }
-
 function renderCompanionCalendar() {
     const year = _compRecordsCurrentDate.getFullYear();
     const month = _compRecordsCurrentDate.getMonth();
@@ -2779,7 +2778,6 @@ function renderCompanionCalendar() {
                          month === new Date().getMonth());
         const recordsOfDay = dayMap[d] || [];
 
-        // ★ 简化圆点：1条绿色，≥2条橙色，不再显示时长
         let dotHTML = '';
         if (hasRecord) {
             const count = recordsOfDay.length;
@@ -2800,34 +2798,73 @@ function renderCompanionCalendar() {
     }
     grid.innerHTML = html;
 
-const statsEl = document.getElementById('comp-records-stats');
-if (statsEl) {
-    const totalDays = Object.keys(dayMap).length;
-    const totalRecords = monthRecords.length;
-    
-    // 获取当月待办统计数据
-    let todoStats = { total: 0, completed: 0 };
-    if (typeof window.getMonthlyTodoStats === 'function') {
-        try {
-            todoStats = window.getMonthlyTodoStats(year, month);
-        } catch (e) {
-            console.warn('[companion] 获取待办统计失败:', e);
+    // 更新统计信息
+    const statsEl = document.getElementById('comp-records-stats');
+    if (statsEl) {
+        const totalDays = Object.keys(dayMap).length;
+        const totalRecords = monthRecords.length;
+        
+        let todoStats = { total: 0, completed: 0 };
+        if (typeof window.getMonthlyTodoStats === 'function') {
+            try {
+                todoStats = window.getMonthlyTodoStats(year, month);
+            } catch (e) {
+                console.warn('[companion] 获取待办统计失败:', e);
+            }
         }
+        
+        statsEl.innerHTML = 
+            '<div style="font-size:13px;color:var(--text-secondary);">本月陪伴: ' + totalDays + ' 天 · ' + totalRecords + ' 次</div>' +
+            '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">本月待办: 共 ' + todoStats.total + ' 项 完成 ' + todoStats.completed + ' 项</div>';
     }
-    
-    // ★ 统一字体大小，与本月陪伴保持一致
-    statsEl.innerHTML = `
-        <div style="font-size:13px;color:var(--text-secondary);">本月陪伴: ${totalDays} 天 · ${totalRecords} 次</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">本月待办: 共 ${todoStats.total} 项 完成 ${todoStats.completed} 项</div>
-    `;
-}
 
-    grid.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
+    // ★★★ 关键：日历渲染完成后，重新生成计划/待办卡片 ★★★
+    setTimeout(function() {
+        // 获取当前选中的日期
+        var selectedDay = document.querySelector('.calendar-day.selected');
+        if (selectedDay) {
+            var day = parseInt(selectedDay.dataset.day);
+            var month = parseInt(selectedDay.dataset.month);
+            var year = parseInt(selectedDay.dataset.year);
+            var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            if (typeof window.updatePlanTodoCards === 'function') {
+                window.updatePlanTodoCards(dateStr);
+            }
+        } else {
+            // 默认选中今天
+            var today = new Date();
+            var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+            // 选中今天对应的日历格子
+            var todayCells = document.querySelectorAll('.calendar-day');
+            for (var i = 0; i < todayCells.length; i++) {
+                var cell = todayCells[i];
+                if (cell.dataset.day && parseInt(cell.dataset.day) === today.getDate() && 
+                    parseInt(cell.dataset.month) === today.getMonth() && 
+                    parseInt(cell.dataset.year) === today.getFullYear()) {
+                    cell.classList.add('selected');
+                    break;
+                }
+            }
+            if (typeof window.updatePlanTodoCards === 'function') {
+                window.updatePlanTodoCards(todayStr);
+            }
+        }
+    }, 50);
+
+    // 绑定点击事件
+    grid.querySelectorAll('.calendar-day:not(.empty)').forEach(function(el) {
         el.addEventListener('click', function() {
-            const day = parseInt(this.dataset.day);
-            const month = parseInt(this.dataset.month);
-            const year = parseInt(this.dataset.year);
-            const dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            var day = parseInt(this.dataset.day);
+            var month = parseInt(this.dataset.month);
+            var year = parseInt(this.dataset.year);
+            var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+            
+            // 移除其他选中状态
+            document.querySelectorAll('.calendar-day.selected').forEach(function(d) {
+                d.classList.remove('selected');
+            });
+            this.classList.add('selected');
+            
             showCompanionDayDetail(dateStr);
         });
     });

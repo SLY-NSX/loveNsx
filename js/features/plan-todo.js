@@ -4331,47 +4331,36 @@ const primaryColor = selectedColor || COLORS[0].value;
     // ============================================================
     // 外部接口：更新卡片
     // ============================================================
-// ============================================================
-// 外部接口：更新卡片
-// ============================================================
 window.updatePlanTodoCards = function (dateStr) {
     // 1. 获取日历面板容器
-    const panel = document.getElementById('comp-records-calendar-panel');
+    var panel = document.getElementById('comp-records-calendar-panel');
     if (!panel) {
         console.warn('[plan-todo] 未找到日历面板');
         return;
     }
 
     // 2. 获取 grid（用于定位插入位置）
-    const grid = document.getElementById('comp-records-grid');
+    var grid = document.getElementById('comp-records-grid');
     if (!grid) {
         console.warn('[plan-todo] 未找到日历网格');
         return;
     }
 
     // 3. 查找或创建容器
-    let container = document.getElementById('plan-todo-container');
+    var container = document.getElementById('plan-todo-container');
     if (!container) {
         container = document.createElement('div');
         container.id = 'plan-todo-container';
-        container.style.cssText = `
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 12px;
-            padding: 0 2px;
-        `;
-
-        // 4. 插入到 grid 的下一个兄弟元素之前，或追加到 panel 末尾
-        const nextSibling = grid.nextSibling;
-        if (nextSibling) {
-            panel.insertBefore(container, nextSibling);
+        container.style.cssText = 'display:flex;flex-direction:column;gap:10px;margin-top:12px;padding:0 2px;';
+        // 插入到 grid 后面
+        if (grid.nextSibling) {
+            panel.insertBefore(container, grid.nextSibling);
         } else {
             panel.appendChild(container);
         }
     }
 
-    // 5. 渲染卡片内容
+    // 4. 渲染卡片内容
     renderCards(dateStr);
 };
 
