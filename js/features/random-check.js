@@ -265,31 +265,35 @@
     }
 
 // ============================================================
-// 发送系统消息（像未接电话一样显示在对话中间）
+// 发送系统消息（纯文字，无图标，显示在对话中间）
 // ============================================================
 function sendSystemMessage(message) {
-    // 使用 call.js 的 _addCallEvent 方式（系统消息，居中显示）
-    if (typeof window._addCallEvent === 'function') {
-        // 第一个参数：图标（传空字符串表示无图标）
-        // 第二个参数：消息内容
-        // 第三个参数：详情（传 null）
-        // 第四个参数：是否可交互（传 false）
-        window._addCallEvent('', message, null, false);
-        return;
-    }
-
-    // fallback：直接在聊天中插入系统消息
     try {
+        // 直接注入系统消息到聊天容器
         const chatContainer = document.getElementById('chat-container') || document.querySelector('.chat-container');
         if (chatContainer) {
             const msgDiv = document.createElement('div');
             msgDiv.className = 'system-message';
             msgDiv.textContent = message;
+            // 移除可能存在的图标
+            msgDiv.style.display = 'flex';
+            msgDiv.style.alignItems = 'center';
+            msgDiv.style.justifyContent = 'center';
+            msgDiv.style.gap = '0';
+            // 确保没有额外的图标
             chatContainer.appendChild(msgDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            return;
+        }
+        
+        // fallback：如果找不到聊天容器，用 toast 显示
+        if (typeof showToast === 'function') {
+            showToast(message, 'info');
+        } else {
+            console.log('[random-check]', message);
         }
     } catch (e) {
-        console.log('[random-check]', message);
+        console.error('[random-check] 发送系统消息失败:', e);
         if (typeof showToast === 'function') {
             showToast(message, 'info');
         }
