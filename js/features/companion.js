@@ -2798,12 +2798,17 @@ function renderCompanionCalendar() {
     }
     grid.innerHTML = html;
 
-    // 更新统计信息
-    const statsEl = document.getElementById('comp-records-stats');
-    if (statsEl) {
+    // ★★★ 更新第1行：本月陪伴 ★★★
+    const line1 = document.getElementById('comp-stats-line1');
+    if (line1) {
         const totalDays = Object.keys(dayMap).length;
         const totalRecords = monthRecords.length;
-        
+        line1.textContent = '本月陪伴: ' + totalDays + ' 天 · ' + totalRecords + ' 次';
+    }
+
+    // ★★★ 更新第2行：本月待办 ★★★
+    const line2 = document.getElementById('comp-stats-line2');
+    if (line2) {
         let todoStats = { total: 0, completed: 0 };
         if (typeof window.getMonthlyTodoStats === 'function') {
             try {
@@ -2812,15 +2817,16 @@ function renderCompanionCalendar() {
                 console.warn('[companion] 获取待办统计失败:', e);
             }
         }
-        
-        statsEl.innerHTML = 
-            '<div style="font-size:13px;color:var(--text-secondary);">本月陪伴: ' + totalDays + ' 天 · ' + totalRecords + ' 次</div>' +
-            '<div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">本月待办: 共 ' + todoStats.total + ' 项 完成 ' + todoStats.completed + ' 项</div>';
+        line2.textContent = '本月待办: 共 ' + todoStats.total + ' 项 完成 ' + todoStats.completed + ' 项';
     }
 
-    // ★★★ 关键：日历渲染完成后，重新生成计划/待办卡片 ★★★
+    // ★★★ 更新第3行：奖励合计（由 reward-counter.js 负责） ★★★
+    if (typeof window._refreshRewardStats === 'function') {
+        setTimeout(window._refreshRewardStats, 100);
+    }
+
+    // ★★★ 生成计划/待办卡片 ★★★
     setTimeout(function() {
-        // 获取当前选中的日期
         var selectedDay = document.querySelector('.calendar-day.selected');
         if (selectedDay) {
             var day = parseInt(selectedDay.dataset.day);
@@ -2831,10 +2837,8 @@ function renderCompanionCalendar() {
                 window.updatePlanTodoCards(dateStr);
             }
         } else {
-            // 默认选中今天
             var today = new Date();
             var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-            // 选中今天对应的日历格子
             var todayCells = document.querySelectorAll('.calendar-day');
             for (var i = 0; i < todayCells.length; i++) {
                 var cell = todayCells[i];
@@ -2859,7 +2863,6 @@ function renderCompanionCalendar() {
             var year = parseInt(this.dataset.year);
             var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(day).padStart(2, '0');
             
-            // 移除其他选中状态
             document.querySelectorAll('.calendar-day.selected').forEach(function(d) {
                 d.classList.remove('selected');
             });
