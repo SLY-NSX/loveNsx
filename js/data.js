@@ -478,7 +478,7 @@ function applyStats(total, msgs, cfg, media) {
     } else {
         init();
     }
-
+window.updateStats = updateStats;
 })();
 
 function updateStorageUsageBar() {
