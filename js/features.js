@@ -2284,30 +2284,69 @@ window.closeDailyGreeting = function() {
             modal.style.transition = 'opacity 0.3s ease';
             setTimeout(function() {
                 modal.classList.add('hidden');
-                modal.style.opacity = '';
-                modal.style.transition = '';
+                modal.style.display = 'none';
+                
+                var parent = modal.parentElement;
+                if (parent && parent.classList.contains('modal')) {
+                    // ★ 恢复背景为默认
+                    parent.style.background = '';
+                    parent.style.backdropFilter = '';
+                    parent.style.webkitBackdropFilter = '';
+                    parent.style.display = 'none';
+                }
             }, 320);
         }
-        localStorage.setItem('dailyGreetingShown', new Date().toDateString());
-    } catch(e) {}
+        try {
+            localStorage.setItem('dailyGreetingShown', new Date().toDateString());
+        } catch(e) {}
+    } catch(e) {
+        console.error('[公告] 关闭失败:', e);
+    }
 };
-
 window.reopenDailyGreeting = function(mode) {
     try {
-        // 如果传入了 mode 则使用，否则默认 partner
         var targetMode = mode || 'partner';
-        _greetingPage = targetMode;
-        if (typeof _buildDailyGreeting === 'function') _buildDailyGreeting(targetMode);
+        window._greetingPage = targetMode;
+        
         var modal = document.getElementById('daily-greeting-modal');
         if (modal) {
-            modal.style.opacity = '0';
+            var parent = modal.parentElement;
+            if (parent && parent.classList.contains('modal')) {
+                // ★ 透明背景 + 模糊效果
+                parent.style.background = 'rgba(0,0,0,0)';
+                parent.style.backdropFilter = 'blur(8px)';
+                parent.style.webkitBackdropFilter = 'blur(8px)';
+                parent.style.display = 'flex';
+                parent.style.zIndex = '9999';
+                
+                // 隐藏父容器下其他子元素，避免闪现
+                var children = parent.children;
+                for (var i = 0; i < children.length; i++) {
+                    if (children[i].id !== 'daily-greeting-modal') {
+                        children[i].style.display = 'none';
+                    }
+                }
+                modal.style.display = 'block';
+            }
+            
+            // 构建公告内容
+            if (typeof window._buildDailyGreeting === 'function') {
+                window._buildDailyGreeting(targetMode);
+            }
+            
             modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+            modal.style.opacity = '0';
+            modal.style.zIndex = '10000';
+            
             requestAnimationFrame(function() {
                 modal.style.transition = 'opacity 0.3s ease';
                 modal.style.opacity = '1';
             });
         }
-    } catch(e) {}
+    } catch(e) {
+        console.error('[公告] 打开失败:', e);
+    }
 };
 
 window.tryShowDailyGreeting = function() {
