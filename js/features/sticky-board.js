@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V19 (整体镜像缩小，字随纸缩放) */
+/* 留言板功能 - Sticky Board V20 (完美等比缩放 + 独立新建弹窗) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -155,6 +155,7 @@ function showInternalMessage(msg, type = 'warning') {
     }
 }
 
+// ── 页面结构 ──
 function createStickyBoardModal() {
     let modal = document.getElementById('sticky-board-modal');
     if (modal) return modal;
@@ -169,22 +170,28 @@ function createStickyBoardModal() {
                 </div>
                 <button onclick="closeStickyBoard()" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;"><i class="fas fa-times"></i></button>
             </div>
-            <div style="background: var(--primary-bg); padding: 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto;">
-                <div style="background: rgba(255,255,255,0.05); border: 2px dashed var(--accent-color); border-radius: 12px; padding: 15px; margin-bottom: 20px;">
-                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px;">✍️ 新建便签</div>
-                    <textarea id="sticky-input" placeholder="写下你想说的话..." style="min-height: 80px; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--secondary-bg); color: var(--text-primary); font-size: 14px; resize: none; outline: none; width: 100%; box-sizing: border-box;"></textarea>
-                    <div style="display: flex; gap: 10px; align-items: center; margin: 12px 0;">
-                        <div style="font-size: 12px; color: var(--text-secondary);">选择纸张颜色：</div>
-                        <div style="display: flex; gap: 5px; cursor: pointer;" id="sticky-style-selector">
-                        </div>
-                    </div>
-                    <button onclick="submitSticky()" style="width: 100%; padding: 12px; background: var(--accent-color); color: #fff; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;">
-                        <i class="fas fa-paper-plane"></i> 贴出便签
-                    </button>
+            <div style="background: var(--primary-bg); padding: 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative;">
+                
+                <!-- ⭐ 2. 移除新建板块，这里只显示已建立的便签 -->
+                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 80px;">
                 </div>
-                <!-- ⭐ 统一显示两个 -->
-                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 20px;">
-                </div>
+                
+                <!-- ⭐ 新建悬浮按钮 (右下角) -->
+                <button id="sticky-add-btn" onclick="openStickyCreateModal()" style="
+                    position: fixed; 
+                    bottom: 30px; 
+                    right: 30px; 
+                    width: 56px; 
+                    height: 56px; 
+                    border-radius: 50%; 
+                    border: none; 
+                    background: var(--accent-color); 
+                    color: white; 
+                    font-size: 28px; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+                    cursor: pointer; 
+                    z-index: 100;
+                "><i class="fas fa-plus"></i></button>
             </div>
         </div>
     `;
@@ -192,35 +199,69 @@ function createStickyBoardModal() {
     return modal;
 }
 
-function renderStyleSelector() {
-    const container = document.getElementById('sticky-style-selector');
-    if (!container) return;
-    container.innerHTML = '';
+// ── 新建便签独立弹窗 ──
+function openStickyCreateModal() {
+    const old = document.getElementById('sticky-create-modal');
+    if (old) old.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'sticky-create-modal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:var(--secondary-bg);border-radius:16px;padding:20px;width:85%;max-width:360px;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
+
+    box.innerHTML = `
+        <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:15px;text-align:center;">✍️ 写一张新便签</div>
+        <textarea id="sticky-create-input" placeholder="写下你想说的话..." style="
+            width:100%; min-height:100px; padding:10px; border:1px solid var(--border-color); 
+            border-radius:8px; background:var(--primary-bg); color:var(--text-primary); 
+            font-size:14px; resize:none; outline:none; box-sizing:border-box;
+        "></textarea>
+        <div style="display:flex; gap:10px; align-items:center; margin:12px 0;">
+            <div style="font-size:12px; color:var(--text-secondary);">选择纸张：</div>
+            <div id="sticky-create-selector" style="display:flex; gap:5px; cursor:pointer;"></div>
+        </div>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button onclick="document.getElementById('sticky-create-modal').remove()" style="flex:1; padding:10px; border:none; border-radius:8px; background:var(--primary-bg); color:var(--text-secondary); cursor:pointer; font-size:14px;">取消</button>
+            <button onclick="submitCreateSticky()" style="flex:2; padding:10px; border:none; border-radius:8px; background:var(--accent-color); color:white; cursor:pointer; font-size:14px; font-weight:600;">贴出便签</button>
+        </div>
+    `;
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    // 渲染选择器
+    const selector = document.getElementById('sticky-create-selector');
     StickyBoardConfig.paperColors.forEach((p, index) => {
         const div = document.createElement('div');
         div.style.cssText = `width: 30px; height: 30px; background: ${p.color}; border: 2px solid transparent; border-radius: 4px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);`;
         if (index === 0) div.style.borderColor = 'var(--accent-color)';
         div.onclick = () => {
-            container.querySelectorAll('div').forEach(el => el.style.borderColor = 'transparent');
+            selector.querySelectorAll('div').forEach(el => el.style.borderColor = 'transparent');
             div.style.borderColor = 'var(--accent-color)';
             document.getElementById('sticky-selected-color').value = p.color;
         };
-        container.appendChild(div);
+        selector.appendChild(div);
     });
+
+    setTimeout(() => document.getElementById('sticky-create-input').focus(), 100);
 }
 
-function submitSticky() {
-    const textInput = document.getElementById('sticky-input');
+function submitCreateSticky() {
+    const textInput = document.getElementById('sticky-create-input');
     const text = textInput.value.trim();
     if (!text) {
         showInternalMessage('请输入内容再贴出哦~');
         return;
     }
-    const selector = document.getElementById('sticky-style-selector');
+    
+    const selector = document.getElementById('sticky-create-selector');
     const selectedColorDiv = selector.querySelector('div[style*="border-color: var(--accent-color)"]');
     const index = selectedColorDiv ? Array.from(selector.children).indexOf(selectedColorDiv) : 0;
     const color = StickyBoardConfig.paperColors[index].color;
-    
+
     const newSticky = {
         id: Date.now(),
         bgColor: color,
@@ -229,10 +270,13 @@ function submitSticky() {
             { id: Date.now() + 1, sender: 'user', text: text, textStyle: StickyBoardConfig.textStyles.user }
         ]
     };
+    
     StickyBoardData.unshift(newSticky);
     saveStickyBoardData();
-    textInput.value = '';
     renderStickyBoard();
+    
+    document.getElementById('sticky-create-modal').remove();
+    showInternalMessage('便签已贴出！', 'success');
 }
 
 function pinSticky(stickyId, tempContent) {
@@ -336,13 +380,12 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// ⭐ 设置随机渲染参数（小图和大图统一调用，保证内容一模一样）
+// ⭐ 生成稳定且绝对一致的排版参数（小图大图共用）
 function getSharedLayout(index, total) {
-    // 根据索引生成，使用一定逻辑，保证小图和大图渲染完全一致
-    const widthNum = 12 + ((index * 7 + total) % 9); // 12~20 之间的稳定随机
-    const marginLeft = (index * 3) % 15; 
-    const rotate = (((index * 13) % 100) / 100 - 0.5) * 2.4; 
-    const yOffset = (((index * 17) % 100) / 100 - 0.5) * 4; 
+    const widthNum = 12 + ((index * 7 + total) % 9); // 12~20
+    const marginLeft = (index * 3) % 15; // 0~15px
+    const rotate = (((index * 13) % 100) / 100 - 0.5) * 2.4; // -1.2 ~ 1.2
+    const yOffset = (((index * 17) % 100) / 100 - 0.5) * 4; // -2 ~ 2
     return { widthNum, marginLeft, rotate, yOffset };
 }
 
@@ -352,7 +395,7 @@ function renderStickyBoard() {
     if (StickyBoardData.length === 0) {
         grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 50px; color: var(--text-secondary); opacity: 0.6;">
             <i class="fas fa-heart" style="font-size: 40px; display: block; margin-bottom: 10px;"></i>
-            还没有留言，写下第一张便签吧~
+            还没有留言，点击右下角 + 写一张吧~
         </div>`;
         return;
     }
@@ -372,17 +415,24 @@ function renderStickyBoard() {
             align-items: center;
         `;
 
+        // ⭐ 基准画布 (大图画布的等比缩小版)
+        const BASE_SIZE = 300; 
+        const scale = 0.55; // 缩放系数
+
         const paper = document.createElement('div');
         paper.style.cssText = `
-            width: 100%; height: 100%;
+            width: ${BASE_SIZE}px;
+            height: ${BASE_SIZE}px;
             background-color: ${sticky.bgColor};
             border-radius: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             border: 1px solid rgba(255,255,255,0.5);
-            padding: 18%;
+            padding: 30px;
             box-sizing: border-box;
             overflow: hidden;
             position: relative;
+            transform: scale(${scale});
+            transform-origin: center center;
         `;
 
         paper.innerHTML += `
@@ -394,26 +444,26 @@ function renderStickyBoard() {
                 </svg>
             </div>
             
-            <!-- ⭐ 缩小的回形针 -->
-            <div style="position:absolute; top:-4px; left:20%; width:12px; height:25px; z-index:20; transform:rotate(-5deg);">
-                <svg width="12" height="25" viewBox="0 0 12 25" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M3.5 22 V6 C3.5 3 6 2 7.5 2 C9 2 10 3.5 10 5 V17 C10 18.5 9 19.5 7.5 19.5 C6 19.5 4.5 18.5 4.5 17 V7" stroke="#999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
+            <div style="position:absolute; top:-4px; left:40px; width:16px; height:32px; z-index:20; transform:rotate(-5deg);">
+                <svg width="16" height="32" viewBox="0 0 16 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4.5 28 V8 C4.5 4 8 2.5 10 2.5 C12 2.5 13.5 4.5 13.5 7 V21 C13.5 23 12 24.5 10 24.5 C8 24.5 6 23 6 21 V9" stroke="#999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                 </svg>
             </div>
         `;
 
-        // ⭐ 关键：生成一个绝对全量的内容容器（大图和小图渲染的内容一模一样）
+        // ⭐ 绝对固定内容的容器（当前页）
         const contentContainer = document.createElement('div');
         contentContainer.style.cssText = `
             position: absolute;
-            top: 18%; left: 18%; right: 18%; bottom: 18%;
+            top: 15%; left: 15%; right: 15%; bottom: 15%;
             overflow: hidden;
         `;
 
-        // 计算该便签内部的字号和行距（固定值，大图小图一致）
-        const baseFontSize = 16 + (sticky.id % 4);
-        const baseLineHeight = 1.7;
+        // 固定字号和行距，小图大图一致
+        const baseFontSize = 17; 
+        const baseLineHeight = 1.8;
 
+        // 只渲染当前内容
         sticky.messages.forEach((msg, index) => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
             const layout = getSharedLayout(index, sticky.messages.length);
@@ -429,19 +479,13 @@ function renderStickyBoard() {
                 text-align: left;
                 max-width: ${layout.widthNum}em;
                 margin-left: ${layout.marginLeft}px;
-                margin-bottom: 3px;
+                margin-bottom: 5px;
                 transform: rotate(${layout.rotate}deg) translateY(${layout.yOffset}px);
             `;
             contentContainer.appendChild(line);
         });
 
-        // ⭐ 小图缩放：通过 scale 直接让字跟着纸一起变小
-        const scale = 0.5;
-        contentContainer.style.transform = `scale(${scale})`;
-        contentContainer.style.transformOrigin = 'top left';
-        contentContainer.style.width = `${100 / scale}%`;
-        contentContainer.style.height = `${100 / scale}%`;
-
+        // ⭐ 绝对等比缩放：大图怎么排，小图就怎么缩
         paper.appendChild(contentContainer);
         item.appendChild(paper);
         item.onclick = () => showStickyLarge(sticky);
@@ -458,17 +502,16 @@ function showStickyLarge(sticky) {
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 400px;';
 
+    // ⭐ 大图就是原尺寸的 300x300 等比放大版
     const card = document.createElement('div');
     card.style.cssText = `
-        width: 100%;
-        aspect-ratio: 1 / 1;
+        width: 300px;
+        height: 300px;
         background-color: ${sticky.bgColor};
         border-radius: 8px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        padding: 10%;
+        padding: 30px;
         box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
         position: relative;
     `;
 
@@ -480,22 +523,21 @@ function showStickyLarge(sticky) {
                 <path d="M30,160 C60,140 100,130 140,130" fill="none" stroke="#333" stroke-width="1"/>
             </svg>
         </div>
+        
+        <div style="position:absolute; top:-4px; left:40px; width:16px; height:32px; z-index:20; transform:rotate(-5deg);">
+            <svg width="16" height="32" viewBox="0 0 16 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4.5 28 V8 C4.5 4 8 2.5 10 2.5 C12 2.5 13.5 4.5 13.5 7 V21 C13.5 23 12 24.5 10 24.5 C8 24.5 6 23 6 21 V9" stroke="#999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
+            </svg>
+        </div>
     `;
 
+    // ⭐ 大图的滚动容器，如果超长则滑动
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
         position: absolute;
-        top: 50%;
-        left: 10%;
-        transform: translateY(-50%);
-        width: 85%;
-        max-height: 90%;
+        top: 15%; left: 15%; right: 15%; bottom: 15%;
         overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
         z-index: 10;
-        padding-bottom: 10px;
     `;
 
     let tempContent = null; 
@@ -506,9 +548,8 @@ function showStickyLarge(sticky) {
         const allMsgs = [...sticky.messages];
         if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user });
 
-        // ⭐ 与渲染小图使用完全相同的字号和随机布局
-        const baseFontSize = 16 + (sticky.id % 4);
-        const baseLineHeight = 1.7;
+        const baseFontSize = 17; 
+        const baseLineHeight = 1.8;
 
         allMsgs.forEach((msg, index) => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
@@ -519,7 +560,7 @@ function showStickyLarge(sticky) {
                 position: relative;
                 max-width: ${layout.widthNum}em;
                 margin-left: ${layout.marginLeft}px;
-                margin-bottom: 3px;
+                margin-bottom: 5px;
                 cursor: pointer;
             `;
             
@@ -615,7 +656,6 @@ window.getNeedInteractCount = function() {
 function openStickyBoard() {
     loadStickyBoardData();
     const modal = createStickyBoardModal();
-    renderStyleSelector();
     renderStickyBoard();
     showModal(modal);
 }
