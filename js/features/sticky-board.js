@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V3 (多轮对话逻辑) */
+/* 留言板功能 - Sticky Board V3.1 (多轮对话逻辑 + 数据兼容) */
 
 const StickyBoardConfig = {
     images: [
@@ -18,7 +18,32 @@ let StickyBoardData = [];
 function loadStickyBoardData() {
     const saved = localStorage.getItem('stickyBoardData');
     if (saved) {
-        try { StickyBoardData = JSON.parse(saved); } catch(e) { StickyBoardData = []; }
+        try { 
+            StickyBoardData = JSON.parse(saved); 
+
+            // 【关键】数据清洗：兼容旧数据格式
+            StickyBoardData = StickyBoardData.map(item => {
+                // 如果旧数据是单条文字格式，将其转换为 messages 数组
+                if (item.text && !item.messages) {
+                    return {
+                        id: item.id || Date.now(),
+                        bgImg: item.bgImg || StickyBoardConfig.images[0],
+                        messages: [{
+                            id: Date.now() + 1,
+                            sender: 'user',
+                            text: item.text,
+                            textStyle: item.textStyle || StickyBoardConfig.textStyles[0]
+                        }]
+                    };
+                }
+                // 保证 messages 一定是个数组
+                if (!Array.isArray(item.messages)) {
+                    item.messages = [];
+                }
+                return item;
+            }).filter(item => item.messages.length > 0); // 过滤掉没有消息的废数据
+
+        } catch(e) { StickyBoardData = []; }
     }
 }
 
@@ -177,8 +202,8 @@ function renderStickyBoard() {
         `;
 
         // 暂时先只取第一条消息渲染在小图上（在没做好排版前）
-        const firstMsg = sticky.messages[0];
-        if (firstMsg) {
+        if (sticky.messages && sticky.messages.length > 0) {
+            const firstMsg = sticky.messages[0];
             const text = document.createElement('div');
             text.innerText = firstMsg.text;
             text.style.cssText = `
@@ -252,7 +277,7 @@ function showStickyLarge(sticky) {
     `;
 
     // 遍历每一条消息
-    sticky.messages.forEach(msg => {
+    (sticky.messages || []).forEach(msg => {
         // 气泡包裹层
         const msgWrap = document.createElement('div');
         msgWrap.style.cssText = `
