@@ -1,10 +1,11 @@
-/* 留言板功能 - Sticky Board V9 (补充暂存，张贴正式保存) */
+/* 留言板功能 - Sticky Board V10 (修复暂存输入框和提示交互) */
 
 const StickyBoardConfig = {
     images: [
         'img/sticky_bg_1.png', 
         'img/sticky_bg_2.png', 
-
+        'img/sticky_bg_3.png', 
+        'img/sticky_bg_4.png'
     ],
     textStyles: [
         { font: '14px "Noto Serif SC", serif', color: '#333', weight: '400' }
@@ -89,9 +90,13 @@ function customConfirm(message, onConfirm) {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    overlay.onclick = () => overlay.remove();
+    // 防止点击输入框误触关闭：只有点击最外层的黑色遮罩才关闭，点击内部不关闭
+    overlay.addEventListener('click', (e) => { 
+        if (e.target === overlay) overlay.remove(); 
+    });
 }
 
+// 【修复1】防止点击输入框时，事件冒泡到遮罩层导致弹窗关闭
 function customPrompt(message, placeholder, onSave) {
     const oldOverlay = document.getElementById('custom-prompt-overlay');
     if (oldOverlay) oldOverlay.remove();
@@ -110,6 +115,11 @@ function customPrompt(message, placeholder, onSave) {
     const input = document.createElement('textarea');
     input.placeholder = placeholder || '写下你要补充的内容...';
     input.style.cssText = 'width:100%;min-height:80px;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--primary-bg);color:var(--text-primary);font-size:14px;resize:none;outline:none;box-sizing:border-box;';
+
+    // 【修复点】：阻止点击输入框时的事件冒泡
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('touchstart', (e) => e.stopPropagation());
+    input.addEventListener('mousedown', (e) => e.stopPropagation());
 
     const btnContainer = document.createElement('div');
     btnContainer.style.cssText = 'display:flex;justify-content:space-between;gap:10px;margin-top:15px;';
@@ -139,7 +149,20 @@ function customPrompt(message, placeholder, onSave) {
     document.body.appendChild(overlay);
 
     setTimeout(() => input.focus(), 100);
-    overlay.onclick = () => overlay.remove();
+    
+    // 只有点击最外层遮罩才关闭，点击内部不关闭
+    overlay.addEventListener('click', (e) => { 
+        if (e.target === overlay) overlay.remove(); 
+    });
+}
+
+// 【修复2】使用网页内的 showNotification 代替 alert
+function showInternalMessage(msg, type = 'warning') {
+    if (typeof showNotification === 'function') {
+        showNotification(msg, type, 2000);
+    } else {
+        alert(msg); // 后备方案，防止函数不存在
+    }
 }
 
 function createStickyBoardModal() {
@@ -200,12 +223,11 @@ function renderStyleSelector() {
     });
 }
 
-// 新建便签：直接进入需互动状态
 function submitSticky() {
     const textInput = document.getElementById('sticky-input');
     const text = textInput.value.trim();
     if (!text) {
-        alert('请输入内容再贴出哦~');
+        showInternalMessage('请输入内容再贴出哦~');
         return;
     }
     
@@ -233,18 +255,15 @@ function submitSticky() {
     renderStickyBoard();
 }
 
-// 【核心】张贴：把暂存内容正式保存，并进入需互动
 function pinSticky(stickyId, tempContent) {
     const sticky = StickyBoardData.find(item => item.id === stickyId);
     if (!sticky) return false;
 
-    // 检查是否有暂存的未正式保存的新增内容
     if (!tempContent || tempContent.trim() === '') {
-        alert('没有暂存内容，无法张贴。');
+        showInternalMessage('没有暂存内容，无法张贴。');
         return false;
     }
 
-    // 正式写入
     sticky.messages.push({
         id: Date.now() + Math.random(),
         sender: 'user',
@@ -252,15 +271,12 @@ function pinSticky(stickyId, tempContent) {
         textStyle: StickyBoardConfig.textStyles[0]
     });
 
-    // 重置状态为需互动
     sticky.status = SB_STATUS.NEED_INTERACT;
-
     saveStickyBoardData();
     renderStickyBoard();
     return true;
 }
 
-// END：叠加不可回复状态
 function endSticky(stickyId) {
     customConfirm('确定将此便签设为不可回复吗？', () => {
         const sticky = StickyBoardData.find(item => item.id === stickyId);
@@ -271,7 +287,6 @@ function endSticky(stickyId) {
     });
 }
 
-// 删除整个便签
 function deleteSticky(stickyId) {
     customConfirm('确定要删除这张便签吗？', () => {
         StickyBoardData = StickyBoardData.filter(item => item.id !== stickyId);
@@ -280,7 +295,6 @@ function deleteSticky(stickyId) {
     });
 }
 
-// 删除单条消息
 function deleteMessage(stickyId, msgId) {
     customConfirm('确定要删除这条内容吗？', () => {
         const sticky = StickyBoardData.find(item => item.id === stickyId);
@@ -300,7 +314,6 @@ function deleteMessage(stickyId, msgId) {
     });
 }
 
-// 获取所有需互动的便签
 function getNeedInteractStickies() {
     return StickyBoardData.filter(item => item.status === SB_STATUS.NEED_INTERACT);
 }
@@ -311,7 +324,6 @@ async function processStickyBoardReply() {
     const noReplyStickies = needInteractList.filter(item => item.status === SB_STATUS.NO_REPLY);
     noReplyStickies.forEach(item => {
         item.status = SB_STATUS.REPLIED;
-        console.log('便签设为不可回复，已跳过回复:', item.id);
     });
 
     let replyStickies = needInteractList.filter(item => item.status === SB_STATUS.NEED_INTERACT);
@@ -362,7 +374,6 @@ async function processStickyBoardReply() {
 
     saveStickyBoardData();
     renderStickyBoard();
-    console.log('留言板回复处理完毕');
     return true;
 }
 
@@ -436,11 +447,12 @@ function renderStickyBoard() {
     });
 }
 
-// 大图模式
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
-    overlay.onclick = (e) => { if (e.target === overlay) document.body.removeChild(overlay); };
+    
+    // 点击背景关闭，但在内部点击不关闭
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
 
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 400px;';
@@ -468,7 +480,6 @@ function showStickyLarge(sticky) {
         gap: 10px;
     `;
 
-    // 暂存内容变量（不保存到数据，只作为临时变量）
     let tempContent = null; 
 
     (sticky.messages || []).forEach(msg => {
@@ -517,26 +528,22 @@ function showStickyLarge(sticky) {
     const actions = document.createElement('div');
     actions.style.cssText = 'display: flex; width: 100%; justify-content: center; gap: 10px;';
 
-    // 【修改1：张贴】检查暂存内容是否为空
     const pinBtn = document.createElement('button');
     pinBtn.innerHTML = '张贴';
     pinBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: 8px; background: rgba(255,255,255,0.8); color: #333; cursor: pointer; font-size: 14px; flex: 1;';
     pinBtn.onclick = () => {
-        // 正式保存
         if (pinSticky(sticky.id, tempContent)) {
             document.body.removeChild(overlay);
         }
     };
 
-    // 【修改2：补充】只暂存内容到 tempContent，不保存到数据，不刷新页面
     const supplementBtn = document.createElement('button');
     supplementBtn.innerHTML = '补充';
     supplementBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: 8px; background: var(--accent-color); color: white; cursor: pointer; font-size: 14px; flex: 1;';
     supplementBtn.onclick = () => {
         customPrompt('补充内容', '输入你想补充的话...', (text) => {
-            tempContent = text; // 暂存，不保存
-            // 在页面上临时显示一下（但还没保存）
-            alert('内容已暂存，点击【张贴】后才会正式保存。');
+            tempContent = text; 
+            showInternalMessage('内容已暂存，点击【张贴】后才会正式保存。', 'success');
         });
     };
 
