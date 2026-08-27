@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V22 (纯粹网格布局，极致修复) */
+/* 留言板功能 - Sticky Board V23 (最终精准微调版) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -170,24 +170,21 @@ function createStickyBoardModal() {
                 <button onclick="closeStickyBoard()" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;"><i class="fas fa-times"></i></button>
             </div>
             <div style="background: var(--primary-bg); padding: 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; height: calc(90vh - 60px);">
+                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding-bottom: 80px;"></div>
                 
-                <!-- ⭐ 纯净的 2 列网格，只列便签 -->
-                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding-bottom: 80px;">
-                </div>
-                
-                <!-- ⭐ 新建按钮：放在弹窗最内层，用绝对定位，层级最高，不会被挡住 -->
+                <!-- ⭐ 新建按钮缩小为 48px -->
                 <button id="sticky-add-btn" onclick="openStickyCreateModal()" style="
                     position: absolute; 
                     bottom: 20px; 
                     right: 20px; 
-                    width: 64px; 
-                    height: 64px; 
+                    width: 48px; 
+                    height: 48px; 
                     border-radius: 50%; 
                     border: none; 
                     background: var(--accent-color); 
                     color: white; 
-                    font-size: 32px; 
-                    box-shadow: 0 8px 16px rgba(0,0,0,0.4); 
+                    font-size: 24px; 
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.4); 
                     cursor: pointer; 
                     z-index: 99999;
                 "><i class="fas fa-plus"></i></button>
@@ -198,7 +195,6 @@ function createStickyBoardModal() {
     return modal;
 }
 
-// 新建独立弹窗（层级抬到最高）
 function openStickyCreateModal() {
     const old = document.getElementById('sticky-create-modal');
     if (old) old.remove();
@@ -378,7 +374,7 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// 生成稳定且一致的排版参数
+// ⭐ 生成大图小图完全一致的基础参数
 function getSharedLayout(index, total) {
     const widthNum = 12 + ((index * 7 + total) % 9);
     const marginLeft = (index * 3) % 12;
@@ -387,7 +383,7 @@ function getSharedLayout(index, total) {
     return { widthNum, marginLeft, rotate, yOffset };
 }
 
-// ⭐ 纯网格渲染：没有任何缩放Bug，绝对居中，间距完美
+// ⭐ 小图渲染（小图 = 大图按比例缩小，固定基准像素）
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -401,6 +397,7 @@ function renderStickyBoard() {
     grid.innerHTML = '';
     
     StickyBoardData.forEach(sticky => {
+        // 固定基准大小 300x300，小图就是它的缩小版
         const item = document.createElement('div');
         item.style.cssText = `
             width: 100%;
@@ -410,7 +407,7 @@ function renderStickyBoard() {
             border-radius: 12px;
             box-shadow: 0 6px 14px rgba(0,0,0,0.15);
             border: 1px solid rgba(255,255,255,0.6);
-            padding: 8%;
+            padding: 6px; /* ⭐ 左右各留6px，不多不少 */
             box-sizing: border-box;
             overflow: hidden;
             position: relative;
@@ -440,14 +437,15 @@ function renderStickyBoard() {
             </div>
         `;
 
-        // 内容区
+        // 内容区：左右6px，上下6px
         const contentContainer = document.createElement('div');
         contentContainer.style.cssText = `
             position: absolute;
-            top: 12%; left: 12%; right: 12%; bottom: 12%;
+            top: 6px; left: 6px; right: 6px; bottom: 6px;
             overflow: hidden;
         `;
 
+        // 完全相同尺寸和字号（大图小图一致）
         const baseFontSize = 14; 
         const baseLineHeight = 1.7;
 
@@ -478,7 +476,7 @@ function renderStickyBoard() {
     });
 }
 
-// ⭐ 大图：移动端直接用 100vw 撑满全屏宽度，不再受限
+// ⭐ 大图渲染（和大图内容一致，自动适应屏幕）
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.id = 'sticky-overlay';
@@ -488,7 +486,6 @@ function showStickyLarge(sticky) {
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 420px;';
 
-    // ⭐ 撑满移动端宽度
     const card = document.createElement('div');
     card.style.cssText = `
         width: 95vw;
@@ -498,7 +495,7 @@ function showStickyLarge(sticky) {
         background-color: ${sticky.bgColor};
         border-radius: 16px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        padding: 10%;
+        padding: 6px; /* ⭐ 左右各留6px，不多不少 */
         box-sizing: border-box;
         position: relative;
     `;
@@ -519,11 +516,11 @@ function showStickyLarge(sticky) {
         </div>
     `;
 
-    // ⭐ 大图滚动容器：留有合适边距
+    // ⭐ 大图滚动容器：极窄边距，适合铺满全部内容
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
         position: absolute;
-        top: 12%; left: 12%; right: 12%; bottom: 12%;
+        top: 6px; left: 6px; right: 6px; bottom: 6px;
         overflow-y: auto;
         z-index: 10;
     `;
@@ -536,6 +533,7 @@ function showStickyLarge(sticky) {
         const allMsgs = [...sticky.messages];
         if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user });
 
+        // ⭐ 和大图完全一样的字号、行距和排版逻辑
         const baseFontSize = 16; 
         const baseLineHeight = 1.8;
 
