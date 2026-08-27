@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V23 (最终精准微调版) */
+/* 留言板功能 - Sticky Board V24 (绝对等比缩放，大小图完美统一) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -171,8 +171,6 @@ function createStickyBoardModal() {
             </div>
             <div style="background: var(--primary-bg); padding: 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; height: calc(90vh - 60px);">
                 <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding-bottom: 80px;"></div>
-                
-                <!-- ⭐ 新建按钮缩小为 48px -->
                 <button id="sticky-add-btn" onclick="openStickyCreateModal()" style="
                     position: absolute; 
                     bottom: 20px; 
@@ -374,16 +372,21 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// ⭐ 生成大图小图完全一致的基础参数
-function getSharedLayout(index, total) {
-    const widthNum = 12 + ((index * 7 + total) % 9);
-    const marginLeft = (index * 3) % 12;
-    const rotate = (((index * 13) % 100) / 100 - 0.5) * 1.8; 
-    const yOffset = (((index * 17) % 100) / 100 - 0.5) * 3; 
-    return { widthNum, marginLeft, rotate, yOffset };
+// ⭐ 最终核心：固定基准画布参数（大图100%，小图50%），文本直接放置，绝不偏移
+function getFixedLayout(index, total) {
+    return {
+        // 字号、行距写死，大图小图完全一致
+        fontSize: 16,
+        lineHeight: 1.8,
+        // 随机左边距，模拟自然不顶格（绝不靠左贴死）
+        marginLeft: 10 + ((index * 3) % 20), 
+        // 轻微上下错位，模拟随手写
+        yOffset: ((index * 7) % 5) - 2,
+        // 轻微旋转，模拟笔迹
+        rotate: (((index * 13) % 100) / 100 - 0.5) * 1.6
+    };
 }
 
-// ⭐ 小图渲染（小图 = 大图按比例缩小，固定基准像素）
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -397,27 +400,28 @@ function renderStickyBoard() {
     grid.innerHTML = '';
     
     StickyBoardData.forEach(sticky => {
-        // 固定基准大小 300x300，小图就是它的缩小版
+        // 基准画布 300x300（大图就是这个的放大，小图就是这个的缩小）
         const item = document.createElement('div');
         item.style.cssText = `
-            width: 100%;
-            height: 100%;
-            aspect-ratio: 1 / 1;
+            width: 300px;
+            height: 300px;
             background-color: ${sticky.bgColor};
             border-radius: 12px;
             box-shadow: 0 6px 14px rgba(0,0,0,0.15);
             border: 1px solid rgba(255,255,255,0.6);
-            padding: 6px; /* ⭐ 左右各留6px，不多不少 */
+            padding: 6px;
             box-sizing: border-box;
             overflow: hidden;
             position: relative;
             cursor: pointer;
             transition: transform 0.2s;
+            transform: scale(0.5);
+            transform-origin: center center;
         `;
-        item.onmouseover = () => { item.style.transform = 'scale(1.03)'; };
-        item.onmouseout = () => { item.style.transform = 'scale(1)'; };
+        item.onmouseover = () => { item.style.transform = 'scale(0.52)'; };
+        item.onmouseout = () => { item.style.transform = 'scale(0.5)'; };
 
-        // 背景暗纹
+        // 背景暗纹（大图100%完全相同，小图就是缩小）
         item.innerHTML += `
             <div style="position:absolute; inset:0; pointer-events:none; border-radius:12px; overflow:hidden;">
                 <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -428,16 +432,16 @@ function renderStickyBoard() {
             </div>
         `;
 
-        // 回形针
+        // ⭐ 小图独有的回形针（大图里没有）
         item.innerHTML += `
-            <div style="position:absolute; top:-3px; left:25%; width:14px; height:28px; z-index:20; transform:rotate(-5deg);">
+            <div style="position:absolute; top:-4px; left:15px; width:14px; height:28px; z-index:20; transform:rotate(-5deg);">
                 <svg width="14" height="28" viewBox="0 0 14 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M4 24 V7 C4 3.5 7 2 8.5 2 C10 2 11.5 4 11.5 6 V18 C11.5 20 10 21.5 8.5 21.5 C7 21.5 5.5 20 5.5 18 V8" stroke="#999" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                 </svg>
             </div>
         `;
 
-        // 内容区：左右6px，上下6px
+        // ⭐ 内容层完全不做任何缩放逻辑，它就是基准，字多大就是多大
         const contentContainer = document.createElement('div');
         contentContainer.style.cssText = `
             position: absolute;
@@ -445,26 +449,22 @@ function renderStickyBoard() {
             overflow: hidden;
         `;
 
-        // 完全相同尺寸和字号（大图小图一致）
-        const baseFontSize = 14; 
-        const baseLineHeight = 1.7;
-
         sticky.messages.forEach((msg, index) => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
-            const layout = getSharedLayout(index, sticky.messages.length);
+            const layout = getFixedLayout(index, sticky.messages.length);
             
             const line = document.createElement('div');
             line.innerText = msg.text; 
             line.style.cssText = `
                 font-family: ${msgStyle.font};
-                font-size: ${baseFontSize}px;
+                font-size: ${layout.fontSize}px;
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                line-height: ${baseLineHeight};
+                line-height: ${layout.lineHeight};
                 text-align: left;
-                max-width: ${layout.widthNum}em;
+                max-width: 80%; // 为了自然感，留宽一点
                 margin-left: ${layout.marginLeft}px;
-                margin-bottom: 6px;
+                margin-bottom: 8px;
                 transform: rotate(${layout.rotate}deg) translateY(${layout.yOffset}px);
             `;
             contentContainer.appendChild(line);
@@ -476,7 +476,7 @@ function renderStickyBoard() {
     });
 }
 
-// ⭐ 大图渲染（和大图内容一致，自动适应屏幕）
+// ⭐ 大图就是基准画布的100%展示，不再有回形针
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.id = 'sticky-overlay';
@@ -486,20 +486,21 @@ function showStickyLarge(sticky) {
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 420px;';
 
+    // ⭐ 大图 = 原始 300x300 的放大版，绝对不增加多余属性
     const card = document.createElement('div');
     card.style.cssText = `
-        width: 95vw;
-        max-width: 400px;
-        height: 95vw;
-        max-height: 400px;
+        width: 300px;
+        height: 300px;
         background-color: ${sticky.bgColor};
         border-radius: 16px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        padding: 6px; /* ⭐ 左右各留6px，不多不少 */
+        padding: 6px;
         box-sizing: border-box;
         position: relative;
+        overflow: hidden;
     `;
 
+    // 背景暗纹（只为了不遮挡，保持和原版完全一致）
     card.innerHTML += `
         <div style="position:absolute; inset:0; pointer-events:none; border-radius:16px; overflow:hidden;">
             <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -508,15 +509,9 @@ function showStickyLarge(sticky) {
                 <path d="M30,160 C60,140 100,130 140,130" fill="none" stroke="#333" stroke-width="1"/>
             </svg>
         </div>
-        
-        <div style="position:absolute; top:-4px; left:25%; width:16px; height:32px; z-index:20; transform:rotate(-5deg);">
-            <svg width="16" height="32" viewBox="0 0 16 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4.5 28 V8 C4.5 4 8 2.5 10 2.5 C12 2.5 13.5 4.5 13.5 7 V21 C13.5 23 12 24.5 10 24.5 C8 24.5 6 23 6 21 V9" stroke="#999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
-            </svg>
-        </div>
     `;
 
-    // ⭐ 大图滚动容器：极窄边距，适合铺满全部内容
+    // ⭐ 大图滚动容器，与基准 300x300 大小完全一致
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
         position: absolute;
@@ -533,18 +528,15 @@ function showStickyLarge(sticky) {
         const allMsgs = [...sticky.messages];
         if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user });
 
-        // ⭐ 和大图完全一样的字号、行距和排版逻辑
-        const baseFontSize = 16; 
-        const baseLineHeight = 1.8;
-
+        // ⭐ 完全复用小图的参数，使得大图小图连文字都一样大！
         allMsgs.forEach((msg, index) => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
-            const layout = getSharedLayout(index, allMsgs.length);
+            const layout = getFixedLayout(index, allMsgs.length);
             
             const msgWrap = document.createElement('div');
             msgWrap.style.cssText = `
                 position: relative;
-                max-width: ${layout.widthNum}em;
+                max-width: 80%;
                 margin-left: ${layout.marginLeft}px;
                 margin-bottom: 8px;
                 cursor: pointer;
@@ -556,8 +548,8 @@ function showStickyLarge(sticky) {
                 font-family: ${msgStyle.font};
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                font-size: ${baseFontSize}px;
-                line-height: ${baseLineHeight};
+                font-size: ${layout.fontSize}px;
+                line-height: ${layout.lineHeight};
                 word-break: break-word;
                 text-align: left;
                 transform: rotate(${layout.rotate}deg) translateY(${layout.yOffset}px);
