@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V28 (等比缩放 + 每轮独立删除) */
+/* 留言板功能 - Sticky Board V30 (删除恢复 + 吞字修复 + 按需渲染) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -42,6 +42,41 @@ function wrapTextByWidth(text, lineWidth) {
     return lines;
 }
 
+function createNewMessage(text, sender) {
+    const fontSize = rand(11, 16);
+    const lineWidth = rand(12, 20);
+    const marginBottom = rand(5, 9);
+    const rotate = randFloat(-2.5, 2.5);
+    const leftOffset = rand(4, 50);
+    
+    return {
+        id: Date.now() + Math.random(),
+        sender: sender,
+        text: text,
+        textStyle: StickyBoardConfig.textStyles[sender],
+        layout: {
+            fontSize: fontSize,
+            lineWidth: lineWidth,
+            marginBottom: marginBottom,
+            rotate: rotate,
+            leftOffset: leftOffset
+        }
+    };
+}
+
+function ensureLayout(msg) {
+    if (!msg.layout) {
+        msg.layout = {
+            fontSize: rand(13, 15),
+            lineWidth: rand(14, 18),
+            marginBottom: rand(6, 8),
+            rotate: randFloat(-1.5, 1.5),
+            leftOffset: rand(10, 40)
+        };
+    }
+    return msg;
+}
+
 function loadStickyBoardData() {
     const saved = localStorage.getItem('stickyBoardData');
     if (saved) {
@@ -51,21 +86,18 @@ function loadStickyBoardData() {
                 if (!item.bgColor) item.bgColor = StickyBoardConfig.paperColors[0].color;
                 if (item.bgImg) delete item.bgImg; 
                 if (item.text && !item.messages) {
+                    const newMsg = createNewMessage(item.text, 'user');
                     return {
                         id: item.id || Date.now(),
                         bgColor: item.bgColor,
                         status: SB_STATUS.NEED_INTERACT,
-                        messages: [{
-                            id: Date.now() + 1,
-                            sender: 'user',
-                            text: item.text,
-                            textStyle: StickyBoardConfig.textStyles.user
-                        }]
+                        messages: [newMsg]
                     };
                 }
                 if (!Array.isArray(item.messages)) item.messages = [];
                 item.messages = item.messages.map(m => {
                     if (!m.sender) m.sender = 'user';
+                    ensureLayout(m);
                     return m;
                 });
                 return item;
@@ -267,16 +299,13 @@ function submitCreateSticky() {
     const index = selectedColorDiv ? Array.from(selector.children).indexOf(selectedColorDiv) : 0;
     const color = StickyBoardConfig.paperColors[index].color;
 
+    const newMsg = createNewMessage(text, 'user');
+    
     const newSticky = {
         id: Date.now(),
         bgColor: color,
         status: SB_STATUS.NEED_INTERACT,
-        messages: [{
-            id: Date.now() + 1,
-            sender: 'user',
-            text: text,
-            textStyle: StickyBoardConfig.textStyles.user
-        }]
+        messages: [newMsg]
     };
     
     StickyBoardData.unshift(newSticky);
@@ -294,12 +323,8 @@ function pinSticky(stickyId, tempContent) {
         showInternalMessage('没有暂存内容，无法张贴。');
         return false;
     }
-    sticky.messages.push({
-        id: Date.now() + Math.random(),
-        sender: 'user',
-        text: tempContent.trim(),
-        textStyle: StickyBoardConfig.textStyles.user
-    });
+    const newMsg = createNewMessage(tempContent.trim(), 'user');
+    sticky.messages.push(newMsg);
     sticky.status = SB_STATUS.NEED_INTERACT;
     saveStickyBoardData();
     renderStickyBoard();
@@ -321,11 +346,14 @@ function deleteSticky(stickyId) {
         StickyBoardData = StickyBoardData.filter(item => item.id !== stickyId);
         saveStickyBoardData();
         renderStickyBoard();
+        // 关闭大图
+        const overlay = document.getElementById('sticky-overlay');
+        if (overlay) document.body.removeChild(overlay);
     });
 }
 
-// ========== 每轮独立删除 ==========
-function deleteMessage(stickyId, msgId, overlayRef) {
+// ⭐ 删除单条消息 - 带大图刷新
+function deleteMessage(stickyId, msgId) {
     customConfirm('确定要删除这条内容吗？', () => {
         const sticky = StickyBoardData.find(item => item.id === stickyId);
         if (!sticky) return;
@@ -334,15 +362,17 @@ function deleteMessage(stickyId, msgId, overlayRef) {
             StickyBoardData = StickyBoardData.filter(item => item.id !== stickyId);
             saveStickyBoardData();
             renderStickyBoard();
-            if (overlayRef) document.body.removeChild(overlayRef);
+            const overlay = document.getElementById('sticky-overlay');
+            if (overlay) document.body.removeChild(overlay);
             return;
         }
         saveStickyBoardData();
         renderStickyBoard();
         // 刷新大图
-        if (overlayRef) {
-            const newOverlay = showStickyLarge(sticky, true);
-            document.body.removeChild(overlayRef);
+        const overlay = document.getElementById('sticky-overlay');
+        if (overlay) {
+            document.body.removeChild(overlay);
+            showStickyLarge(sticky);
         }
     });
 }
@@ -377,12 +407,8 @@ async function processStickyBoardReply() {
             finalText += txt;
             if (i < replyTexts.length - 1) finalText += puncts[Math.floor(Math.random() * puncts.length)];
         });
-        sticky.messages.push({
-            id: Date.now() + Math.random(),
-            sender: 'partner',
-            text: finalText,
-            textStyle: StickyBoardConfig.textStyles.partner
-        });
+        const newMsg = createNewMessage(finalText, 'partner');
+        sticky.messages.push(newMsg);
         sticky.status = SB_STATUS.REPLIED;
     }
     saveStickyBoardData();
@@ -392,13 +418,12 @@ async function processStickyBoardReply() {
 
 // ============================================================
 // 核心：创建一张便签（300x300 基准画布）
-// 每条消息独立随机：字体/间距/行宽/左右偏移
+// ⭐ 大图模式下每条消息带删除按钮（点击消息显示小×）
+// ⭐ 修复右侧吞字：去掉 overflow:hidden，改用 word-break
 // ============================================================
-function createStickyCard(sticky, isThumb = true) {
+function createStickyCard(sticky, isThumb = true, onDelete = null) {
     const BASE_SIZE = 300;
     const PADDING = 6;
-    const SAFE_MARGIN = 10;
-    const MAX_LEFT_OFFSET = 60;
 
     const card = document.createElement('div');
     card.style.cssText = `
@@ -416,7 +441,6 @@ function createStickyCard(sticky, isThumb = true) {
         flex-grow: 0;
     `;
 
-    // 回形针（仅小图）
     if (isThumb) {
         card.innerHTML += `
             <div style="position:absolute; top:-4px; left:15px; width:14px; height:28px; z-index:20; transform:rotate(-5deg); pointer-events:none;">
@@ -427,7 +451,6 @@ function createStickyCard(sticky, isThumb = true) {
         `;
     }
 
-    // 背景纹理
     card.innerHTML += `
         <div style="position:absolute; inset:0; pointer-events:none; border-radius:12px; overflow:hidden;">
             <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -438,7 +461,6 @@ function createStickyCard(sticky, isThumb = true) {
         </div>
     `;
 
-    // 内容容器
     const contentContainer = document.createElement('div');
     contentContainer.style.cssText = `
         position: absolute;
@@ -454,24 +476,45 @@ function createStickyCard(sticky, isThumb = true) {
         z-index: 10;
     `;
 
-    // 遍历每条消息
-    sticky.messages.forEach((msg, index) => {
-        const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
-        
-        const fontSize = rand(11, 16);
-        const lineWidth = rand(12, 20);
-        const marginBottom = rand(5, 9);
-        const rotate = randFloat(-2.5, 2.5);
-        const baseLeft = SAFE_MARGIN + (index * 3);
+    // ⭐ 大图模式下 contentContainer 可滚动
+    if (!isThumb) {
+        contentContainer.style.overflowY = 'auto';
+        contentContainer.style.overflowX = 'hidden';
+        if (sticky.messages.length > 3) {
+            contentContainer.style.justifyContent = 'flex-start';
+        } else {
+            contentContainer.style.justifyContent = 'center';
+        }
+        contentContainer.style.scrollbarWidth = 'thin';
+        contentContainer.style.scrollbarColor = 'rgba(255,255,255,0.3) transparent';
+    }
 
+    sticky.messages.forEach((msg, index) => {
+        const msgStyle = msg.textStyle || StickyBoardConfig.textStyles[msg.sender] || StickyBoardConfig.textStyles.user;
+        const layout = msg.layout || { fontSize: 14, lineWidth: 16, marginBottom: 7, rotate: 0, leftOffset: 20 };
+        
+        const fontSize = layout.fontSize;
+        const lineWidth = layout.lineWidth;
+        const marginBottom = layout.marginBottom;
+        const rotate = layout.rotate;
+        
         const charWidth = fontSize * 0.9;
         const maxLineWidth = lineWidth * charWidth;
         const availableWidth = BASE_SIZE - PADDING * 2 - maxLineWidth - 6;
-        const maxSafeLeft = Math.max(0, availableWidth - SAFE_MARGIN);
-        let leftOffset = SAFE_MARGIN + rand(0, Math.min(MAX_LEFT_OFFSET, maxSafeLeft));
-        leftOffset = Math.max(4, Math.min(leftOffset, maxSafeLeft + SAFE_MARGIN));
+        const maxSafeLeft = Math.max(4, availableWidth - 4);
+        let leftOffset = Math.min(layout.leftOffset, maxSafeLeft);
+        leftOffset = Math.max(4, leftOffset);
 
         const lines = wrapTextByWidth(msg.text, lineWidth);
+
+        // ⭐ 每条消息的外层容器（用于定位删除按钮）
+        const msgWrapper = document.createElement('div');
+        msgWrapper.style.cssText = `
+            position: relative;
+            width: auto;
+            max-width: 100%;
+            margin-bottom: ${marginBottom}px;
+        `;
 
         lines.forEach((line) => {
             const lineEl = document.createElement('div');
@@ -484,15 +527,67 @@ function createStickyCard(sticky, isThumb = true) {
                 line-height: 1.8;
                 text-align: left;
                 width: auto;
-                max-width: ${maxLineWidth + 10}px;
                 margin-left: ${leftOffset}px;
-                margin-bottom: ${marginBottom}px;
-                transform: rotate(${rotate}deg) translateY(${randFloat(-1, 1)}px);
+                transform: rotate(${rotate}deg) translateY(${randFloat(-0.5, 0.5)}px);
                 word-break: break-word;
                 white-space: nowrap;
+                /* ⭐ 修复吞字：去掉 max-width 限制，用 overflow:visible */
+                overflow: visible;
             `;
-            contentContainer.appendChild(lineEl);
+            msgWrapper.appendChild(lineEl);
         });
+
+        // ⭐ 大图模式下：每条消息带删除按钮（点击消息显示小×）
+        if (!isThumb) {
+            const delBtn = document.createElement('div');
+            delBtn.innerHTML = '×';
+            delBtn.style.cssText = `
+                position: absolute;
+                top: -6px;
+                right: -4px;
+                width: 20px;
+                height: 20px;
+                background: rgba(0,0,0,0.6);
+                color: #fff;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                font-weight: 700;
+                cursor: pointer;
+                opacity: 0;
+                transition: opacity 0.2s;
+                z-index: 30;
+                pointer-events: none;
+            `;
+            
+            // 点击消息本身显示删除按钮
+            msgWrapper.onclick = (e) => {
+                e.stopPropagation();
+                // 隐藏其他所有删除按钮
+                document.querySelectorAll('#sticky-overlay .msg-del-btn').forEach(btn => {
+                    btn.style.opacity = '0';
+                    btn.style.pointerEvents = 'none';
+                });
+                delBtn.style.opacity = '1';
+                delBtn.style.pointerEvents = 'auto';
+                // 3秒后自动隐藏
+                setTimeout(() => {
+                    delBtn.style.opacity = '0';
+                    delBtn.style.pointerEvents = 'none';
+                }, 3000);
+            };
+            
+            delBtn.className = 'msg-del-btn';
+            delBtn.onclick = (e) => {
+                e.stopPropagation();
+                deleteMessage(sticky.id, msg.id);
+            };
+            msgWrapper.appendChild(delBtn);
+        }
+
+        contentContainer.appendChild(msgWrapper);
     });
 
     card.appendChild(contentContainer);
@@ -545,11 +640,17 @@ function renderStickyBoard() {
 }
 
 // ========== 大图展示 ==========
-function showStickyLarge(sticky, isRefresh = false) {
+function showStickyLarge(sticky) {
+    // 移除已有的大图
+    const oldOverlay = document.getElementById('sticky-overlay');
+    if (oldOverlay) document.body.removeChild(oldOverlay);
+
     const overlay = document.createElement('div');
     overlay.id = 'sticky-overlay';
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
+    overlay.addEventListener('click', (e) => { 
+        if (e.target === overlay) document.body.removeChild(overlay); 
+    });
 
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 420px; padding: 0 16px; box-sizing: border-box;';
@@ -557,22 +658,8 @@ function showStickyLarge(sticky, isRefresh = false) {
     const maxWidth = Math.min(400, window.innerWidth - 32);
     const scale = maxWidth / 300;
 
+    // ⭐ 大图：isThumb = false，自动带删除按钮
     const card = createStickyCard(sticky, false);
-    
-    // 大图可滚动
-    const contentContainer = card.querySelector('div[style*="position: absolute; top: 6px; left: 6px;"]');
-    if (contentContainer) {
-        contentContainer.style.overflowY = 'auto';
-        contentContainer.style.overflowX = 'hidden';
-        if (sticky.messages.length > 3) {
-            contentContainer.style.justifyContent = 'flex-start';
-        } else {
-            contentContainer.style.justifyContent = 'center';
-        }
-        contentContainer.style.scrollbarWidth = 'thin';
-        contentContainer.style.scrollbarColor = 'rgba(255,255,255,0.3) transparent';
-    }
-
     card.style.transform = `scale(${scale})`;
     card.style.transformOrigin = 'center center';
     card.style.width = '300px';
@@ -593,14 +680,6 @@ function showStickyLarge(sticky, isRefresh = false) {
         position: relative;
     `;
     cardWrapper.appendChild(card);
-
-    // ===== 每条消息的独立删除按钮（悬浮在卡片上） =====
-    // 在卡片上 overlay 一层透明区域，检测点击
-    // 但更好的方式：在每条消息上 hover/点击显示删除按钮
-    // 由于卡片是整体缩放的，我们在 card 内部的内容容器里为每条消息添加删除按钮
-    // 但 createStickyCard 没有包含删除按钮，需要在这里额外处理
-    // 重构：让 createStickyCard 接受一个参数，决定是否显示删除按钮
-    
     wrapper.appendChild(cardWrapper);
 
     // ===== 按钮区域 =====
@@ -608,29 +687,6 @@ function showStickyLarge(sticky, isRefresh = false) {
     actions.style.cssText = 'display: flex; width: 100%; justify-content: center; gap: 8px; flex-wrap: wrap;';
 
     let tempContent = null;
-
-    const reRenderLarge = (updatedSticky) => {
-        const newCard = createStickyCard(updatedSticky, false);
-        const newContent = newCard.querySelector('div[style*="position: absolute; top: 6px; left: 6px;"]');
-        if (newContent) {
-            newContent.style.overflowY = 'auto';
-            newContent.style.overflowX = 'hidden';
-            if (updatedSticky.messages.length > 3) {
-                newContent.style.justifyContent = 'flex-start';
-            } else {
-                newContent.style.justifyContent = 'center';
-            }
-            newContent.style.scrollbarWidth = 'thin';
-            newContent.style.scrollbarColor = 'rgba(255,255,255,0.3) transparent';
-        }
-        newCard.style.transform = `scale(${scale})`;
-        newCard.style.transformOrigin = 'center center';
-        newCard.style.width = '300px';
-        newCard.style.height = '300px';
-        newCard.style.overflow = 'visible';
-        cardWrapper.innerHTML = '';
-        cardWrapper.appendChild(newCard);
-    };
 
     const pinBtn = document.createElement('button');
     pinBtn.innerText = '张贴';
@@ -647,17 +703,13 @@ function showStickyLarge(sticky, isRefresh = false) {
     supplementBtn.onclick = () => {
         customPrompt('补充内容', '输入你想补充的话...', (text) => {
             tempContent = text;
+            // 重新渲染大图
             const updatedSticky = {
                 ...sticky,
-                messages: [...sticky.messages, { 
-                    id: Date.now(), 
-                    sender: 'user', 
-                    text: text, 
-                    textStyle: StickyBoardConfig.textStyles.user 
-                }]
+                messages: [...sticky.messages, createNewMessage(text, 'user')]
             };
-            reRenderLarge(updatedSticky);
-            window._tempStickyData = updatedSticky;
+            document.body.removeChild(overlay);
+            showStickyLarge(updatedSticky);
             showInternalMessage('内容已暂存，点击【张贴】后才会正式保存。', 'success');
         });
     };
@@ -665,7 +717,10 @@ function showStickyLarge(sticky, isRefresh = false) {
     const endBtn = document.createElement('button');
     endBtn.innerText = 'END';
     endBtn.style.cssText = 'padding: 10px 16px; border: none; border-radius: 8px; background: rgba(255,255,255,0.85); color: #333; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px; font-weight: 500;';
-    endBtn.onclick = () => { endSticky(sticky.id); document.body.removeChild(overlay); };
+    endBtn.onclick = () => { 
+        endSticky(sticky.id); 
+        document.body.removeChild(overlay); 
+    };
 
     const deleteBtn = document.createElement('button');
     deleteBtn.innerText = '删除便签';
@@ -682,8 +737,6 @@ function showStickyLarge(sticky, isRefresh = false) {
     wrapper.appendChild(actions);
     overlay.appendChild(wrapper);
     document.body.appendChild(overlay);
-    
-    return overlay;
 }
 
 window.processStickyBoardReply = processStickyBoardReply;
@@ -708,12 +761,28 @@ document.addEventListener('DOMContentLoaded', () => {
     if (entry) entry.addEventListener('click', openStickyBoard);
 });
 
+// ⭐ 去掉 resize 重新渲染 - 只在数据变化时渲染
+// resize 时只刷新当前大图（如果打开的话）
 let resizeTimer;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-        if (document.getElementById('sticky-board-modal') && document.getElementById('sticky-board-modal').style.display !== 'none') {
-            renderStickyBoard();
+        // 如果大图打开，重新计算缩放
+        const overlay = document.getElementById('sticky-overlay');
+        if (overlay) {
+            // 简单处理：关闭大图让用户重新点击
+            // 或者更优雅：重新渲染大图
+            const card = overlay.querySelector('[style*="width: 300px; height: 300px;"]');
+            if (card) {
+                const maxWidth = Math.min(400, window.innerWidth - 32);
+                const newScale = maxWidth / 300;
+                card.style.transform = `scale(${newScale})`;
+                const wrapper = card.parentElement;
+                if (wrapper) {
+                    wrapper.style.width = maxWidth + 'px';
+                    wrapper.style.height = maxWidth + 'px';
+                }
+            }
         }
     }, 200);
 });
