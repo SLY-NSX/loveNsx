@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V25 (铁律终版：绝对缩放+居中+撑满) */
+/* 留言板功能 - Sticky Board V26 (铁律终版：等比缩放+两列紧贴) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -169,8 +169,8 @@ function createStickyBoardModal() {
                 </div>
                 <button onclick="closeStickyBoard()" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;"><i class="fas fa-times"></i></button>
             </div>
-            <div style="background: var(--primary-bg); padding: 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; height: calc(90vh - 60px);">
-                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding-bottom: 80px;"></div>
+            <div style="background: var(--primary-bg); padding: 12px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; height: calc(90vh - 60px);">
+                <div id="sticky-board-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-bottom: 80px;"></div>
                 <button id="sticky-add-btn" onclick="openStickyCreateModal()" style="
                     position: absolute; 
                     bottom: 20px; 
@@ -372,126 +372,46 @@ async function processStickyBoardReply() {
     return true;
 }
 
-function renderStickyBoard() {
-    const grid = document.getElementById('sticky-board-grid');
-    if (!grid) return;
-    if (StickyBoardData.length === 0) {
-        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 50px; color: var(--text-secondary); opacity: 0.6;">
-            <i class="fas fa-heart" style="font-size: 40px; display: block; margin-bottom: 10px;"></i>
-            还没有留言，点击右下角 + 写一张吧~
-        </div>`;
-        return;
-    }
-    grid.innerHTML = '';
+// ============ 核心渲染函数：等比缩放，两列紧贴 ============
+
+/**
+ * 创建一张便签的完整DOM（大图/小图通用）
+ * 核心：所有内容在 300x300 基准画布上排版，然后用 transform:scale 等比缩放
+ */
+function createStickyCard(sticky, isThumb = true) {
+    const BASE_SIZE = 300; // 基准尺寸
     
-    StickyBoardData.forEach(sticky => {
-        // ⭐ 外层格子：绝对占满网格，绝不外溢
-        const cell = document.createElement('div');
-        cell.style.cssText = `
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: visible;
-        `;
+    // 外层容器：固定基准尺寸，overflow:hidden 保持比例
+    const card = document.createElement('div');
+    card.style.cssText = `
+        width: ${BASE_SIZE}px;
+        height: ${BASE_SIZE}px;
+        background-color: ${sticky.bgColor};
+        border-radius: 12px;
+        box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+        border: 1px solid rgba(255,255,255,0.6);
+        padding: 6px;
+        box-sizing: border-box;
+        overflow: hidden;
+        position: relative;
+        flex-shrink: 0;
+        flex-grow: 0;
+    `;
 
-        // ⭐ 基准画布：内容统一在 300x300 里排版
-        const item = document.createElement('div');
-        item.style.cssText = `
-            width: 300px;
-            height: 300px;
-            background-color: ${sticky.bgColor};
-            border-radius: 12px;
-            box-shadow: 0 6px 14px rgba(0,0,0,0.15);
-            border: 1px solid rgba(255,255,255,0.6);
-            padding: 6px;
-            box-sizing: border-box;
-            overflow: hidden;
-            position: relative;
-            cursor: pointer;
-            transition: transform 0.2s;
-            transform: scale(0.5);
-            transform-origin: center center;
-        `;
-
-        // 小图独有的回形针
-        item.innerHTML += `
-            <div style="position:absolute; top:-4px; left:15px; width:14px; height:28px; z-index:20; transform:rotate(-5deg);">
+    // 回形针装饰（小图显示，大图不显示）
+    if (isThumb) {
+        card.innerHTML += `
+            <div style="position:absolute; top:-4px; left:15px; width:14px; height:28px; z-index:20; transform:rotate(-5deg); pointer-events:none;">
                 <svg width="14" height="28" viewBox="0 0 14 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M4 24 V7 C4 3.5 7 2 8.5 2 C10 2 11.5 4 11.5 6 V18 C11.5 20 10 21.5 8.5 21.5 C7 21.5 5.5 20 5.5 18 V8" stroke="#999" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                 </svg>
             </div>
         `;
+    }
 
-        // ⭐ 基准内容容器：绝对居中（上下居中），靠左（不顶格），内容从第一条开始
-        const contentContainer = document.createElement('div');
-        contentContainer.style.cssText = `
-            position: absolute;
-            top: 6px; left: 6px; right: 6px; bottom: 6px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;  // ⭐ 上下居中，直到满
-            align-items: flex-start; // ⭐ 靠左，留出边距
-        `;
-
-        sticky.messages.forEach((msg, index) => {
-            const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
-            
-            const line = document.createElement('div');
-            line.innerText = msg.text; 
-            line.style.cssText = `
-                font-family: ${msgStyle.font};
-                font-size: 16px;
-                color: ${msgStyle.color};
-                font-weight: ${msgStyle.weight};
-                line-height: 1.8;
-                text-align: left;
-                max-width: 80%;
-                margin-left: ${10 + (index * 5)}px; // ⭐ 自然错位，绝不紧贴左边
-                margin-bottom: 8px;
-                transform: rotate(${((index * 13) % 100) / 100 - 0.5}deg) translateY(${((index * 7) % 5) - 2}px); // ⭐ 轻微旋转偏移
-            `;
-            contentContainer.appendChild(line);
-        });
-
-        item.appendChild(contentContainer);
-        cell.appendChild(item);
-        cell.onclick = () => showStickyLarge(sticky);
-        grid.appendChild(cell);
-    });
-}
-
-// ⭐ 大图：100vw 撑满移动端，原始 300x300 尺寸
-function showStickyLarge(sticky) {
-    const overlay = document.createElement('div');
-    overlay.id = 'sticky-overlay';
-    overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
-
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 420px;';
-
-    // ⭐ 移动端绝对撑满全屏宽度！
-    const card = document.createElement('div');
-    card.style.cssText = `
-        width: 100vw;
-        height: 100vw;
-        max-width: 400px;
-        max-height: 400px;
-        background-color: ${sticky.bgColor};
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        padding: 6px;
-        box-sizing: border-box;
-        position: relative;
-        overflow: hidden;
-    `;
-
-    // 大图没有回形针！
+    // 背景装饰纹理（大图小图都有）
     card.innerHTML += `
-        <div style="position:absolute; inset:0; pointer-events:none; border-radius:16px; overflow:hidden;">
+        <div style="position:absolute; inset:0; pointer-events:none; border-radius:12px; overflow:hidden;">
             <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                 <path d="M40,80 C50,50 80,20 120,10 C140,5 160,10 170,20 C130,40 90,60 40,80 Z" fill="none" stroke="#333" stroke-width="2"/>
                 <path d="M20,120 C40,90 70,70 110,50" fill="none" stroke="#333" stroke-width="1.5"/>
@@ -500,113 +420,191 @@ function showStickyLarge(sticky) {
         </div>
     `;
 
-    // ⭐ 大图：同样上下居中，靠左
-    const msgContainer = document.createElement('div');
-    msgContainer.style.cssText = `
+    // 内容容器：绝对定位，上下居中，靠左
+    const contentContainer = document.createElement('div');
+    contentContainer.style.cssText = `
         position: absolute;
-        top: 6px; left: 6px; right: 6px; bottom: 6px;
-        overflow-y: auto;
-        z-index: 10;
+        top: 6px;
+        left: 6px;
+        right: 6px;
+        bottom: 6px;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
         justify-content: center;
         align-items: flex-start;
+        z-index: 10;
     `;
 
-    let tempContent = null; 
-    let currentMsgContainer = msgContainer;
+    // 渲染所有消息
+    sticky.messages.forEach((msg, index) => {
+        const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
+        
+        const line = document.createElement('div');
+        line.innerText = msg.text;
+        line.style.cssText = `
+            font-family: ${msgStyle.font};
+            font-size: 16px;
+            color: ${msgStyle.color};
+            font-weight: ${msgStyle.weight};
+            line-height: 1.8;
+            text-align: left;
+            max-width: 80%;
+            margin-left: ${10 + (index * 5)}px;
+            margin-bottom: 8px;
+            transform: rotate(${((index * 13) % 100) / 100 - 0.5}deg) translateY(${((index * 7) % 5) - 2}px);
+            word-break: break-word;
+        `;
+        contentContainer.appendChild(line);
+    });
 
-    const renderMsgs = () => {
-        currentMsgContainer.innerHTML = '';
-        const allMsgs = [...sticky.messages];
-        if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user });
+    card.appendChild(contentContainer);
+    return card;
+}
 
-        allMsgs.forEach((msg, index) => {
-            const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
-            
-            const msgWrap = document.createElement('div');
-            msgWrap.style.cssText = `
-                position: relative;
-                max-width: 80%;
-                margin-left: ${10 + (index * 5)}px;
-                margin-bottom: 8px;
-                cursor: pointer;
-            `;
-            
-            const textDiv = document.createElement('div');
-            textDiv.innerText = msg.text; 
-            textDiv.style.cssText = `
-                font-family: ${msgStyle.font};
-                color: ${msgStyle.color};
-                font-weight: ${msgStyle.weight};
-                font-size: 16px;
-                line-height: 1.8;
-                word-break: break-word;
-                text-align: left;
-                transform: rotate(${((index * 13) % 100) / 100 - 0.5}deg) translateY(${((index * 7) % 5) - 2}px);
-            `;
-            msgWrap.appendChild(textDiv);
+function renderStickyBoard() {
+    const grid = document.getElementById('sticky-board-grid');
+    if (!grid) return;
+    
+    if (StickyBoardData.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1 / -1; text-align: center; padding: 50px; color: var(--text-secondary); opacity: 0.6;">
+            <i class="fas fa-heart" style="font-size: 40px; display: block; margin-bottom: 10px;"></i>
+            还没有留言，点击右下角 + 写一张吧~
+        </div>`;
+        return;
+    }
 
-            if (msg.id) {
-                const delBtn = document.createElement('div');
-                delBtn.className = 'inline-del';
-                delBtn.innerHTML = '<i class="fas fa-times"></i>';
-                delBtn.style.cssText = `
-                    position: absolute; top: -8px; right: -10px; width: 20px; height: 20px;
-                    background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.7); border-radius: 50%;
-                    display: flex; align-items: center; justify-content: center; font-size: 11px;
-                    opacity: 0; transition: opacity 0.2s; cursor: pointer;
-                `;
-                
-                msgWrap.onclick = (e) => {
-                    delBtn.style.opacity = '1';
-                    setTimeout(() => delBtn.style.opacity = '0', 2000);
-                    e.stopPropagation();
-                };
+    grid.innerHTML = '';
 
-                delBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    deleteMessage(sticky.id, msg.id);
-                };
-                msgWrap.appendChild(delBtn);
-            }
+    // 计算缩放比例：让 300px 的卡片适配网格宽度
+    // grid 列宽 = (容器宽度 - gap) / 2，我们让卡片填满格子
+    const gridRect = grid.getBoundingClientRect();
+    const gap = 6;
+    // 可用宽度 = 容器宽度 - 左右padding (grid外层有padding:12px)
+    const containerWidth = gridRect.width || (window.innerWidth - 24);
+    const cellWidth = (containerWidth - gap) / 2;
+    // 卡片在格子里要等比缩放，但保持比例，取宽高较小值
+    const scale = Math.min(cellWidth / 300, cellWidth / 300);
 
-            currentMsgContainer.appendChild(msgWrap);
-        });
-    };
+    StickyBoardData.forEach(sticky => {
+        // 每个格子：固定宽高比 1:1
+        const cell = document.createElement('div');
+        cell.style.cssText = `
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+        `;
+        cell.onclick = () => showStickyLarge(sticky);
 
-    renderMsgs();
-    card.appendChild(msgContainer);
-    wrapper.appendChild(card);
+        // 创建基准卡片 (300x300)
+        const card = createStickyCard(sticky, true);
+        
+        // 等比缩放到格子大小
+        card.style.transform = `scale(${scale})`;
+        card.style.transformOrigin = 'center center';
+        card.style.flexShrink = '0';
+        card.style.flexGrow = '0';
+        
+        cell.appendChild(card);
+        grid.appendChild(cell);
+    });
+}
 
+// ============ 大图展示：完全等比，无重新排版 ============
+
+function showStickyLarge(sticky) {
+    const overlay = document.createElement('div');
+    overlay.id = 'sticky-overlay';
+    overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
+
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 420px; padding: 0 16px; box-sizing: border-box;';
+
+    // 大图卡片：直接用 300x300 基准卡片，然后等比放大到屏幕宽度
+    const card = createStickyCard(sticky, false);
+    
+    // 计算大图缩放：最大宽度400px，但不超过屏幕宽度
+    const maxWidth = Math.min(400, window.innerWidth - 32);
+    const scale = maxWidth / 300;
+    card.style.transform = `scale(${scale})`;
+    card.style.transformOrigin = 'center center';
+    card.style.flexShrink = '0';
+    card.style.flexGrow = '0';
+    card.style.width = '300px';
+    card.style.height = '300px';
+    // 让包裹层撑开空间
+    const cardWrapper = document.createElement('div');
+    cardWrapper.style.cssText = `
+        width: ${maxWidth}px;
+        height: ${maxWidth}px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-shrink: 0;
+        flex-grow: 0;
+    `;
+    cardWrapper.appendChild(card);
+    wrapper.appendChild(cardWrapper);
+
+    // 按钮区域
     const actions = document.createElement('div');
-    actions.style.cssText = 'display: flex; width: 100%; justify-content: center; gap: 10px;';
+    actions.style.cssText = 'display: flex; width: 100%; justify-content: center; gap: 8px; flex-wrap: wrap;';
+
+    let tempContent = null;
 
     const pinBtn = document.createElement('button');
-    pinBtn.innerHTML = '张贴';
-    pinBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: 8px; background: rgba(255,255,255,0.8); color: #333; cursor: pointer; font-size: 14px; flex: 1;';
-    pinBtn.onclick = () => { if (pinSticky(sticky.id, tempContent)) document.body.removeChild(overlay); };
+    pinBtn.innerHTML = '📌 张贴';
+    pinBtn.style.cssText = 'padding: 10px 16px; border: none; border-radius: 8px; background: rgba(255,255,255,0.8); color: #333; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px;';
+    pinBtn.onclick = () => { 
+        if (pinSticky(sticky.id, tempContent)) {
+            document.body.removeChild(overlay);
+        }
+    };
 
     const supplementBtn = document.createElement('button');
-    supplementBtn.innerHTML = '补充';
-    supplementBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: 8px; background: var(--accent-color); color: white; cursor: pointer; font-size: 14px; flex: 1;';
+    supplementBtn.innerHTML = '✏️ 补充';
+    supplementBtn.style.cssText = 'padding: 10px 16px; border: none; border-radius: 8px; background: var(--accent-color); color: white; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px;';
     supplementBtn.onclick = () => {
         customPrompt('补充内容', '输入你想补充的话...', (text) => {
-            tempContent = text; 
-            renderMsgs();
+            tempContent = text;
+            // 重新渲染大图：重新创建卡片
+            const newCard = createStickyCard({
+                ...sticky,
+                messages: [...sticky.messages, { 
+                    id: Date.now(), 
+                    sender: 'user', 
+                    text: text, 
+                    textStyle: StickyBoardConfig.textStyles.user 
+                }]
+            }, false);
+            newCard.style.transform = `scale(${scale})`;
+            newCard.style.transformOrigin = 'center center';
+            newCard.style.width = '300px';
+            newCard.style.height = '300px';
+            cardWrapper.innerHTML = '';
+            cardWrapper.appendChild(newCard);
             showInternalMessage('内容已暂存，点击【张贴】后才会正式保存。', 'success');
         });
     };
 
     const endBtn = document.createElement('button');
-    endBtn.innerHTML = 'END';
-    endBtn.style.cssText = 'padding: 10px 20px; border: none; border-radius: 8px; background: rgba(255,255,255,0.8); color: #333; cursor: pointer; font-size: 14px; flex: 1;';
-    endBtn.onclick = () => { endSticky(sticky.id); };
+    endBtn.innerHTML = '🔒 END';
+    endBtn.style.cssText = 'padding: 10px 16px; border: none; border-radius: 8px; background: rgba(255,255,255,0.8); color: #333; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px;';
+    endBtn.onclick = () => { endSticky(sticky.id); document.body.removeChild(overlay); };
 
     const deleteBtn = document.createElement('button');
-    deleteBtn.innerHTML = '删除';
-    deleteBtn.style.cssText = 'padding: 10px 20px; border: 1px solid rgba(255,80,80,0.5); border-radius: 8px; background: rgba(255,80,80,0.1); color: #ff5050; cursor: pointer; font-size: 14px; flex: 1;';
-    deleteBtn.onclick = () => { deleteSticky(sticky.id); document.body.removeChild(overlay); };
+    deleteBtn.innerHTML = '🗑️ 删除';
+    deleteBtn.style.cssText = 'padding: 10px 16px; border: 1px solid rgba(255,80,80,0.5); border-radius: 8px; background: rgba(255,80,80,0.1); color: #ff5050; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px;';
+    deleteBtn.onclick = () => { 
+        deleteSticky(sticky.id); 
+        document.body.removeChild(overlay); 
+    };
 
     actions.appendChild(pinBtn);
     actions.appendChild(supplementBtn);
@@ -637,4 +635,15 @@ function closeStickyBoard() {
 document.addEventListener('DOMContentLoaded', () => {
     const entry = document.getElementById('sticky-board-function');
     if (entry) entry.addEventListener('click', openStickyBoard);
+});
+
+// 窗口尺寸变化时重新渲染（保证缩放适配）
+let resizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+        if (document.getElementById('sticky-board-modal') && document.getElementById('sticky-board-modal').style.display !== 'none') {
+            renderStickyBoard();
+        }
+    }, 200);
 });
