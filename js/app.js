@@ -56,6 +56,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateLoader('正在渲染我们的世界...', '70%');
 
         try { initCompanionFeature?.(); } catch(e) { console.warn('[boot] 陪伴功能初始化失败:', e); }
+        try { 
+            if (typeof initStickyBoard === 'function') {
+                initStickyBoard();
+                console.log('[boot] 📌 留言板初始化成功');
+            }
+        } catch(e) { console.warn('[boot] 留言板初始化失败:', e); }
         
         await Promise.allSettled([
             safeAwait(initializeRandomUI?.()),
