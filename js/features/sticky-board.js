@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V17 (自然排版，无随机换行，完美回形针) */
+/* 留言板功能 - Sticky Board V18 (移动端优化、随机字体、更随意排版) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -9,13 +9,13 @@ const StickyBoardConfig = {
     ],
     textStyles: {
         user: { 
-            font: '18px "楷体", "KaiTi", "华文楷体", serif', 
-            color: '#B39DDB', 
+            font: '18px "华文圆体", "幼圆", "楷体", cursive', 
+            color: '#B39DDB', // 雾紫
             weight: '500'
         },
         partner: { 
-            font: '17px "华文行楷", "STXingkai", "楷体", serif', 
-            color: '#000080', 
+            font: '17px "华文行楷", "STXingkai", "楷体", cursive', 
+            color: '#000080', // 深蓝
             weight: '600'
         }
     }
@@ -182,8 +182,14 @@ function createStickyBoardModal() {
                         <i class="fas fa-paper-plane"></i> 贴出便签
                     </button>
                 </div>
-                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-bottom: 20px;">
+                <!-- ⭐ 移动端一行2个，PC端一行3个 -->
+                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 20px;">
                 </div>
+                <style>
+                    @media (min-width: 769px) {
+                        #sticky-board-grid { grid-template-columns: repeat(3, 1fr) !important; }
+                    }
+                </style>
             </div>
         </div>
     `;
@@ -335,42 +341,7 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// ⭐ 全新布局逻辑：根据消息长度生成合适的宽度和位置
-function getMsgLayout() {
-    // 宽度随机：数字代表大概能容纳的字数（12~20）
-    const widthNum = Math.floor(Math.random() * 9) + 12; 
-    
-    // 根据宽度决定水平偏移：
-    // 如果字数多（比如20），水平偏移小（偏左，0~5px），保证不截断
-    // 如果字数少（比如12），水平偏移大（偏中，可以到 15px）
-    const maxLeftOffset = 20 - (widthNum - 12); // 12字允许20px，20字允许12px
-    const marginLeft = Math.floor(Math.random() * maxLeftOffset);
-    
-    return { maxWidth: widthNum + 'em', marginLeft: marginLeft + 'px' };
-}
-
-// ⭐ 去掉随机换行，只使用随机轻微倾斜
-function getRandomRotate() {
-    const rot = (Math.random() * 1.4) - 0.7; // -0.7度 到 0.7度
-    return `transform: rotate(${rot}deg);`;
-}
-
-function getRandomVertical() {
-    const y = (Math.random() * 6) - 3; // -3px 到 3px
-    return `transform: translateY(${y}px);`;
-}
-
-function getPaperStyle(bgColor) {
-    return `
-        background-color: ${bgColor};
-        border-radius: 8px;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-        border: 1px solid rgba(255,255,255,0.5);
-        position: relative;
-    `;
-}
-
-// ⭐ 小图渲染
+// ⭐ 去除所有状态显示
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -400,10 +371,14 @@ function renderStickyBoard() {
         const paper = document.createElement('div');
         paper.style.cssText = `
             width: 100%; height: 100%;
-            ${getPaperStyle(sticky.bgColor)}
+            background-color: ${sticky.bgColor};
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.5);
             padding: 18%;
             box-sizing: border-box;
             overflow: hidden;
+            position: relative;
         `;
 
         paper.innerHTML += `
@@ -415,10 +390,10 @@ function renderStickyBoard() {
                 </svg>
             </div>
             
-            <!-- ⭐ 回形针：直接放在纸张容器内部，一半在纸外，一半在纸内 -->
-            <div style="position:absolute; top:-8px; left:20%; width:24px; height:50px; z-index:20; transform:rotate(-5deg);">
-                <svg width="24" height="50" viewBox="0 0 24 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M7 46 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V34 C20 37 18 39 15 39 C12 39 9 37 9 34 V14" stroke="#999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
+            <!-- ⭐ 回形针缩小一半 -->
+            <div style="position:absolute; top:-4px; left:20%; width:12px; height:25px; z-index:20; transform:rotate(-5deg);">
+                <svg width="12" height="25" viewBox="0 0 12 25" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M3.5 22 V6 C3.5 3 6 2 7.5 2 C9 2 10 3.5 10 5 V17 C10 18.5 9 19.5 7.5 19.5 C6 19.5 4.5 18.5 4.5 17 V7" stroke="#999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                 </svg>
             </div>
         `;
@@ -430,40 +405,31 @@ function renderStickyBoard() {
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 5px; // 缩小间距
         `;
 
-        // ⭐ 小图：从第一条开始显示
         sticky.messages.forEach(msg => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
-            const layout = getMsgLayout();
+            const widthNum = Math.floor(Math.random() * 9) + 12; 
+            const maxLeftOffset = 20 - (widthNum - 12); 
+            const marginLeft = Math.floor(Math.random() * maxLeftOffset);
             
             const line = document.createElement('div');
-            line.innerText = msg.text; // 不使用随机换行
+            line.innerText = msg.text; 
             line.style.cssText = `
                 font-family: ${msgStyle.font};
-                font-size: 15px;
+                font-size: 14px;
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                line-height: 1.8;
+                line-height: 1.6;
                 text-align: left;
-                max-width: ${layout.maxWidth};
-                margin-left: ${layout.marginLeft}px;
-                ${getRandomRotate()}
-                ${getRandomVertical()}
+                max-width: ${widthNum}em;
+                margin-left: ${marginLeft}px;
+                transform: rotate(${(Math.random() * 1.4) - 0.7}deg) translateY(${(Math.random() * 4) - 2}px);
             `;
             textContainer.appendChild(line);
         });
         paper.appendChild(textContainer);
-
-        const statusBadge = document.createElement('div');
-        let badgeText = '', badgeColor = '';
-        if (sticky.status === SB_STATUS.REPLIED) { badgeText = '✓ 已回复'; badgeColor = 'rgba(46, 204, 113, 0.9)'; }
-        else if (sticky.status === SB_STATUS.NO_REPLY) { badgeText = '✓ 已结束'; badgeColor = 'rgba(150, 150, 150, 0.9)'; }
-        else if (sticky.status === SB_STATUS.NEED_INTERACT) { badgeText = '需互动'; badgeColor = 'rgba(241, 196, 15, 0.9)'; }
-        statusBadge.innerText = badgeText;
-        statusBadge.style.cssText = `position:absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: ${badgeColor}; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; z-index: 30; pointer-events: none;`;
-        item.appendChild(statusBadge);
 
         item.appendChild(paper);
         item.onclick = () => showStickyLarge(sticky);
@@ -471,7 +437,6 @@ function renderStickyBoard() {
     });
 }
 
-// ⭐ 大图渲染
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.id = 'sticky-overlay';
@@ -485,7 +450,9 @@ function showStickyLarge(sticky) {
     card.style.cssText = `
         width: 100%;
         aspect-ratio: 1 / 1;
-        ${getPaperStyle(sticky.bgColor)}
+        background-color: ${sticky.bgColor};
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         padding: 10%;
         box-sizing: border-box;
         display: flex;
@@ -503,7 +470,6 @@ function showStickyLarge(sticky) {
         </div>
     `;
 
-    // ⭐ 大图高度居中，左右偏左
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
         position: absolute;
@@ -515,9 +481,9 @@ function showStickyLarge(sticky) {
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 15px;
+        gap: 3px; // 缩小间距
         z-index: 10;
-        padding-bottom: 20px;
+        padding-bottom: 10px;
     `;
 
     let tempContent = null; 
@@ -526,33 +492,35 @@ function showStickyLarge(sticky) {
     const renderMsgs = () => {
         currentMsgContainer.innerHTML = '';
         const allMsgs = [...sticky.messages];
-        if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user });
+        if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user }); // ⭐ 补充时依旧是紫色
 
         allMsgs.forEach(msg => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
-            const layout = getMsgLayout();
+            
+            const widthNum = Math.floor(Math.random() * 9) + 12; 
+            const maxLeftOffset = 20 - (widthNum - 12); 
+            const marginLeft = Math.floor(Math.random() * maxLeftOffset);
             
             const msgWrap = document.createElement('div');
             msgWrap.style.cssText = `
                 position: relative;
-                max-width: ${layout.maxWidth};
-                margin-left: ${layout.marginLeft}px;
-                margin-bottom: ${10 + Math.random() * 8}px;
+                max-width: ${widthNum}em;
+                margin-left: ${marginLeft}px;
+                margin-bottom: 4px;
                 cursor: pointer;
             `;
             
             const textDiv = document.createElement('div');
-            textDiv.innerText = msg.text; // 不使用随机换行
+            textDiv.innerText = msg.text; 
             textDiv.style.cssText = `
                 font-family: ${msgStyle.font};
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                font-size: ${16 + Math.floor(Math.random() * 4)}px; // 随机字号
+                font-size: ${16 + Math.floor(Math.random() * 4)}px;
                 line-height: 1.8;
                 word-break: break-word;
                 text-align: left;
-                ${getRandomRotate()}
-                ${getRandomVertical()}
+                transform: rotate(${(Math.random() * 1.4) - 0.7}deg) translateY(${(Math.random() * 4) - 2}px);
             `;
             msgWrap.appendChild(textDiv);
 
