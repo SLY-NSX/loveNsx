@@ -860,8 +860,46 @@ function _scheduleNextAutoSend() {
             return;
         }
         
-        // 4. 64% 概率决定发起对话，走现行的回复引擎逻辑
-       window.requestSimulateTask(true);
+        // 4. 64% 概率决定发起对话
+        // 【新增】先检查留言板是否有需互动的便签，再决定走哪种逻辑分支
+        const needInteractCount = (typeof window.getNeedInteractCount === 'function') ? window.getNeedInteractCount() : 0;
+        
+        let scenario = 'only_chat'; // 默认：只处理聊天页面
+
+        if (needInteractCount > 0) {
+            // 存在需互动便签，随机分三种情况
+            const rand = Math.random();
+            if (rand < 0.33) {
+                scenario = 'only_chat'; // (1) 只处理聊天页面
+            } else if (rand < 0.66) {
+                scenario = 'only_sticky'; // (2) 只处理留言板
+            } else {
+                scenario = 'both'; // (3) 两者都处理
+            }
+        }
+
+        if (scenario === 'only_chat') {
+            // 正常走现在的聊天逻辑
+            window.requestSimulateTask(true);
+        } else if (scenario === 'only_sticky') {
+            // 关闭聊天页面的回复，直接进入留言板函数
+            // 注意：这里刻意不调用 window.requestSimulateTask(true)，因为不需要聊天回复了！
+            console.log('本次自动回复仅处理留言板，跳过聊天页面回复。');
+            
+            // 独立处理留言板，不用加锁，不占用聊天队列
+            if (typeof window.processStickyBoardReply === 'function') {
+                window.processStickyBoardReply();
+            }
+        } else if (scenario === 'both') {
+            // 先正常走现在的所有聊天逻辑
+            window.requestSimulateTask(true);
+            // 然后立刻进入留言板函数
+            // 因为在 processStickyBoardReply 中不会改变聊天系统的状态，所以直接并行执行是没有冲突的
+            console.log('本次自动回复同时处理聊天页面和留言板。');
+            if (typeof window.processStickyBoardReply === 'function') {
+                window.processStickyBoardReply();
+            }
+        }
         
         // 5. 发起后立刻开始排下一轮倒计时（同时相当于重新校准了一次新的设置）
         _scheduleNextAutoSend();
