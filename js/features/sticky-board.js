@@ -639,9 +639,9 @@ function renderStickyBoard() {
     });
 }
 
+
 // ========== 大图展示 ==========
 function showStickyLarge(sticky) {
-    // 移除已有的大图
     const oldOverlay = document.getElementById('sticky-overlay');
     if (oldOverlay) document.body.removeChild(oldOverlay);
 
@@ -658,7 +658,27 @@ function showStickyLarge(sticky) {
     const maxWidth = Math.min(400, window.innerWidth - 32);
     const scale = maxWidth / 300;
 
-    // ⭐ 大图：isThumb = false，自动带删除按钮
+    // ⭐ 用于预览的临时消息列表（包含补充内容）
+    let previewMessages = [...sticky.messages];
+    let tempContent = null; // 暂存的补充内容
+
+    // ⭐ 渲染大图卡片
+    function renderCard(messages) {
+        const tempSticky = {
+            ...sticky,
+            messages: messages
+        };
+        const card = createStickyCard(tempSticky, false);
+        card.style.transform = `scale(${scale})`;
+        card.style.transformOrigin = 'center center';
+        card.style.width = '300px';
+        card.style.height = '300px';
+        card.style.overflow = 'visible';
+
+        cardWrapper.innerHTML = '';
+        cardWrapper.appendChild(card);
+    }
+
     const card = createStickyCard(sticky, false);
     card.style.transform = `scale(${scale})`;
     card.style.transformOrigin = 'center center';
@@ -686,15 +706,23 @@ function showStickyLarge(sticky) {
     const actions = document.createElement('div');
     actions.style.cssText = 'display: flex; width: 100%; justify-content: center; gap: 8px; flex-wrap: wrap;';
 
-    let tempContent = null;
-
     const pinBtn = document.createElement('button');
     pinBtn.innerText = '张贴';
     pinBtn.style.cssText = 'padding: 10px 16px; border: none; border-radius: 8px; background: rgba(255,255,255,0.85); color: #333; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px; font-weight: 500;';
     pinBtn.onclick = () => { 
-        if (pinSticky(sticky.id, tempContent)) {
-            document.body.removeChild(overlay);
+        if (!tempContent) {
+            showInternalMessage('没有暂存内容，无法张贴。');
+            return;
         }
+        // ⭐ 正式保存到数据
+        const newMsg = createNewMessage(tempContent, 'user');
+        sticky.messages.push(newMsg);
+        sticky.status = SB_STATUS.NEED_INTERACT;
+        saveStickyBoardData();
+        renderStickyBoard();
+        document.body.removeChild(overlay);
+        showInternalMessage('内容已张贴！', 'success');
+        tempContent = null;
     };
 
     const supplementBtn = document.createElement('button');
@@ -703,13 +731,22 @@ function showStickyLarge(sticky) {
     supplementBtn.onclick = () => {
         customPrompt('补充内容', '输入你想补充的话...', (text) => {
             tempContent = text;
-            // 重新渲染大图
-            const updatedSticky = {
-                ...sticky,
-                messages: [...sticky.messages, createNewMessage(text, 'user')]
+            // ⭐ 预览：把补充内容临时加到消息列表里渲染
+            const previewMsg = {
+                id: Date.now() + 999,
+                sender: 'user',
+                text: text,
+                textStyle: StickyBoardConfig.textStyles.user,
+                layout: {
+                    fontSize: rand(11, 16),
+                    lineWidth: rand(12, 20),
+                    marginBottom: rand(5, 9),
+                    rotate: randFloat(-2.5, 2.5),
+                    leftOffset: rand(4, 50)
+                }
             };
-            document.body.removeChild(overlay);
-            showStickyLarge(updatedSticky);
+            const previewList = [...sticky.messages, previewMsg];
+            renderCard(previewList);
             showInternalMessage('内容已暂存，点击【张贴】后才会正式保存。', 'success');
         });
     };
@@ -723,7 +760,7 @@ function showStickyLarge(sticky) {
     };
 
     const deleteBtn = document.createElement('button');
-    deleteBtn.innerText = '删除便签';
+    deleteBtn.innerText = '删除';  // ⭐ 改回「删除」
     deleteBtn.style.cssText = 'padding: 10px 16px; border: 1px solid rgba(255,80,80,0.4); border-radius: 8px; background: rgba(255,80,80,0.08); color: #ff5050; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px; font-weight: 500;';
     deleteBtn.onclick = () => { 
         deleteSticky(sticky.id); 
@@ -738,6 +775,7 @@ function showStickyLarge(sticky) {
     overlay.appendChild(wrapper);
     document.body.appendChild(overlay);
 }
+
 
 window.processStickyBoardReply = processStickyBoardReply;
 window.getNeedInteractCount = function() {
