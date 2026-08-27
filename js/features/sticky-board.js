@@ -1,11 +1,12 @@
-/* 留言板功能 - Sticky Board V10 (修复暂存输入框和提示交互) */
+/* 留言板功能 - Sticky Board V12 (纯代码渲染纸张，无图片依赖) */
 
 const StickyBoardConfig = {
-    images: [
-        'img/sticky_bg_1.png', 
-        'img/sticky_bg_2.png', 
-        'img/sticky_bg_3.png', 
-        'img/sticky_bg_4.png'
+    // 预设的纸张颜色（可选米黄、淡紫、淡蓝、淡粉）
+    paperColors: [
+        { id: 'yellow', color: '#FFF8DC', textColor: '#5C4033', shadow: 'rgba(180, 155, 90, 0.3)' },
+        { id: 'purple', color: '#E6E6FA', textColor: '#4B0082', shadow: 'rgba(100, 80, 150, 0.2)' },
+        { id: 'blue', color: '#E0F7FA', textColor: '#006064', shadow: 'rgba(0, 100, 120, 0.2)' },
+        { id: 'pink', color: '#FFE4E1', textColor: '#8B4513', shadow: 'rgba(200, 100, 100, 0.2)' }
     ],
     textStyles: [
         { font: '14px "Noto Serif SC", serif', color: '#333', weight: '400' }
@@ -14,9 +15,9 @@ const StickyBoardConfig = {
 
 // 状态枚举
 const SB_STATUS = {
-    NEED_INTERACT: 'need_interact',   // 需互动
-    NO_REPLY: 'no_reply',             // 不可回复
-    REPLIED: 'replied'                // 已回复
+    NEED_INTERACT: 'need_interact',   
+    NO_REPLY: 'no_reply',             
+    REPLIED: 'replied'                
 };
 
 let StickyBoardData = []; 
@@ -27,10 +28,14 @@ function loadStickyBoardData() {
         try { 
             StickyBoardData = JSON.parse(saved); 
             StickyBoardData = StickyBoardData.map(item => {
+                // 旧数据兼容处理：如果有 bgImg 但没 bgColor，转成默认黄色
+                if (!item.bgColor) item.bgColor = StickyBoardConfig.paperColors[0].color;
+                if (item.bgImg) delete item.bgImg; // 删除旧图片
+
                 if (item.text && !item.messages) {
                     return {
                         id: item.id || Date.now(),
-                        bgImg: item.bgImg || StickyBoardConfig.images[0],
+                        bgColor: item.bgColor,
                         status: SB_STATUS.NEED_INTERACT,
                         messages: [{
                             id: Date.now() + 1,
@@ -51,6 +56,7 @@ function saveStickyBoardData() {
     localStorage.setItem('stickyBoardData', JSON.stringify(StickyBoardData));
 }
 
+// ── 弹窗工具类 ──
 function customConfirm(message, onConfirm) {
     const oldOverlay = document.getElementById('custom-confirm-overlay');
     if (oldOverlay) oldOverlay.remove();
@@ -90,13 +96,11 @@ function customConfirm(message, onConfirm) {
     overlay.appendChild(box);
     document.body.appendChild(overlay);
 
-    // 防止点击输入框误触关闭：只有点击最外层的黑色遮罩才关闭，点击内部不关闭
     overlay.addEventListener('click', (e) => { 
         if (e.target === overlay) overlay.remove(); 
     });
 }
 
-// 【修复1】防止点击输入框时，事件冒泡到遮罩层导致弹窗关闭
 function customPrompt(message, placeholder, onSave) {
     const oldOverlay = document.getElementById('custom-prompt-overlay');
     if (oldOverlay) oldOverlay.remove();
@@ -116,7 +120,6 @@ function customPrompt(message, placeholder, onSave) {
     input.placeholder = placeholder || '写下你要补充的内容...';
     input.style.cssText = 'width:100%;min-height:80px;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--primary-bg);color:var(--text-primary);font-size:14px;resize:none;outline:none;box-sizing:border-box;';
 
-    // 【修复点】：阻止点击输入框时的事件冒泡
     input.addEventListener('click', (e) => e.stopPropagation());
     input.addEventListener('touchstart', (e) => e.stopPropagation());
     input.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -149,22 +152,20 @@ function customPrompt(message, placeholder, onSave) {
     document.body.appendChild(overlay);
 
     setTimeout(() => input.focus(), 100);
-    
-    // 只有点击最外层遮罩才关闭，点击内部不关闭
     overlay.addEventListener('click', (e) => { 
         if (e.target === overlay) overlay.remove(); 
     });
 }
 
-// 【修复2】使用网页内的 showNotification 代替 alert
 function showInternalMessage(msg, type = 'warning') {
     if (typeof showNotification === 'function') {
         showNotification(msg, type, 2000);
     } else {
-        alert(msg); // 后备方案，防止函数不存在
+        alert(msg); 
     }
 }
 
+// ── DOM 构建 ──
 function createStickyBoardModal() {
     let modal = document.getElementById('sticky-board-modal');
     if (modal) return modal;
@@ -187,7 +188,7 @@ function createStickyBoardModal() {
                     <textarea id="sticky-input" placeholder="写下你想说的话..." style="min-height: 80px; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--secondary-bg); color: var(--text-primary); font-size: 14px; resize: none; outline: none; width: 100%; box-sizing: border-box;"></textarea>
 
                     <div style="display: flex; gap: 10px; align-items: center; margin: 12px 0;">
-                        <div style="font-size: 12px; color: var(--text-secondary);">选择样式：</div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">选择纸张颜色：</div>
                         <div style="display: flex; gap: 5px; cursor: pointer;" id="sticky-style-selector">
                         </div>
                     </div>
@@ -211,13 +212,16 @@ function renderStyleSelector() {
     const container = document.getElementById('sticky-style-selector');
     if (!container) return;
     container.innerHTML = '';
-    StickyBoardConfig.images.forEach((img, index) => {
+    
+    // 渲染颜色小方块
+    StickyBoardConfig.paperColors.forEach((p, index) => {
         const div = document.createElement('div');
-        div.style.cssText = `width: 30px; height: 40px; background: url(${img}) center/cover; border: 2px solid transparent; border-radius: 4px; transition: all 0.2s;`;
+        div.style.cssText = `width: 30px; height: 30px; background: ${p.color}; border: 2px solid transparent; border-radius: 4px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);`;
         if (index === 0) div.style.borderColor = 'var(--accent-color)';
         div.onclick = () => {
             container.querySelectorAll('div').forEach(el => el.style.borderColor = 'transparent');
             div.style.borderColor = 'var(--accent-color)';
+            document.getElementById('sticky-selected-color').value = p.color;
         };
         container.appendChild(div);
     });
@@ -231,13 +235,20 @@ function submitSticky() {
         return;
     }
     
+    // 获取用户选择的颜色
     const selector = document.getElementById('sticky-style-selector');
-    const selectedStyle = selector.querySelector('div[style*="border-color: var(--accent-color)"]');
-    const imgIndex = selectedStyle ? Array.from(selector.children).indexOf(selectedStyle) : Math.floor(Math.random() * StickyBoardConfig.images.length);
+    const selectedColorDiv = selector.querySelector('div[style*="border-color: var(--accent-color)"]');
+    let color = StickyBoardConfig.paperColors[0].color;
+    if (selectedColorDiv) {
+        color = selectedColorDiv.style.background.replace('rgb(', 'rgba(').replace(')', ',1)') || selectedColorDiv.style.backgroundColor; // 简单提取
+        // 直接提取预设颜色
+        const index = Array.from(selector.children).indexOf(selectedColorDiv);
+        color = StickyBoardConfig.paperColors[index].color;
+    }
 
     const newSticky = {
         id: Date.now(),
-        bgImg: StickyBoardConfig.images[imgIndex],
+        bgColor: color,
         status: SB_STATUS.NEED_INTERACT,
         messages: [
             {
@@ -377,6 +388,19 @@ async function processStickyBoardReply() {
     return true;
 }
 
+// 纯 CSS 渲染纸张效果
+function createPaperCss(bgColor, shadowColor) {
+    return `
+        background-color: ${bgColor};
+        border-radius: 8px;
+        box-shadow: 0 4px 10px ${shadowColor || 'rgba(0,0,0,0.2)'};
+        border: 1px solid rgba(255,255,255,0.5);
+        background-image: linear-gradient(0deg, rgba(0,0,0,0.01) 0%, rgba(0,0,0,0.01) 100%);
+        background-size: 100% 25px;
+        position: relative;
+    `;
+}
+
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -395,16 +419,22 @@ function renderStickyBoard() {
         item.style.cssText = `
             position: relative;
             aspect-ratio: 3 / 4;
-            background-image: url(${sticky.bgImg});
-            background-size: cover;
-            background-position: center;
-            border-radius: 6px;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+            padding: 8px; /* 留出空间显示阴影 */
+            box-sizing: border-box;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
+        `;
+
+        const paper = document.createElement('div');
+        paper.style.cssText = `
+            width: 100%; height: 100%;
+            ${createPaperCss(sticky.bgColor)}
+            padding: 12%;
+            box-sizing: border-box;
             overflow: hidden;
         `;
 
+        // 状态角标
         const statusBadge = document.createElement('div');
         let badgeText = '';
         let badgeColor = '';
@@ -419,29 +449,31 @@ function renderStickyBoard() {
             badgeColor = 'rgba(241, 196, 15, 0.9)';
         }
         statusBadge.innerText = badgeText;
-        statusBadge.style.cssText = `position:absolute; bottom: 5px; left: 50%; transform: translateX(-50%); background: ${badgeColor}; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; z-index: 10; pointer-events: none;`;
+        statusBadge.style.cssText = `position:absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: ${badgeColor}; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; z-index: 10; pointer-events: none;`;
         item.appendChild(statusBadge);
 
+        // 小图只展示最后一条消息
         if (sticky.messages && sticky.messages.length > 0) {
-            const firstMsg = sticky.messages[0];
+            const lastMsg = sticky.messages[sticky.messages.length - 1];
             const text = document.createElement('div');
-            text.innerText = firstMsg.text;
+            text.innerText = lastMsg.text;
             text.style.cssText = `
                 position: absolute;
                 top: 10%; left: 10%; right: 10%; bottom: 10%;
                 overflow-y: auto;
-                font-family: ${firstMsg.textStyle.font};
-                color: ${firstMsg.textStyle.color};
-                font-weight: ${firstMsg.textStyle.weight};
+                font-family: ${lastMsg.textStyle.font};
+                color: ${lastMsg.textStyle.color};
+                font-weight: ${lastMsg.textStyle.weight};
                 line-height: 1.6;
                 word-break: break-word;
                 text-align: center;
                 font-size: 12px;
                 pointer-events: none; 
             `;
-            item.appendChild(text);
+            paper.appendChild(text);
         }
 
+        item.appendChild(paper);
         item.onclick = () => showStickyLarge(sticky);
         grid.appendChild(item);
     });
@@ -450,25 +482,21 @@ function renderStickyBoard() {
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
-    
-    // 点击背景关闭，但在内部点击不关闭
     overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
 
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 400px;';
 
+    // 大图卡片
     const card = document.createElement('div');
     card.style.cssText = `
         width: 100%;
         aspect-ratio: 3 / 4;
-        background-image: url(${sticky.bgImg});
-        background-size: cover;
-        background-position: center;
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        position: relative;
-        padding: 5%;
+        ${createPaperCss(sticky.bgColor)}
+        padding: 6%;
         box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
     `;
 
     const msgContainer = document.createElement('div');
@@ -478,50 +506,66 @@ function showStickyLarge(sticky) {
         display: flex;
         flex-direction: column;
         gap: 10px;
+        flex: 1;
     `;
 
     let tempContent = null; 
+    let currentMsgContainer = msgContainer;
 
-    (sticky.messages || []).forEach(msg => {
-        const msgWrap = document.createElement('div');
-        msgWrap.style.cssText = `position: relative; padding: 8px; margin-bottom: 8px; width: fit-content; max-width: 90%;`;
-        
-        const textDiv = document.createElement('div');
-        textDiv.innerText = msg.text;
-        textDiv.style.cssText = `
-            font-family: ${msg.textStyle.font};
-            color: ${msg.textStyle.color};
-            line-height: 1.8;
-            font-size: 16px;
-            word-break: break-word;
-            text-align: left;
-        `;
-        msgWrap.appendChild(textDiv);
+    const renderMsgs = () => {
+        currentMsgContainer.innerHTML = '';
+        const allMsgs = [...sticky.messages];
+        if (tempContent) {
+            allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles[0] });
+        }
 
-        const delBtn = document.createElement('div');
-        delBtn.className = 'inline-del';
-        delBtn.innerHTML = '<i class="fas fa-times"></i>';
-        delBtn.style.cssText = `
-            position: absolute; top: 4px; right: -10px; width: 18px; height: 18px;
-            background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.7); border-radius: 50%;
-            display: flex; align-items: center; justify-content: center; font-size: 11px;
-            opacity: 0; transition: opacity 0.2s; cursor: pointer;
-        `;
-        
-        msgWrap.onclick = (e) => {
-            delBtn.style.opacity = '1';
-            setTimeout(() => delBtn.style.opacity = '0', 2000);
-            e.stopPropagation();
-        };
+        allMsgs.forEach(msg => {
+            const msgWrap = document.createElement('div');
+            msgWrap.style.cssText = `position: relative; padding: 8px; margin-bottom: 8px; width: fit-content; max-width: 90%;`;
+            
+            const textDiv = document.createElement('div');
+            textDiv.innerText = msg.text;
+            textDiv.style.cssText = `
+                font-family: ${msg.textStyle.font};
+                color: ${msg.textStyle.color};
+                line-height: 1.8;
+                font-size: 16px;
+                word-break: break-word;
+                text-align: left;
+            `;
+            msgWrap.appendChild(textDiv);
 
-        delBtn.onclick = (e) => {
-            e.stopPropagation();
-            deleteMessage(sticky.id, msg.id);
-        };
-        msgWrap.appendChild(delBtn);
-        msgContainer.appendChild(msgWrap);
-    });
+            if (msg.id) {
+                const delBtn = document.createElement('div');
+                delBtn.className = 'inline-del';
+                delBtn.innerHTML = '<i class="fas fa-times"></i>';
+                delBtn.style.cssText = `
+                    position: absolute; top: 4px; right: -10px; width: 18px; height: 18px;
+                    background: rgba(0,0,0,0.5); color: rgba(255,255,255,0.7); border-radius: 50%;
+                    display: flex; align-items: center; justify-content: center; font-size: 11px;
+                    opacity: 0; transition: opacity 0.2s; cursor: pointer;
+                `;
+                
+                msgWrap.onclick = (e) => {
+                    delBtn.style.opacity = '1';
+                    setTimeout(() => delBtn.style.opacity = '0', 2000);
+                    e.stopPropagation();
+                };
 
+                delBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteMessage(sticky.id, msg.id);
+                    renderStickyBoard();
+                    showStickyLarge(sticky);
+                };
+                msgWrap.appendChild(delBtn);
+            }
+
+            currentMsgContainer.appendChild(msgWrap);
+        });
+    };
+
+    renderMsgs();
     card.appendChild(msgContainer);
     wrapper.appendChild(card);
 
@@ -543,6 +587,7 @@ function showStickyLarge(sticky) {
     supplementBtn.onclick = () => {
         customPrompt('补充内容', '输入你想补充的话...', (text) => {
             tempContent = text; 
+            renderMsgs();
             showInternalMessage('内容已暂存，点击【张贴】后才会正式保存。', 'success');
         });
     };
