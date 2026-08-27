@@ -1,20 +1,4 @@
-/* 留言板功能 - Sticky Board V15 (居中排版、随机换行、定制字体、方形便签) */
-
-// ⭐ 动态加载字体，确保渲染时生效
-const fontStyle = document.createElement('style');
-fontStyle.innerHTML = `
-    @font-face {
-        font-family: 'MyHandFont';
-        src: url('https://chinese-fonts-cdn.deno.dev/packages/myf/dist/%E6%B2%90%E7%91%B6%E8%BD%AF%E7%AC%94%E6%89%8B%E5%86%99%E4%BD%93/result.css');
-        font-display: swap;
-    }
-    @font-face {
-        font-family: 'PartnerHandFont';
-        src: url('https://chinese-fonts-cdn.deno.dev/packages/momo/dist/%E9%BB%98%E9%99%8C%E7%8B%82%E5%82%B2%E6%89%8B%E8%BF%B9/result.css');
-        font-display: swap;
-    }
-`;
-document.head.appendChild(fontStyle);
+/* 留言板功能 - Sticky Board V16 (真实自然排版) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -23,15 +7,15 @@ const StickyBoardConfig = {
         { id: 'blue', color: '#E0F7FA', textColor: '#006064', shadow: 'rgba(0, 100, 120, 0.2)' },
         { id: 'pink', color: '#FFE4E1', textColor: '#8B4513', shadow: 'rgba(200, 100, 100, 0.2)' }
     ],
-    // ⭐ 雾感紫色 + 深蓝
+    // 使用系统中较为自然的字体，如果不支持则回退
     textStyles: {
         user: { 
-            font: '19px "MyHandFont", "Comic Sans MS", cursive', 
+            font: '18px "楷体", "KaiTi", "华文楷体", serif', 
             color: '#B39DDB', // 雾紫
             weight: '500'
         },
         partner: { 
-            font: '18px "PartnerHandFont", "Ma Shan Zheng", "楷体", cursive', 
+            font: '17px "华文行楷", "STXingkai", "楷体", serif', 
             color: '#000080', // 深蓝
             weight: '600'
         }
@@ -301,7 +285,6 @@ function deleteMessage(stickyId, msgId) {
         }
         saveStickyBoardData();
         renderStickyBoard();
-        // ⭐ 修复3：只要数据变，立刻重新渲染当前大图（如果开着），无需关掉再看
         const overlay = document.getElementById('sticky-overlay');
         if (overlay) {
             overlay.remove();
@@ -353,29 +336,41 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// ⭐ 辅助函数：随机换行
+// ⭐ 随机换行、随机偏移、随机气泡宽度、随机字号
 function applyRandomLineBreaks(text) {
     if (!text || text.length < 5) return text;
     let result = '';
     for (let i = 0; i < text.length; i++) {
         result += text[i];
-        // 在1/4概率下随机换行
-        if (i < text.length - 1 && Math.random() < 0.25) {
+        if (i < text.length - 1 && Math.random() < 0.2) {
             result += '\n';
         }
     }
     return result;
 }
 
-// ⭐ 辅助函数：生成错位、旋转等随机属性
 function getRandomOffset() {
     const tx = (Math.random() * 8) - 4; // -4px 到 4px
     const ty = (Math.random() * 4) - 2; // -2px 到 2px
-    const rot = (Math.random() * 2.0) - 1.0; // -1度 到 1度
+    const rot = (Math.random() * 2.4) - 1.2; // -1.2度 到 1.2度
     return `transform: translate(${tx}px, ${ty}px) rotate(${rot}deg);`;
 }
 
-// ⭐ 纸张基础样式
+function getRandomBubbleWidth() {
+    // ⭐ 随机气泡限制宽度：比如 85% 或 75%，超了自动换行
+    return `${75 + Math.random() * 15}%`;
+}
+
+function getRandomFontSize() {
+    // ⭐ 在 16px 到 20px 之间随机
+    return `${16 + Math.floor(Math.random() * 5)}px`;
+}
+
+function getRandomLineHeight() {
+    // ⭐ 在 1.6 到 2.0 之间随机，模拟松紧
+    return `${1.6 + (Math.random() * 0.4).toFixed(1)}`;
+}
+
 function getPaperStyle(bgColor) {
     return `
         background-color: ${bgColor};
@@ -386,7 +381,7 @@ function getPaperStyle(bgColor) {
     `;
 }
 
-// 渲染网格小图
+// ⭐ 小图：从第一条开始显示，正方形
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -403,8 +398,8 @@ function renderStickyBoard() {
         const item = document.createElement('div');
         item.style.cssText = `
             position: relative;
-            aspect-ratio: 1 / 1; /* ⭐ 修复2：正方形 */
-            padding: 10px; 
+            aspect-ratio: 1 / 1;
+            padding: 12px; 
             box-sizing: border-box;
             cursor: pointer;
             transition: transform 0.2s;
@@ -417,7 +412,7 @@ function renderStickyBoard() {
         paper.style.cssText = `
             width: 100%; height: 100%;
             ${getPaperStyle(sticky.bgColor)}
-            padding: 20%;
+            padding: 18%;
             box-sizing: border-box;
             overflow: hidden;
         `;
@@ -429,43 +424,40 @@ function renderStickyBoard() {
                     <path d="M20,120 C40,90 70,70 110,50" fill="none" stroke="#333" stroke-width="1.5"/>
                     <path d="M30,160 C60,140 100,130 140,130" fill="none" stroke="#333" stroke-width="1"/>
                 </svg>
-                <div style="position:absolute; bottom:0; left:0; right:0; height:30%; background: repeating-linear-gradient(transparent, transparent 24px, rgba(0,0,0,0.04) 24px, rgba(0,0,0,0.04) 25px);"></div>
             </div>
             
-            <!-- ⭐ 修复1：小图边框上的回形针，一半在纸上，一半在外面 -->
-            <div style="position:absolute; top:-10px; left:30%; width:24px; height:48px; z-index:20; transform:rotate(-10deg);">
-                <svg width="24" height="48" viewBox="0 0 24 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M7 44 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V32 C20 35 18 37 15 37 C12 37 9 35 9 32 V14" stroke="#999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
-                    <path d="M7 44 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V32 C20 35 18 37 15 37 C12 37 9 35 9 32 V14" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
+            <!-- ⭐ 回形针：放在纸张最顶部边缘，不丢失 -->
+            <div style="position:absolute; top:0px; left:20%; width:24px; height:50px; z-index:20; transform:rotate(-10deg);">
+                <svg width="24" height="50" viewBox="0 0 24 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M7 46 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V34 C20 37 18 39 15 39 C12 39 9 37 9 34 V14" stroke="#999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                 </svg>
             </div>
         `;
 
-        // ⭐ 小图：取最开始的那几条（取前2条），且居中排布
-        const initialMsgs = sticky.messages.slice(0, 2);
         const textContainer = document.createElement('div');
         textContainer.style.cssText = `
             position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80%;
+            top: 15%; left: 15%; right: 15%; bottom: 15%;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            gap: 10px;
         `;
 
-        initialMsgs.forEach(msg => {
+        // ⭐ 小图：从第一条消息开始显示
+        sticky.messages.forEach(msg => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
             const line = document.createElement('div');
             line.innerHTML = applyRandomLineBreaks(msg.text).replace(/\n/g, '<br>');
             line.style.cssText = `
-                ${msgStyle.font}
+                font-family: ${msgStyle.font};
                 font-size: 15px;
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                line-height: 1.6;
-                text-align: center;
-                margin-bottom: 5px;
+                line-height: 1.8;
+                text-align: left;
+                max-width: ${getRandomBubbleWidth()};
+                margin-left: ${Math.random() * 10}px;
                 ${getRandomOffset()}
             `;
             textContainer.appendChild(line);
@@ -499,7 +491,7 @@ function showStickyLarge(sticky) {
     const card = document.createElement('div');
     card.style.cssText = `
         width: 100%;
-        aspect-ratio: 1 / 1; /* 大图也保持正方形 */
+        aspect-ratio: 1 / 1;
         ${getPaperStyle(sticky.bgColor)}
         padding: 10%;
         box-sizing: border-box;
@@ -518,18 +510,18 @@ function showStickyLarge(sticky) {
         </div>
     `;
 
-    // ⭐ 大图：消息从中心开始排列，填满后才滑动
+    // ⭐ 大图：高度居中，水平偏左
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
         position: absolute;
-        top: 50%; left: 50%;
-        transform: translate(-50%, -50%);
+        top: 50%;
+        left: 10%;
+        transform: translateY(-50%);
         width: 85%;
         max-height: 90%;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        align-items: center;
         gap: 15px;
         z-index: 10;
         padding-bottom: 20px;
@@ -549,9 +541,9 @@ function showStickyLarge(sticky) {
             const msgWrap = document.createElement('div');
             msgWrap.style.cssText = `
                 position: relative;
-                width: fit-content;
-                max-width: 95%;
-                padding: 2px 4px;
+                max-width: ${getRandomBubbleWidth()};
+                margin-left: ${Math.random() * 15}px;
+                margin-bottom: ${5 + Math.random() * 12}px;
                 cursor: pointer;
             `;
             
@@ -561,8 +553,8 @@ function showStickyLarge(sticky) {
                 font-family: ${msgStyle.font};
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                font-size: ${msgStyle.fontSize || '18px'};
-                line-height: 1.8;
+                font-size: ${getRandomFontSize()};
+                line-height: ${getRandomLineHeight()};
                 word-break: break-word;
                 text-align: left;
                 ${getRandomOffset()}
