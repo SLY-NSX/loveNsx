@@ -10986,7 +10986,7 @@
 }
 
 
-/* === 电话气泡消息样式 === */
+/* === 电话气泡消息样式（完全跟随普通聊天气泡） === */
 .call-bubble-wrapper {
     margin-bottom: 10px !important;
     max-width: 85% !important;
@@ -10998,62 +10998,56 @@
     align-items: stretch !important;
     max-width: 100% !important;
 }
+
+/* 关键修复：让 call-bubble 完全继承 .message 的样式，不加任何硬编码覆盖 */
 .call-bubble-message {
+    /* 不设 background、padding、border-radius，完全由 .message 决定 */
     display: inline-flex !important;
     align-items: center !important;
-    /* 移除了 padding 和 border-radius 的 !important，现在它完全跟随普通消息的 9px 14px */
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+    box-shadow: var(--shadow) !important; /* 跟随普通消息阴影 */
     cursor: default !important;
     pointer-events: auto;
     min-width: 0;
     max-width: 100%;
-    background-color: var(--message-sent-bg) !important;
-    background: var(--message-sent-bg) !important;
+    /* 字体、颜色、背景、圆角全部继承自 .message-sent / .message-received */
 }
 
+/* 确保发送/接收方的颜色继承正确 */
+.call-bubble-message.message-sent {
+    background-color: var(--message-sent-bg) !important;
+    color: var(--message-sent-text) !important;
+}
 .call-bubble-message.message-received {
     background-color: var(--message-received-bg) !important;
-    background: var(--message-received-bg) !important;
+    color: var(--message-received-text) !important;
 }
 html[data-theme="dark"] .call-bubble-message.message-sent {
     background-color: var(--accent-color-dark, var(--accent-color)) !important;
-    background: var(--accent-color-dark, var(--accent-color)) !important;
 }
 
+/* 内部布局：跟随系统字体、行高、大小 */
 .call-bubble-inner {
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    line-height: var(--message-line-height); /* 跟随系统行高 */
+    line-height: var(--message-line-height);
+    font-family: var(--message-font-family);
+    font-weight: var(--message-font-weight);
+    font-size: var(--font-size);
     white-space: nowrap;
 }
 .call-bubble-icon {
-    font-size: 1em; /* 1em 表示跟随当前字体大小，系统改多大它就多大 */
+    font-size: 1em;
     opacity: 0.9;
     flex-shrink: 0;
 }
 .call-bubble-text {
-    font-family: var(--message-font-family); /* 👈 加上这行，彻底接管字体 */
-    /* 删除了 font-size 和 font-weight，现在它继承普通消息的字体设置 */
+    font-family: inherit;  /* 继承父级 */
     letter-spacing: 0.2px;
     white-space: nowrap;
 }
 
-/* 修复：call-bubble 出现时隐藏可能残留的 meta-actions */
-.call-bubble-wrapper .message-meta-actions,
-.call-bubble-wrapper .message-meta {
-    display: none !important;
-}
-.call-bubble-message.message-sent .call-bubble-icon,
-.call-bubble-message.message-sent .call-bubble-text {
-    color: var(--message-sent-text);
-}
-.call-bubble-message.message-received .call-bubble-icon,
-.call-bubble-message.message-received .call-bubble-text {
-    color: var(--message-received-text);
-}
-
-/* 修复：call-bubble 出现时隐藏可能残留的 meta-actions */
+/* 隐藏多余的按钮/元数据（通话气泡不需要） */
 .call-bubble-wrapper .message-meta-actions,
 .call-bubble-wrapper .message-meta {
     display: none !important;
