@@ -1,20 +1,15 @@
-/* 留言板功能 - Sticky Board */
+/* 留言板功能 - Sticky Board V2 (基础逻辑版本) */
 
-// 配置：方便后续替换图片 URL
+// 配置：图片路径（根据你的实际项目位置修改，例如 img/xxx.png）
 const StickyBoardConfig = {
-    // 你的 PNG 图片 URL 列表（建议 600x800）
     images: [
-        'img/sticky_bg_1.png', 
-        'img/sticky_bg_2.png', 
+        'img/sticky_bg_1.png', // 米黄
+        'img/sticky_bg_2.png', // 淡紫
 
     ],
-    // 文字样式配置池（制造真实感）
+    // 后续再做样式优化，先随便给个通用字体
     textStyles: [
-        { font: '14px "Noto Serif SC", serif', color: '#333', weight: '400' },
-        { font: '16px "Comic Sans MS", cursive', color: '#5C4033', weight: '500' },
-        { font: '13px "KaiTi", "楷体", serif', color: '#006666', weight: '600' },
-        { font: '15px "Microsoft YaHei", sans-serif', color: '#4A235A', weight: '400' },
-        { font: '17px "PingFang SC", sans-serif', color: '#8B4513', weight: '700' }
+        { font: '14px "Noto Serif SC", serif', color: '#333', weight: '400' }
     ]
 };
 
@@ -72,8 +67,8 @@ function createStickyBoardModal() {
                     </button>
                 </div>
 
-                <!-- 便签展示墙 -->
-                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px; padding-bottom: 20px;">
+                <!-- 便签展示墙 (一行3个) -->
+                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-bottom: 20px;">
                     <!-- 动态渲染 -->
                 </div>
             </div>
@@ -91,7 +86,7 @@ function renderStyleSelector() {
     container.innerHTML = '';
     StickyBoardConfig.images.forEach((img, index) => {
         const div = document.createElement('div');
-        div.style.cssText = `width: 40px; height: 50px; background: url(${img}) center/cover; border: 2px solid transparent; border-radius: 4px; transition: all 0.2s;`;
+        div.style.cssText = `width: 30px; height: 40px; background: url(${img}) center/cover; border: 2px solid transparent; border-radius: 4px; transition: all 0.2s;`;
         if (index === 0) div.style.borderColor = 'var(--accent-color)';
         div.onclick = () => {
             container.querySelectorAll('div').forEach(el => el.style.borderColor = 'transparent');
@@ -115,20 +110,28 @@ function submitSticky() {
     const selectedStyle = selector.querySelector('div[style*="border-color: var(--accent-color)"]');
     const imgIndex = selectedStyle ? Array.from(selector.children).indexOf(selectedStyle) : Math.floor(Math.random() * StickyBoardConfig.images.length);
 
-    // 随机抽取文字样式
-    const randomTextStyle = StickyBoardConfig.textStyles[Math.floor(Math.random() * StickyBoardConfig.textStyles.length)];
+    // 目前先写死字体，后面再改
+    const randomTextStyle = StickyBoardConfig.textStyles[0];
 
     const newSticky = {
         id: Date.now(),
         text: text,
         bgImg: StickyBoardConfig.images[imgIndex],
         textStyle: randomTextStyle,
-        date: new Date().toLocaleString()
+        date: new Date().toLocaleString() // 数据里保留，但我不渲染它
     };
 
     StickyBoardData.unshift(newSticky);
     saveStickyBoardData();
     textInput.value = '';
+    renderStickyBoard();
+}
+
+// 删除单条便签
+function deleteSticky(id) {
+    if (!confirm('确定要删除这张便签吗？')) return;
+    StickyBoardData = StickyBoardData.filter(item => item.id !== id);
+    saveStickyBoardData();
     renderStickyBoard();
 }
 
@@ -154,16 +157,39 @@ function renderStickyBoard() {
             background-image: url(${sticky.bgImg});
             background-size: cover;
             background-position: center;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            border-radius: 6px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.2);
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
             overflow: hidden;
         `;
-        item.onmouseover = () => { item.style.transform = 'scale(1.05)'; item.style.boxShadow = '0 8px 16px rgba(0,0,0,0.3)'; };
-        item.onmouseout = () => { item.style.transform = 'scale(1)'; item.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)'; };
-        item.onclick = () => showStickyLarge(sticky);
 
+        // 右上角小 × 删除按钮
+        const delBtn = document.createElement('div');
+        delBtn.innerHTML = '<i class="fas fa-times"></i>';
+        delBtn.style.cssText = `
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 18px;
+            height: 18px;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+            z-index: 10;
+        `;
+        delBtn.onclick = (e) => {
+            e.stopPropagation(); // 阻止冒泡，不触发大图
+            deleteSticky(sticky.id);
+        };
+        item.appendChild(delBtn);
+
+        // 显示文字
         const text = document.createElement('div');
         text.innerText = sticky.text;
         text.style.cssText = `
@@ -182,8 +208,13 @@ function renderStickyBoard() {
             align-items: center;
             justify-content: center;
             text-align: center;
+            font-size: 12px; /* 因为一行3个变窄了，所以稍微调小字体 */
         `;
         item.appendChild(text);
+
+        // 点击进入大图
+        item.onclick = () => showStickyLarge(sticky);
+
         grid.appendChild(item);
     });
 }
@@ -192,7 +223,9 @@ function renderStickyBoard() {
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
-    overlay.onclick = () => document.body.removeChild(overlay);
+    overlay.onclick = (e) => {
+        if (e.target === overlay) document.body.removeChild(overlay);
+    };
 
     const card = document.createElement('div');
     card.style.cssText = `
@@ -217,19 +250,74 @@ function showStickyLarge(sticky) {
         color: ${sticky.textStyle.color};
         font-weight: ${sticky.textStyle.weight};
         line-height: 1.8;
-        font-size: 18px;
+        font-size: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
         text-align: center;
     `;
-
-    const date = document.createElement('div');
-    date.innerText = sticky.date;
-    date.style.cssText = `position: absolute; bottom: 5%; width: 100%; text-align: center; font-size: 10px; color: rgba(0,0,0,0.5);`;
-
     card.appendChild(text);
-    card.appendChild(date);
+
+    // 右上角关闭按钮
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    closeBtn.style.cssText = `
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 30px;
+        height: 30px;
+        background: rgba(255,255,255,0.8);
+        color: #333;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 16px;
+    `;
+    closeBtn.onclick = () => document.body.removeChild(overlay);
+    card.appendChild(closeBtn);
+
+    // 底部操作栏
+    const actions = document.createElement('div');
+    actions.style.cssText = `
+        position: absolute;
+        bottom: 15px;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    `;
+
+    // 删除本条按钮
+    const delBtn = document.createElement('button');
+    delBtn.innerHTML = '删除本条';
+    delBtn.style.cssText = 'padding: 6px 12px; border: none; border-radius: 8px; background: #e74c3c; color: white; cursor: pointer; font-size: 13px;';
+    delBtn.onclick = () => {
+        if (confirm('确定要删除这条留言吗？')) {
+            deleteSticky(sticky.id);
+            document.body.removeChild(overlay);
+        }
+    };
+
+    // 待开发：补充
+    const supplementBtn = document.createElement('button');
+    supplementBtn.innerHTML = '补充';
+    supplementBtn.style.cssText = 'padding: 6px 12px; border: none; border-radius: 8px; background: rgba(255,255,255,0.8); color: #333; cursor: pointer; font-size: 13px;';
+    supplementBtn.onclick = () => alert('该功能待开发');
+
+    // 待开发：结束
+    const endBtn = document.createElement('button');
+    endBtn.innerHTML = '结束';
+    endBtn.style.cssText = 'padding: 6px 12px; border: none; border-radius: 8px; background: rgba(255,255,255,0.8); color: #333; cursor: pointer; font-size: 13px;';
+    endBtn.onclick = () => alert('该功能待开发');
+
+    actions.appendChild(delBtn);
+    actions.appendChild(supplementBtn);
+    actions.appendChild(endBtn);
+    card.appendChild(actions);
+
     overlay.appendChild(card);
     document.body.appendChild(overlay);
 }
@@ -240,6 +328,8 @@ function openStickyBoard() {
     const modal = createStickyBoardModal();
     renderStyleSelector();
     renderStickyBoard();
+    // 假设你的 main.js 里有 showModal 函数，如果没有，直接用下面这句：
+    // modal.style.display = 'flex';
     showModal(modal);
 }
 
