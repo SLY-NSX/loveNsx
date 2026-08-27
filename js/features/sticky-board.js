@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V21 (移动端适配 + 贴边排版 + 完美按钮) */
+/* 留言板功能 - Sticky Board V22 (纯粹网格布局，极致修复) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -155,7 +155,6 @@ function showInternalMessage(msg, type = 'warning') {
     }
 }
 
-// 创建主弹窗
 function createStickyBoardModal() {
     let modal = document.getElementById('sticky-board-modal');
     if (modal) return modal;
@@ -170,23 +169,27 @@ function createStickyBoardModal() {
                 </div>
                 <button onclick="closeStickyBoard()" style="background: none; border: none; color: #fff; font-size: 20px; cursor: pointer;"><i class="fas fa-times"></i></button>
             </div>
-            <div style="background: var(--primary-bg); padding: 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative;">
-                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 80px;">
+            <div style="background: var(--primary-bg); padding: 20px; flex: 1; display: flex; flex-direction: column; overflow-y: auto; position: relative; height: calc(90vh - 60px);">
+                
+                <!-- ⭐ 纯净的 2 列网格，只列便签 -->
+                <div id="sticky-board-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; padding-bottom: 80px;">
                 </div>
+                
+                <!-- ⭐ 新建按钮：放在弹窗最内层，用绝对定位，层级最高，不会被挡住 -->
                 <button id="sticky-add-btn" onclick="openStickyCreateModal()" style="
                     position: absolute; 
                     bottom: 20px; 
                     right: 20px; 
-                    width: 56px; 
-                    height: 56px; 
+                    width: 64px; 
+                    height: 64px; 
                     border-radius: 50%; 
                     border: none; 
                     background: var(--accent-color); 
                     color: white; 
-                    font-size: 28px; 
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.4); 
+                    font-size: 32px; 
+                    box-shadow: 0 8px 16px rgba(0,0,0,0.4); 
                     cursor: pointer; 
-                    z-index: 100;
+                    z-index: 99999;
                 "><i class="fas fa-plus"></i></button>
             </div>
         </div>
@@ -195,33 +198,33 @@ function createStickyBoardModal() {
     return modal;
 }
 
-// 新建独立弹窗
+// 新建独立弹窗（层级抬到最高）
 function openStickyCreateModal() {
     const old = document.getElementById('sticky-create-modal');
     if (old) old.remove();
 
     const overlay = document.createElement('div');
     overlay.id = 'sticky-create-modal';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(8px);';
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
     const box = document.createElement('div');
-    box.style.cssText = 'background:var(--secondary-bg);border-radius:16px;padding:20px;width:85%;max-width:360px;box-shadow:0 10px 30px rgba(0,0,0,0.3);';
+    box.style.cssText = 'background:var(--secondary-bg);border-radius:16px;padding:24px;width:85%;max-width:360px;box-shadow:0 10px 30px rgba(0,0,0,0.5);';
 
     box.innerHTML = `
         <div style="font-size:16px;font-weight:700;color:var(--text-primary);margin-bottom:15px;text-align:center;">✍️ 写一张新便签</div>
         <textarea id="sticky-create-input" placeholder="写下你想说的话..." style="
-            width:100%; min-height:100px; padding:10px; border:1px solid var(--border-color); 
-            border-radius:8px; background:var(--primary-bg); color:var(--text-primary); 
+            width:100%; min-height:100px; padding:12px; border:1.5px solid var(--border-color); 
+            border-radius:10px; background:var(--primary-bg); color:var(--text-primary); 
             font-size:14px; resize:none; outline:none; box-sizing:border-box;
         "></textarea>
-        <div style="display:flex; gap:10px; align-items:center; margin:12px 0;">
+        <div style="display:flex; gap:10px; align-items:center; margin:15px 0;">
             <div style="font-size:12px; color:var(--text-secondary);">选择纸张：</div>
-            <div id="sticky-create-selector" style="display:flex; gap:5px; cursor:pointer;"></div>
+            <div id="sticky-create-selector" style="display:flex; gap:8px; cursor:pointer;"></div>
         </div>
-        <div style="display:flex; gap:10px; margin-top:15px;">
-            <button onclick="document.getElementById('sticky-create-modal').remove()" style="flex:1; padding:10px; border:none; border-radius:8px; background:var(--primary-bg); color:var(--text-secondary); cursor:pointer; font-size:14px;">取消</button>
-            <button onclick="submitCreateSticky()" style="flex:2; padding:10px; border:none; border-radius:8px; background:var(--accent-color); color:white; cursor:pointer; font-size:14px; font-weight:600;">贴出便签</button>
+        <div style="display:flex; gap:12px; margin-top:20px;">
+            <button onclick="document.getElementById('sticky-create-modal').remove()" style="flex:1; padding:12px; border:none; border-radius:10px; background:var(--primary-bg); color:var(--text-secondary); cursor:pointer; font-size:14px;">取消</button>
+            <button onclick="submitCreateSticky()" style="flex:2; padding:12px; border:none; border-radius:10px; background:var(--accent-color); color:white; cursor:pointer; font-size:14px; font-weight:600;">贴出便签</button>
         </div>
     `;
 
@@ -231,7 +234,7 @@ function openStickyCreateModal() {
     const selector = document.getElementById('sticky-create-selector');
     StickyBoardConfig.paperColors.forEach((p, index) => {
         const div = document.createElement('div');
-        div.style.cssText = `width: 30px; height: 30px; background: ${p.color}; border: 2px solid transparent; border-radius: 4px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);`;
+        div.style.cssText = `width: 32px; height: 32px; background: ${p.color}; border: 2px solid transparent; border-radius: 6px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.1);`;
         if (index === 0) div.style.borderColor = 'var(--accent-color)';
         div.onclick = () => {
             selector.querySelectorAll('div').forEach(el => el.style.borderColor = 'transparent');
@@ -375,16 +378,16 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// ⭐ 生成随机且稳定的大图/小图共用参数
+// 生成稳定且一致的排版参数
 function getSharedLayout(index, total) {
-    const widthNum = 12 + ((index * 7 + total) % 9); // 12~20
-    const marginLeft = (index * 3) % 10; // 0~10px，贴边
-    const rotate = (((index * 13) % 100) / 100 - 0.5) * 2.4; // -1.2 ~ 1.2
-    const yOffset = (((index * 17) % 100) / 100 - 0.5) * 4; // -2 ~ 2
+    const widthNum = 12 + ((index * 7 + total) % 9);
+    const marginLeft = (index * 3) % 12;
+    const rotate = (((index * 13) % 100) / 100 - 0.5) * 1.8; 
+    const yOffset = (((index * 17) % 100) / 100 - 0.5) * 3; 
     return { widthNum, marginLeft, rotate, yOffset };
 }
 
-// ⭐ 渲染留言板小图 (一行两个)
+// ⭐ 纯网格渲染：没有任何缩放Bug，绝对居中，间距完美
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -400,59 +403,53 @@ function renderStickyBoard() {
     StickyBoardData.forEach(sticky => {
         const item = document.createElement('div');
         item.style.cssText = `
-            position: relative;
+            width: 100%;
+            height: 100%;
             aspect-ratio: 1 / 1;
-            padding: 5px; 
-            box-sizing: border-box;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        `;
-
-        const BASE_SIZE = 300;
-        const scale = 0.5; 
-
-        const paper = document.createElement('div');
-        paper.style.cssText = `
-            width: ${BASE_SIZE}px;
-            height: ${BASE_SIZE}px;
             background-color: ${sticky.bgColor};
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-            padding: 15px; /* ⭐ 文字贴近边缘 */
+            border-radius: 12px;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.15);
+            border: 1px solid rgba(255,255,255,0.6);
+            padding: 8%;
             box-sizing: border-box;
             overflow: hidden;
             position: relative;
-            transform: scale(${scale});
-            transform-origin: center center;
+            cursor: pointer;
+            transition: transform 0.2s;
         `;
+        item.onmouseover = () => { item.style.transform = 'scale(1.03)'; };
+        item.onmouseout = () => { item.style.transform = 'scale(1)'; };
 
-        paper.innerHTML += `
-            <div style="position:absolute; inset:0; pointer-events:none; border-radius:8px; overflow:hidden;">
+        // 背景暗纹
+        item.innerHTML += `
+            <div style="position:absolute; inset:0; pointer-events:none; border-radius:12px; overflow:hidden;">
                 <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                     <path d="M40,80 C50,50 80,20 120,10 C140,5 160,10 170,20 C130,40 90,60 40,80 Z" fill="none" stroke="#333" stroke-width="2"/>
                     <path d="M20,120 C40,90 70,70 110,50" fill="none" stroke="#333" stroke-width="1.5"/>
                     <path d="M30,160 C60,140 100,130 140,130" fill="none" stroke="#333" stroke-width="1"/>
                 </svg>
             </div>
-            
-            <div style="position:absolute; top:-3px; left:30px; width:14px; height:28px; z-index:20; transform:rotate(-5deg);">
+        `;
+
+        // 回形针
+        item.innerHTML += `
+            <div style="position:absolute; top:-3px; left:25%; width:14px; height:28px; z-index:20; transform:rotate(-5deg);">
                 <svg width="14" height="28" viewBox="0 0 14 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M4 24 V7 C4 3.5 7 2 8.5 2 C10 2 11.5 4 11.5 6 V18 C11.5 20 10 21.5 8.5 21.5 C7 21.5 5.5 20 5.5 18 V8" stroke="#999" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                 </svg>
             </div>
         `;
 
+        // 内容区
         const contentContainer = document.createElement('div');
         contentContainer.style.cssText = `
             position: absolute;
-            top: 3%; left: 3%; right: 3%; bottom: 3%; /* ⭐ 文字直接贴近边缘，只留极小的安全间隙 */
+            top: 12%; left: 12%; right: 12%; bottom: 12%;
             overflow: hidden;
         `;
 
-        const baseFontSize = 17; 
-        const baseLineHeight = 1.8;
+        const baseFontSize = 14; 
+        const baseLineHeight = 1.7;
 
         sticky.messages.forEach((msg, index) => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
@@ -469,20 +466,19 @@ function renderStickyBoard() {
                 text-align: left;
                 max-width: ${layout.widthNum}em;
                 margin-left: ${layout.marginLeft}px;
-                margin-bottom: 5px;
+                margin-bottom: 6px;
                 transform: rotate(${layout.rotate}deg) translateY(${layout.yOffset}px);
             `;
             contentContainer.appendChild(line);
         });
 
-        paper.appendChild(contentContainer);
-        item.appendChild(paper);
+        item.appendChild(contentContainer);
         item.onclick = () => showStickyLarge(sticky);
         grid.appendChild(item);
     });
 }
 
-// ⭐ 大图：移动端全屏撑满，文字同样贴近边缘
+// ⭐ 大图：移动端直接用 100vw 撑满全屏宽度，不再受限
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.id = 'sticky-overlay';
@@ -490,25 +486,25 @@ function showStickyLarge(sticky) {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
 
     const wrapper = document.createElement('div');
-    wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 400px;';
+    wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 420px;';
 
-    // ⭐ 移动端铺满全宽，PC端 300x300
+    // ⭐ 撑满移动端宽度
     const card = document.createElement('div');
     card.style.cssText = `
-        width: 100vw;
-        max-width: 300px;
-        height: 100vw;
-        max-height: 300px;
+        width: 95vw;
+        max-width: 400px;
+        height: 95vw;
+        max-height: 400px;
         background-color: ${sticky.bgColor};
-        border-radius: 8px;
+        border-radius: 16px;
         box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        padding: 15px; /* ⭐ 文字贴近边缘 */
+        padding: 10%;
         box-sizing: border-box;
         position: relative;
     `;
 
     card.innerHTML += `
-        <div style="position:absolute; inset:0; pointer-events:none; border-radius:8px; overflow:hidden;">
+        <div style="position:absolute; inset:0; pointer-events:none; border-radius:16px; overflow:hidden;">
             <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                 <path d="M40,80 C50,50 80,20 120,10 C140,5 160,10 170,20 C130,40 90,60 40,80 Z" fill="none" stroke="#333" stroke-width="2"/>
                 <path d="M20,120 C40,90 70,70 110,50" fill="none" stroke="#333" stroke-width="1.5"/>
@@ -516,18 +512,18 @@ function showStickyLarge(sticky) {
             </svg>
         </div>
         
-        <div style="position:absolute; top:-3px; left:30px; width:14px; height:28px; z-index:20; transform:rotate(-5deg);">
-            <svg width="14" height="28" viewBox="0 0 14 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 24 V7 C4 3.5 7 2 8.5 2 C10 2 11.5 4 11.5 6 V18 C11.5 20 10 21.5 8.5 21.5 C7 21.5 5.5 20 5.5 18 V8" stroke="#999" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
+        <div style="position:absolute; top:-4px; left:25%; width:16px; height:32px; z-index:20; transform:rotate(-5deg);">
+            <svg width="16" height="32" viewBox="0 0 16 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4.5 28 V8 C4.5 4 8 2.5 10 2.5 C12 2.5 13.5 4.5 13.5 7 V21 C13.5 23 12 24.5 10 24.5 C8 24.5 6 23 6 21 V9" stroke="#999" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
             </svg>
         </div>
     `;
 
-    // ⭐ 大图滚动容器：同样贴近边缘
+    // ⭐ 大图滚动容器：留有合适边距
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
         position: absolute;
-        top: 3%; left: 3%; right: 3%; bottom: 3%;
+        top: 12%; left: 12%; right: 12%; bottom: 12%;
         overflow-y: auto;
         z-index: 10;
     `;
@@ -540,7 +536,7 @@ function showStickyLarge(sticky) {
         const allMsgs = [...sticky.messages];
         if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user });
 
-        const baseFontSize = 17; 
+        const baseFontSize = 16; 
         const baseLineHeight = 1.8;
 
         allMsgs.forEach((msg, index) => {
@@ -552,7 +548,7 @@ function showStickyLarge(sticky) {
                 position: relative;
                 max-width: ${layout.widthNum}em;
                 margin-left: ${layout.marginLeft}px;
-                margin-bottom: 5px;
+                margin-bottom: 8px;
                 cursor: pointer;
             `;
             
