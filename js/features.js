@@ -2280,20 +2280,28 @@ window.closeDailyGreeting = function() {
     try {
         var modal = document.getElementById('daily-greeting-modal');
         if (modal) {
+            // ★★★ 新增：恢复父容器 ★★★
+            var parent = modal.parentElement;
+            if (parent && parent.classList.contains('modal')) {
+                parent.style.background = '';
+                parent.style.backdropFilter = '';
+                parent.style.webkitBackdropFilter = '';
+                parent.style.display = 'none';
+                parent.style.zIndex = '';
+                // 恢复所有被隐藏的子元素
+                var children = parent.children;
+                for (var i = 0; i < children.length; i++) {
+                    if (children[i].id !== 'daily-greeting-modal') {
+                        children[i].style.display = '';
+                    }
+                }
+            }
+            
             modal.style.opacity = '0';
             modal.style.transition = 'opacity 0.3s ease';
             setTimeout(function() {
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
-                
-                var parent = modal.parentElement;
-                if (parent && parent.classList.contains('modal')) {
-                    // ★ 恢复背景为默认
-                    parent.style.background = '';
-                    parent.style.backdropFilter = '';
-                    parent.style.webkitBackdropFilter = '';
-                    parent.style.display = 'none';
-                }
             }, 320);
         }
         try {
