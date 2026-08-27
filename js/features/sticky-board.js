@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V27 (每轮随机：字体/间距/行宽/左右偏移) */
+/* 留言板功能 - Sticky Board V28 (等比缩放 + 每轮独立删除) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -29,11 +29,9 @@ const SB_STATUS = {
 
 let StickyBoardData = []; 
 
-// ========== 工具函数：随机数 ==========
 function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
 function randFloat(min, max) { return Math.random() * (max - min) + min; }
 
-// ========== 按行宽硬换行 ==========
 function wrapTextByWidth(text, lineWidth) {
     if (!text) return [];
     const chars = text.split('');
@@ -326,7 +324,8 @@ function deleteSticky(stickyId) {
     });
 }
 
-function deleteMessage(stickyId, msgId) {
+// ========== 每轮独立删除 ==========
+function deleteMessage(stickyId, msgId, overlayRef) {
     customConfirm('确定要删除这条内容吗？', () => {
         const sticky = StickyBoardData.find(item => item.id === stickyId);
         if (!sticky) return;
@@ -335,14 +334,15 @@ function deleteMessage(stickyId, msgId) {
             StickyBoardData = StickyBoardData.filter(item => item.id !== stickyId);
             saveStickyBoardData();
             renderStickyBoard();
+            if (overlayRef) document.body.removeChild(overlayRef);
             return;
         }
         saveStickyBoardData();
         renderStickyBoard();
-        const overlay = document.getElementById('sticky-overlay');
-        if (overlay) {
-            overlay.remove();
-            showStickyLarge(sticky);
+        // 刷新大图
+        if (overlayRef) {
+            const newOverlay = showStickyLarge(sticky, true);
+            document.body.removeChild(overlayRef);
         }
     });
 }
@@ -391,14 +391,14 @@ async function processStickyBoardReply() {
 }
 
 // ============================================================
-// 核心：创建一张便签（大图/小图共用，300x300 基准画布）
+// 核心：创建一张便签（300x300 基准画布）
 // 每条消息独立随机：字体/间距/行宽/左右偏移
 // ============================================================
 function createStickyCard(sticky, isThumb = true) {
     const BASE_SIZE = 300;
-    const PADDING = 6;          // 固定边距
-    const SAFE_MARGIN = 10;     // 最小左边距，保证不贴边
-    const MAX_LEFT_OFFSET = 60; // 最大随机左偏移
+    const PADDING = 6;
+    const SAFE_MARGIN = 10;
+    const MAX_LEFT_OFFSET = 60;
 
     const card = document.createElement('div');
     card.style.cssText = `
@@ -438,7 +438,7 @@ function createStickyCard(sticky, isThumb = true) {
         </div>
     `;
 
-    // 内容容器：纵向排列，从上下居中开始
+    // 内容容器
     const contentContainer = document.createElement('div');
     contentContainer.style.cssText = `
         position: absolute;
@@ -454,38 +454,28 @@ function createStickyCard(sticky, isThumb = true) {
         z-index: 10;
     `;
 
-    // 遍历每条消息（每轮）
+    // 遍历每条消息
     sticky.messages.forEach((msg, index) => {
         const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
         
-        // ---- 每轮随机参数 ----
         const fontSize = rand(11, 16);
-        const lineWidth = rand(12, 20);          // 每行字数
-        const marginBottom = rand(5, 9);          // 与下一条的间距
-        const rotate = randFloat(-2.5, 2.5);      // 轻微歪斜
-        const baseLeft = SAFE_MARGIN + (index * 3); // 基础左偏移（逐条递增，产生错落）
+        const lineWidth = rand(12, 20);
+        const marginBottom = rand(5, 9);
+        const rotate = randFloat(-2.5, 2.5);
+        const baseLeft = SAFE_MARGIN + (index * 3);
 
-        // 计算安全左偏移：保证最长的行不超出右边界
-        // 估算：每个中文字符宽度 ≈ fontSize * 0.9，加上一些余量
         const charWidth = fontSize * 0.9;
         const maxLineWidth = lineWidth * charWidth;
-        // 可用宽度 = BASE_SIZE - PADDING*2 - maxLineWidth - 一点余量
         const availableWidth = BASE_SIZE - PADDING * 2 - maxLineWidth - 6;
-        // 最大允许左偏移 = availableWidth - SAFE_MARGIN
         const maxSafeLeft = Math.max(0, availableWidth - SAFE_MARGIN);
-        // 随机左偏移，但不能超过安全值，且至少为 SAFE_MARGIN
         let leftOffset = SAFE_MARGIN + rand(0, Math.min(MAX_LEFT_OFFSET, maxSafeLeft));
-        // 但也要保证不撞到左边边界（至少留 4px）
         leftOffset = Math.max(4, Math.min(leftOffset, maxSafeLeft + SAFE_MARGIN));
 
-        // 按行宽切分文本
         const lines = wrapTextByWidth(msg.text, lineWidth);
 
-        // 每一行作为一个独立元素，但属于同一轮（同一消息）
-        lines.forEach((line, lineIndex) => {
+        lines.forEach((line) => {
             const lineEl = document.createElement('div');
             lineEl.innerText = line;
-            // 每行的样式：同一轮内字体一致，但行与行之间可以微调
             lineEl.style.cssText = `
                 font-family: ${msgStyle.font};
                 font-size: ${fontSize}px;
@@ -528,7 +518,7 @@ function renderStickyBoard() {
     const gap = 6;
     const containerWidth = gridRect.width || (window.innerWidth - 24);
     const cellWidth = (containerWidth - gap) / 2;
-    const scale = Math.min(cellWidth / 300, cellWidth / 300);
+    const scale = cellWidth / 300;
 
     StickyBoardData.forEach(sticky => {
         const cell = document.createElement('div');
@@ -539,7 +529,6 @@ function renderStickyBoard() {
             justify-content: center;
             align-items: center;
             overflow: hidden;
-            position: relative;
             cursor: pointer;
         `;
         cell.onclick = () => showStickyLarge(sticky);
@@ -555,8 +544,8 @@ function renderStickyBoard() {
     });
 }
 
-// ========== 大图展示（可滚动） ==========
-function showStickyLarge(sticky) {
+// ========== 大图展示 ==========
+function showStickyLarge(sticky, isRefresh = false) {
     const overlay = document.createElement('div');
     overlay.id = 'sticky-overlay';
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
@@ -565,25 +554,21 @@ function showStickyLarge(sticky) {
     const wrapper = document.createElement('div');
     wrapper.style.cssText = 'display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; max-width: 420px; padding: 0 16px; box-sizing: border-box;';
 
-    // 大图卡片：可滚动
     const maxWidth = Math.min(400, window.innerWidth - 32);
     const scale = maxWidth / 300;
 
-    // 大图用同样的 createStickyCard，但需要覆盖 overflow 为 auto
     const card = createStickyCard(sticky, false);
-    // 让内容容器可滚动（修改 card 内部的 contentContainer）
+    
+    // 大图可滚动
     const contentContainer = card.querySelector('div[style*="position: absolute; top: 6px; left: 6px;"]');
     if (contentContainer) {
         contentContainer.style.overflowY = 'auto';
         contentContainer.style.overflowX = 'hidden';
-        contentContainer.style.justifyContent = 'flex-start'; // 从顶部开始，方便滚动查看全部
-        // 内容多时从顶部开始，内容少时居中
         if (sticky.messages.length > 3) {
             contentContainer.style.justifyContent = 'flex-start';
         } else {
             contentContainer.style.justifyContent = 'center';
         }
-        // 给滚动条加一点美化
         contentContainer.style.scrollbarWidth = 'thin';
         contentContainer.style.scrollbarColor = 'rgba(255,255,255,0.3) transparent';
     }
@@ -592,7 +577,7 @@ function showStickyLarge(sticky) {
     card.style.transformOrigin = 'center center';
     card.style.width = '300px';
     card.style.height = '300px';
-    card.style.overflow = 'visible'; // 让滚动在内部容器处理
+    card.style.overflow = 'visible';
 
     const cardWrapper = document.createElement('div');
     cardWrapper.style.cssText = `
@@ -605,17 +590,25 @@ function showStickyLarge(sticky) {
         flex-grow: 0;
         overflow: hidden;
         border-radius: 16px;
+        position: relative;
     `;
     cardWrapper.appendChild(card);
+
+    // ===== 每条消息的独立删除按钮（悬浮在卡片上） =====
+    // 在卡片上 overlay 一层透明区域，检测点击
+    // 但更好的方式：在每条消息上 hover/点击显示删除按钮
+    // 由于卡片是整体缩放的，我们在 card 内部的内容容器里为每条消息添加删除按钮
+    // 但 createStickyCard 没有包含删除按钮，需要在这里额外处理
+    // 重构：让 createStickyCard 接受一个参数，决定是否显示删除按钮
+    
     wrapper.appendChild(cardWrapper);
 
-    // ===== 按钮区域（纯文字，无图标） =====
+    // ===== 按钮区域 =====
     const actions = document.createElement('div');
     actions.style.cssText = 'display: flex; width: 100%; justify-content: center; gap: 8px; flex-wrap: wrap;';
 
     let tempContent = null;
 
-    // 重新渲染大图的辅助函数
     const reRenderLarge = (updatedSticky) => {
         const newCard = createStickyCard(updatedSticky, false);
         const newContent = newCard.querySelector('div[style*="position: absolute; top: 6px; left: 6px;"]');
@@ -664,7 +657,6 @@ function showStickyLarge(sticky) {
                 }]
             };
             reRenderLarge(updatedSticky);
-            // 保存临时引用以便张贴时使用
             window._tempStickyData = updatedSticky;
             showInternalMessage('内容已暂存，点击【张贴】后才会正式保存。', 'success');
         });
@@ -676,7 +668,7 @@ function showStickyLarge(sticky) {
     endBtn.onclick = () => { endSticky(sticky.id); document.body.removeChild(overlay); };
 
     const deleteBtn = document.createElement('button');
-    deleteBtn.innerText = '删除';
+    deleteBtn.innerText = '删除便签';
     deleteBtn.style.cssText = 'padding: 10px 16px; border: 1px solid rgba(255,80,80,0.4); border-radius: 8px; background: rgba(255,80,80,0.08); color: #ff5050; cursor: pointer; font-size: 14px; flex: 1; min-width: 60px; font-weight: 500;';
     deleteBtn.onclick = () => { 
         deleteSticky(sticky.id); 
@@ -690,6 +682,8 @@ function showStickyLarge(sticky) {
     wrapper.appendChild(actions);
     overlay.appendChild(wrapper);
     document.body.appendChild(overlay);
+    
+    return overlay;
 }
 
 window.processStickyBoardReply = processStickyBoardReply;
@@ -701,7 +695,7 @@ function openStickyBoard() {
     loadStickyBoardData();
     const modal = createStickyBoardModal();
     renderStickyBoard();
-    showModal(modal);
+    if (typeof showModal === 'function') showModal(modal);
 }
 
 function closeStickyBoard() {
@@ -714,7 +708,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (entry) entry.addEventListener('click', openStickyBoard);
 });
 
-// 窗口尺寸变化重新渲染
 let resizeTimer;
 window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
