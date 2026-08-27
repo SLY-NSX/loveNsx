@@ -1,37 +1,46 @@
 /**
  * ============================================================
  *  📌 便利贴留言板 - Sticky Board
- *  独立功能模块，不依赖主聊天逻辑
+ *  真实软木板风格
  * ============================================================
  */
 
 // ─── 数据结构 ──────────────────────────────────────────────
-// 每条便利贴：
 // {
 //   id: string,
 //   color: 'yellow' | 'blue' | 'pink' | 'green' | 'orange' | 'purple',
 //   messages: [
 //     { id: string, text: string, role: 'user' | 'partner', timestamp: number }
 //   ],
-//   isActive: true,        // true=可被回复，false=已结束
+//   isActive: true,
 //   createdAt: number
 // }
 
 // ─── 状态 ──────────────────────────────────────────────────
-let stickyNotes = [];                    // 所有便利贴
-let currentStickyColor = 'yellow';       // 当前选中的颜色
-let viewingStickyId = null;              // 正在查看详情的便利贴ID
-let isStickyBoardOpen = false;           // 留言板是否打开
+let stickyNotes = [];
+let currentStickyColor = 'yellow';
+let viewingStickyId = null;
+let isStickyBoardOpen = false;
 
-// ─── 颜色配置 ──────────────────────────────────────────────
+// ─── 颜色配置（更真实的便利贴色） ──────────────────────
 const STICKY_COLORS = {
-    yellow: { bg: '#FFF9C4', border: '#F9D976', shadow: 'rgba(249,217,118,0.4)', text: '#5D4E37' },
-    blue: { bg: '#BBDEFB', border: '#64B5F6', shadow: 'rgba(100,181,246,0.4)', text: '#1A237E' },
-    pink: { bg: '#F8BBD0', border: '#F06292', shadow: 'rgba(240,98,146,0.4)', text: '#880E4F' },
-    green: { bg: '#C8E6C9', border: '#81C784', shadow: 'rgba(129,199,132,0.4)', text: '#1B5E20' },
-    orange: { bg: '#FFE0B2', border: '#FFB74D', shadow: 'rgba(255,183,77,0.4)', text: '#E65100' },
-    purple: { bg: '#E1BEE7', border: '#BA68C8', shadow: 'rgba(186,104,200,0.4)', text: '#4A148C' },
+    yellow: { bg: '#FFF9C4', border: '#F9D976', text: '#5D4E37', pin: '#E53935' },
+    blue: { bg: '#BBDEFB', border: '#64B5F6', text: '#1A237E', pin: '#1E88E5' },
+    pink: { bg: '#F8BBD0', border: '#F06292', text: '#880E4F', pin: '#E91E63' },
+    green: { bg: '#C8E6C9', border: '#81C784', text: '#1B5E20', pin: '#43A047' },
+    orange: { bg: '#FFE0B2', border: '#FFB74D', text: '#E65100', pin: '#FB8C00' },
+    purple: { bg: '#E1BEE7', border: '#BA68C8', text: '#4A148C', pin: '#8E24AA' },
 };
+
+// ─── 贴纸样式（代替图钉） ──────────────────────────────────
+const STICKER_STYLES = [
+    { emoji: '🌸', label: '花朵' },
+    { emoji: '⭐', label: '星星' },
+    { emoji: '❤️', label: '爱心' },
+    { emoji: '🍀', label: '四叶草' },
+    { emoji: '🌈', label: '彩虹' },
+    { emoji: '🦋', label: '蝴蝶' },
+];
 
 // ─── DOM 引用 ──────────────────────────────────────────────
 let stickyBoardModal = null;
@@ -39,10 +48,8 @@ let stickyBoardContent = null;
 
 // ─── 初始化 ──────────────────────────────────────────────────
 async function initStickyBoard() {
-    // 加载数据
     await loadStickyNotes();
     
-    // 绑定入口点击
     const entryBtn = document.getElementById('sticky-board-function');
     if (entryBtn) {
         entryBtn.addEventListener('click', openStickyBoard);
@@ -80,12 +87,10 @@ function openStickyBoard() {
     if (isStickyBoardOpen) return;
     isStickyBoardOpen = true;
     
-    // 创建模态框（如果不存在）
     if (!stickyBoardModal) {
         createStickyBoardModal();
     }
     
-    // 渲染
     renderStickyBoard();
     stickyBoardModal.style.display = 'flex';
     showModal(stickyBoardModal);
@@ -98,7 +103,7 @@ function closeStickyBoard() {
     }
 }
 
-// ─── 创建模态框 ──────────────────────────────────────────
+// ─── 创建模态框（软木板风格） ──────────────────────────
 function createStickyBoardModal() {
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -106,39 +111,150 @@ function createStickyBoardModal() {
     modal.style.zIndex = '9999';
     
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 720px; max-height: 88vh; padding: 0; overflow: hidden; display: flex; flex-direction: column; background: var(--secondary-bg); border-radius: 20px;">
-            <!-- 顶部栏 -->
-            <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background: var(--primary-bg); border-radius: 20px 20px 0 0;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 20px;">📌</span>
-                    <span style="font-size: 16px; font-weight: 700; color: var(--text-primary);">留言板</span>
-                    <span id="sticky-count-badge" style="font-size: 11px; color: var(--text-secondary); background: var(--border-color); padding: 1px 10px; border-radius: 20px;"></span>
+        <div class="modal-content" style="
+            max-width: 820px; 
+            max-height: 90vh; 
+            padding: 0; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+        ">
+            <!-- 软木板背景 -->
+            <div style="
+                position: relative;
+                background: #C4A882;
+                background-image: 
+                    repeating-linear-gradient(
+                        0deg,
+                        rgba(0,0,0,0.03) 0px,
+                        rgba(0,0,0,0.03) 1px,
+                        transparent 1px,
+                        transparent 3px
+                    ),
+                    repeating-linear-gradient(
+                        90deg,
+                        rgba(0,0,0,0.02) 0px,
+                        rgba(0,0,0,0.02) 1px,
+                        transparent 1px,
+                        transparent 4px
+                    );
+                border-radius: 16px;
+                padding: 20px 20px 16px;
+                border: 6px solid #8B7355;
+                box-shadow: 
+                    inset 0 0 60px rgba(0,0,0,0.15),
+                    0 8px 32px rgba(0,0,0,0.3);
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 60vh;
+                max-height: 90vh;
+            ">
+                <!-- 顶部栏（半透明毛玻璃） -->
+                <div style="
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: space-between; 
+                    padding: 10px 16px;
+                    background: rgba(255,255,255,0.15);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    border-radius: 12px;
+                    margin-bottom: 16px;
+                    flex-shrink: 0;
+                    border: 1px solid rgba(255,255,255,0.2);
+                ">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 18px;">📌</span>
+                        <span style="font-size: 15px; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,0.3);">留言板</span>
+                        <span id="sticky-count-badge" style="font-size: 11px; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.2); padding: 1px 12px; border-radius: 20px;"></span>
+                    </div>
+                    <button id="sticky-close-btn" style="background: rgba(255,255,255,0.2); border: none; font-size: 18px; color: #fff; cursor: pointer; padding: 4px 10px; border-radius: 8px; transition: background 0.2s;">×</button>
                 </div>
-                <button id="sticky-close-btn" style="background: none; border: none; font-size: 20px; color: var(--text-secondary); cursor: pointer; padding: 4px 8px;">×</button>
-            </div>
-            
-            <!-- 创建新便利贴区域 -->
-            <div style="padding: 16px 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background: var(--primary-bg);">
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <textarea id="sticky-new-input" placeholder="随手写点什么..." style="flex: 1; min-width: 160px; padding: 10px 14px; border: 1.5px solid var(--border-color); border-radius: 12px; background: var(--primary-bg); color: var(--text-primary); font-size: 14px; font-family: var(--font-family); resize: none; height: 44px; outline: none; transition: border-color 0.2s; box-sizing: border-box;"></textarea>
-                    
-                    <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0;">
-                        <!-- 颜色选择器 -->
-                        <div style="display: flex; gap: 4px;" id="sticky-color-picker">
-                            ${Object.keys(STICKY_COLORS).map(c => `
-                                <div class="sticky-color-dot" data-color="${c}" style="width: 26px; height: 26px; border-radius: 50%; background: ${STICKY_COLORS[c].bg}; border: 2.5px solid ${c === currentStickyColor ? 'var(--accent-color)' : STICKY_COLORS[c].border}; cursor: pointer; transition: all 0.2s; flex-shrink: 0;"></div>
-                            `).join('')}
+                
+                <!-- 创建新便利贴区域（毛玻璃） -->
+                <div style="
+                    padding: 14px 16px;
+                    background: rgba(255,255,255,0.12);
+                    backdrop-filter: blur(6px);
+                    -webkit-backdrop-filter: blur(6px);
+                    border-radius: 12px;
+                    margin-bottom: 16px;
+                    flex-shrink: 0;
+                    border: 1px solid rgba(255,255,255,0.15);
+                ">
+                    <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap;">
+                        <textarea id="sticky-new-input" placeholder="写点什么贴上去..." style="
+                            flex: 1; 
+                            min-width: 140px; 
+                            padding: 10px 14px; 
+                            border: none; 
+                            border-radius: 10px; 
+                            background: rgba(255,255,255,0.85); 
+                            color: #2C2C2C; 
+                            font-size: 14px; 
+                            font-family: var(--font-family); 
+                            resize: none; 
+                            height: 42px; 
+                            outline: none; 
+                            box-sizing: border-box;
+                            backdrop-filter: blur(4px);
+                        "></textarea>
+                        
+                        <div style="display: flex; gap: 6px; align-items: center; flex-shrink: 0; flex-wrap: wrap;">
+                            <!-- 颜色选择器 -->
+                            <div style="display: flex; gap: 4px;" id="sticky-color-picker">
+                                ${Object.keys(STICKY_COLORS).map(c => `
+                                    <div class="sticky-color-dot" data-color="${c}" style="
+                                        width: 28px; 
+                                        height: 28px; 
+                                        border-radius: 4px; 
+                                        background: ${STICKY_COLORS[c].bg}; 
+                                        border: 2.5px solid ${c === currentStickyColor ? '#fff' : STICKY_COLORS[c].border}; 
+                                        cursor: pointer; 
+                                        transition: all 0.2s; 
+                                        flex-shrink: 0;
+                                        box-shadow: ${c === currentStickyColor ? '0 0 0 2px rgba(255,255,255,0.5)' : 'none'};
+                                    "></div>
+                                `).join('')}
+                            </div>
+                            <button id="sticky-add-btn" style="
+                                padding: 10px 20px; 
+                                border: none; 
+                                border-radius: 10px; 
+                                background: #fff; 
+                                color: #5D4E37; 
+                                font-size: 13px; 
+                                font-weight: 600; 
+                                cursor: pointer; 
+                                font-family: var(--font-family); 
+                                white-space: nowrap; 
+                                transition: transform 0.15s, box-shadow 0.15s;
+                                box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                            ">
+                                ✏️ 贴一张
+                            </button>
                         </div>
-                        <button id="sticky-add-btn" style="padding: 10px 18px; border: none; border-radius: 12px; background: var(--accent-color); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-family); white-space: nowrap; transition: opacity 0.2s;">
-                            <i class="fas fa-plus" style="margin-right: 4px;"></i> 贴上去
-                        </button>
                     </div>
                 </div>
-            </div>
-            
-            <!-- 便利贴列表（滚动区域） -->
-            <div id="sticky-list-container" style="flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-wrap: wrap; gap: 20px; align-content: flex-start; background: var(--primary-bg); min-height: 200px;">
-                <!-- 由 JS 渲染 -->
+                
+                <!-- 便利贴列表（软木板上的便利贴） -->
+                <div id="sticky-list-container" style="
+                    flex: 1; 
+                    overflow-y: auto; 
+                    padding: 12px 8px; 
+                    display: flex; 
+                    flex-wrap: wrap; 
+                    gap: 24px 30px; 
+                    align-content: flex-start; 
+                    min-height: 200px;
+                    scroll-behavior: smooth;
+                ">
+                    <!-- 由 JS 渲染 -->
+                </div>
             </div>
         </div>
     `;
@@ -148,7 +264,6 @@ function createStickyBoardModal() {
     stickyBoardContent = modal.querySelector('#sticky-list-container');
     
     // ─── 事件绑定 ──────────────────────────────────────────
-    // 关闭
     modal.querySelector('#sticky-close-btn').addEventListener('click', closeStickyBoard);
     modal.addEventListener('click', (e) => {
         if (e.target === modal) closeStickyBoard();
@@ -159,7 +274,8 @@ function createStickyBoardModal() {
         el.addEventListener('click', () => {
             currentStickyColor = el.dataset.color;
             modal.querySelectorAll('.sticky-color-dot').forEach(d => {
-                d.style.borderColor = d.dataset.color === currentStickyColor ? 'var(--accent-color)' : STICKY_COLORS[d.dataset.color].border;
+                d.style.borderColor = d.dataset.color === currentStickyColor ? '#fff' : STICKY_COLORS[d.dataset.color].border;
+                d.style.boxShadow = d.dataset.color === currentStickyColor ? '0 0 0 2px rgba(255,255,255,0.5)' : 'none';
             });
         });
     });
@@ -174,11 +290,10 @@ function createStickyBoardModal() {
         }
         addStickyNote(text, currentStickyColor);
         input.value = '';
-        input.style.height = '44px';
+        input.style.height = '42px';
         renderStickyBoard();
     });
     
-    // 回车快捷添加（Shift+Enter 换行）
     const input = modal.querySelector('#sticky-new-input');
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -186,11 +301,9 @@ function createStickyBoardModal() {
             modal.querySelector('#sticky-add-btn').click();
         }
     });
-    
-    // 自动调整高度
     input.addEventListener('input', () => {
-        input.style.height = '44px';
-        input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+        input.style.height = '42px';
+        input.style.height = Math.min(input.scrollHeight, 100) + 'px';
     });
 }
 
@@ -210,11 +323,11 @@ function addStickyNote(text, color) {
         isActive: true,
         createdAt: Date.now()
     };
-    stickyNotes.unshift(note); // 最新的放最前面
+    stickyNotes.unshift(note);
     saveStickyNotes();
 }
 
-// ─── 渲染留言板 ──────────────────────────────────────────
+// ─── 渲染留言板（软木板上的便利贴） ──────────────────
 function renderStickyBoard() {
     const container = stickyBoardContent;
     if (!container) return;
@@ -226,56 +339,87 @@ function renderStickyBoard() {
     
     if (stickyNotes.length === 0) {
         container.innerHTML = `
-            <div style="width: 100%; text-align: center; padding: 60px 20px; color: var(--text-secondary);">
-                <div style="font-size: 48px; opacity: 0.3; margin-bottom: 16px;">📌</div>
-                <div style="font-size: 14px;">还没有留言呢</div>
-                <div style="font-size: 12px; opacity: 0.6; margin-top: 4px;">在上面写点什么，贴到留言板上吧</div>
+            <div style="
+                width: 100%; 
+                text-align: center; 
+                padding: 60px 20px; 
+                color: rgba(255,255,255,0.6);
+                text-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            ">
+                <div style="font-size: 52px; opacity: 0.5; margin-bottom: 12px;">📌</div>
+                <div style="font-size: 15px; font-weight: 500;">还没有留言呢</div>
+                <div style="font-size: 12px; opacity: 0.6; margin-top: 4px;">写点什么，贴到软木板上吧</div>
             </div>
         `;
         return;
     }
     
     let html = '';
-    stickyNotes.forEach(note => {
+    stickyNotes.forEach((note, index) => {
         const color = STICKY_COLORS[note.color] || STICKY_COLORS.yellow;
         const firstMsg = note.messages[0];
         const msgCount = note.messages.length;
-        const isActive = note.isActive !== false;
         
-        // 取前两条消息预览
-        const previewMsgs = note.messages.slice(0, 2);
+        // 随机旋转（更自然）
+        const rotation = ((index % 7) - 3) * 0.6 + (Math.random() - 0.5) * 0.8;
+        
+        // 随机偏移（更自然）
+        const offsetX = ((index % 5) - 2) * 2;
+        const offsetY = ((index % 4) - 1.5) * 2;
+        
+        // 随机贴纸
+        const sticker = STICKER_STYLES[index % STICKER_STYLES.length];
         
         html += `
             <div class="sticky-note-card" data-id="${note.id}" style="
-                width: 200px;
+                width: 180px;
                 min-height: 160px;
                 background: ${color.bg};
                 border: 2px solid ${color.border};
-                border-radius: 12px;
-                padding: 16px 14px 12px;
-                box-shadow: 4px 6px 16px ${color.shadow}, 0 2px 4px rgba(0,0,0,0.04);
+                border-radius: 6px;
+                padding: 20px 16px 16px;
+                box-shadow: 
+                    0 4px 12px rgba(0,0,0,0.15),
+                    inset 0 1px 0 rgba(255,255,255,0.6);
                 position: relative;
-                transform: rotate(${(Math.random() - 0.5) * 2.5}deg);
-                transition: transform 0.2s ease, box-shadow 0.2s ease;
+                transform: rotate(${rotation}deg) translate(${offsetX}px, ${offsetY}px);
+                transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
                 cursor: pointer;
                 flex-shrink: 0;
                 display: flex;
                 flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                text-align: center;
+                box-sizing: border-box;
+                font-family: 'Caveat', 'Patrick Hand', cursive;
             ">
-                <!-- 图钉 -->
-                <div style="position: absolute; top: -8px; left: 50%; transform: translateX(-50%); font-size: 22px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));">
-                    📌
+                <!-- 贴纸（代替图钉，放在右上角） -->
+                <div style="
+                    position: absolute;
+                    top: -8px;
+                    right: -6px;
+                    font-size: 22px;
+                    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+                    transform: rotate(${(Math.random() - 0.5) * 20}deg);
+                    pointer-events: none;
+                    z-index: 2;
+                ">
+                    ${sticker.emoji}
                 </div>
                 
-                <!-- 删除按钮 -->
+                <!-- 删除按钮（悬停显示） -->
                 <div class="sticky-delete-btn" data-id="${note.id}" style="
-                    position: absolute; top: 6px; right: 8px;
-                    width: 22px; height: 22px;
+                    position: absolute;
+                    top: 4px;
+                    left: 6px;
+                    width: 20px;
+                    height: 20px;
                     border-radius: 50%;
                     background: rgba(0,0,0,0.06);
                     border: none;
                     color: ${color.text};
-                    font-size: 12px;
+                    font-size: 11px;
                     cursor: pointer;
                     display: flex;
                     align-items: center;
@@ -284,49 +428,45 @@ function renderStickyBoard() {
                     transition: opacity 0.2s, background 0.2s;
                     font-family: var(--font-family);
                     line-height: 1;
+                    z-index: 3;
                 ">×</div>
                 
-                <!-- 消息预览 -->
-                <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; margin-top: 6px;">
-                    ${previewMsgs.map((msg, idx) => {
-                        const isUser = msg.role === 'user';
-                        return `
-                            <div style="
-                                font-size: ${isUser ? '13px' : '14px'};
-                                font-family: 'Caveat', 'Patrick Hand', cursive;
-                                color: ${isUser ? '#2C2C2C' : '#4A7CF7'};
-                                font-style: italic;
-                                text-align: ${isUser ? 'right' : 'left'};
-                                transform: ${isUser ? 'rotate(0.5deg)' : 'rotate(-0.3deg)'};
-                                line-height: 1.4;
-                                ${idx > 0 ? 'opacity: 0.8;' : ''}
-                                ${idx > 0 ? 'font-size: 12px;' : ''}
-                                word-break: break-word;
-                                overflow: hidden;
-                                display: -webkit-box;
-                                -webkit-line-clamp: 2;
-                                -webkit-box-orient: vertical;
-                            ">
-                                ${isUser ? '✧ ' : '✦ '}${escapeHtml(msg.text)}
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <!-- 底部信息 -->
+                <!-- 消息内容（大字居中） -->
                 <div style="
+                    flex: 1;
                     display: flex;
-                    justify-content: space-between;
+                    flex-direction: column;
                     align-items: center;
-                    margin-top: 10px;
-                    padding-top: 8px;
-                    border-top: 1px solid rgba(0,0,0,0.06);
-                    font-size: 10px;
-                    color: ${color.text};
-                    opacity: 0.6;
+                    justify-content: center;
+                    width: 100%;
+                    gap: 4px;
                 ">
-                    <span>${msgCount} 条${!isActive ? ' · 已结束' : ''}</span>
-                    <span>${isActive ? '💬 可回复' : '🔒 已结束'}</span>
+                    ${msgCount > 1 ? `
+                        <div style="
+                            font-size: 11px;
+                            color: ${color.text};
+                            opacity: 0.3;
+                            font-family: var(--font-family);
+                            font-style: normal;
+                            margin-bottom: 4px;
+                            letter-spacing: 0.5px;
+                        ">
+                            ${msgCount} 张留言
+                        </div>
+                    ` : ''}
+                    <div style="
+                        font-size: 20px;
+                        font-weight: 500;
+                        color: ${color.text};
+                        line-height: 1.4;
+                        word-break: break-word;
+                        max-width: 100%;
+                        padding: 0 2px;
+                        font-family: 'Caveat', 'Patrick Hand', cursive;
+                        ${msgCount > 1 ? 'opacity: 0.85;' : ''}
+                    ">
+                        ${escapeHtml(firstMsg.text)}
+                    </div>
                 </div>
             </div>
         `;
@@ -335,24 +475,32 @@ function renderStickyBoard() {
     container.innerHTML = html;
     
     // ─── 事件绑定 ──────────────────────────────────────────
-    // 点击便利贴 → 打开详情
     container.querySelectorAll('.sticky-note-card').forEach(el => {
         el.addEventListener('click', (e) => {
-            // 如果点的是删除按钮，不触发详情
             if (e.target.closest('.sticky-delete-btn')) return;
             const id = el.dataset.id;
             openStickyDetail(id);
         });
         
-        // 悬停显示删除按钮
+        // 悬停效果：放大
         el.addEventListener('mouseenter', () => {
+            el.style.transform = `scale(1.05) rotate(${(parseFloat(el.style.transform?.match(/rotate\(([^)]+)\)/)?.[1] || 0)}deg)`;
+            el.style.boxShadow = '0 8px 30px rgba(0,0,0,0.25)';
+            el.style.zIndex = '10';
             const delBtn = el.querySelector('.sticky-delete-btn');
             if (delBtn) delBtn.style.opacity = '1';
         });
         el.addEventListener('mouseleave', () => {
+            const rot = parseFloat(el.dataset.rotation || '0');
+            el.style.transform = `rotate(${rot}deg)`;
+            el.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.6)';
+            el.style.zIndex = '1';
             const delBtn = el.querySelector('.sticky-delete-btn');
             if (delBtn) delBtn.style.opacity = '0';
         });
+        // 记录旋转角度
+        const match = el.style.transform.match(/rotate\(([^)]+)\)/);
+        if (match) el.dataset.rotation = match[1];
     });
     
     // 删除按钮
@@ -360,7 +508,7 @@ function renderStickyBoard() {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const id = btn.dataset.id;
-            if (confirm('确定要删除这张便利贴吗？所有留言将一并删除。')) {
+            if (confirm('确定要撕掉这张便利贴吗？')) {
                 deleteStickyNote(id);
             }
         });
@@ -372,10 +520,10 @@ function deleteStickyNote(id) {
     stickyNotes = stickyNotes.filter(n => n.id !== id);
     saveStickyNotes();
     renderStickyBoard();
-    showNotification('已删除', 'success', 1200);
+    showNotification('已撕掉', 'success', 1200);
 }
 
-// ─── 打开便利贴详情 ──────────────────────────────────────
+// ─── 打开便利贴详情（放大查看） ──────────────────────
 function openStickyDetail(id) {
     const note = stickyNotes.find(n => n.id === id);
     if (!note) {
@@ -384,7 +532,6 @@ function openStickyDetail(id) {
     }
     viewingStickyId = id;
     
-    // 创建详情模态框（如果不存在）
     let detailModal = document.getElementById('sticky-detail-modal');
     if (!detailModal) {
         detailModal = createStickyDetailModal();
@@ -402,28 +549,138 @@ function createStickyDetailModal() {
     modal.style.zIndex = '10000';
     
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 480px; max-height: 85vh; padding: 0; overflow: hidden; display: flex; flex-direction: column; background: transparent; border-radius: 20px;">
-            <div id="sticky-detail-inner" style="background: var(--secondary-bg); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; max-height: 85vh;">
-                <!-- 顶部 -->
-                <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid var(--border-color); flex-shrink: 0; background: var(--primary-bg);">
-                    <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">📌 留言详情</span>
-                    <button id="sticky-detail-close-btn" style="background: none; border: none; font-size: 20px; color: var(--text-secondary); cursor: pointer; padding: 4px 8px;">×</button>
+        <div class="modal-content" style="
+            max-width: 420px;
+            max-height: 85vh;
+            padding: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+        ">
+            <div id="sticky-detail-paper" style="
+                background: #FFF9C4;
+                border-radius: 8px;
+                padding: 28px 24px 20px;
+                box-shadow: 
+                    0 12px 48px rgba(0,0,0,0.3),
+                    inset 0 1px 0 rgba(255,255,255,0.8);
+                border: 2px solid #F9D976;
+                position: relative;
+                max-height: 85vh;
+                display: flex;
+                flex-direction: column;
+            ">
+                <!-- 贴纸装饰 -->
+                <div style="
+                    position: absolute;
+                    top: -6px;
+                    right: 12px;
+                    font-size: 28px;
+                    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+                    pointer-events: none;
+                ">
+                    ${STICKER_STYLES[Math.floor(Math.random() * STICKER_STYLES.length)].emoji}
                 </div>
                 
-                <!-- 消息列表 -->
-                <div id="sticky-detail-messages" style="flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; background: var(--primary-bg); min-height: 120px;"></div>
+                <!-- 关闭按钮 -->
+                <button id="sticky-detail-close-btn" style="
+                    position: absolute;
+                    top: 8px;
+                    right: 10px;
+                    background: none;
+                    border: none;
+                    font-size: 20px;
+                    color: rgba(0,0,0,0.3);
+                    cursor: pointer;
+                    padding: 4px 8px;
+                    transition: color 0.2s;
+                    font-family: var(--font-family);
+                    line-height: 1;
+                    z-index: 5;
+                ">×</button>
+                
+                <!-- 留言列表（可滚动） -->
+                <div id="sticky-detail-messages" style="
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 4px 0 12px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 14px;
+                    min-height: 120px;
+                    max-height: 50vh;
+                "></div>
                 
                 <!-- 底部操作栏 -->
-                <div style="padding: 12px 20px; border-top: 1px solid var(--border-color); flex-shrink: 0; background: var(--primary-bg); display: flex; flex-direction: column; gap: 10px;">
+                <div style="
+                    padding-top: 14px;
+                    border-top: 1.5px dashed rgba(0,0,0,0.08);
+                    flex-shrink: 0;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                ">
                     <!-- 输入区 -->
                     <div style="display: flex; gap: 8px;">
-                        <textarea id="sticky-detail-input" placeholder="补充内容..." style="flex: 1; padding: 8px 12px; border: 1.5px solid var(--border-color); border-radius: 10px; background: var(--secondary-bg); color: var(--text-primary); font-size: 14px; font-family: var(--font-family); resize: none; height: 40px; outline: none; transition: border-color 0.2s; box-sizing: border-box;"></textarea>
-                        <button id="sticky-detail-add-btn" style="padding: 8px 16px; border: none; border-radius: 10px; background: var(--accent-color); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: var(--font-family); white-space: nowrap;">补充</button>
+                        <textarea id="sticky-detail-input" placeholder="继续写..." style="
+                            flex: 1;
+                            padding: 8px 12px;
+                            border: none;
+                            border-radius: 6px;
+                            background: rgba(255,255,255,0.5);
+                            color: #2C2C2C;
+                            font-size: 14px;
+                            font-family: 'Caveat', 'Patrick Hand', cursive;
+                            resize: none;
+                            height: 38px;
+                            outline: none;
+                            box-sizing: border-box;
+                            backdrop-filter: blur(4px);
+                        "></textarea>
+                        <button id="sticky-detail-add-btn" style="
+                            padding: 8px 16px;
+                            border: none;
+                            border-radius: 6px;
+                            background: rgba(0,0,0,0.08);
+                            color: #5D4E37;
+                            font-size: 13px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            font-family: var(--font-family);
+                            white-space: nowrap;
+                            transition: background 0.2s;
+                        ">✏️ 写</button>
                     </div>
                     <!-- 操作按钮 -->
                     <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                        <button id="sticky-detail-over-btn" style="padding: 8px 18px; border: 1.5px solid #e57373; border-radius: 10px; background: transparent; color: #e57373; font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font-family);">结束</button>
-                        <button id="sticky-detail-reopen-btn" style="display: none; padding: 8px 18px; border: 1.5px solid var(--accent-color); border-radius: 10px; background: transparent; color: var(--accent-color); font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font-family);">重新开启</button>
+                        <button id="sticky-detail-over-btn" style="
+                            padding: 6px 16px;
+                            border: none;
+                            border-radius: 6px;
+                            background: rgba(229,115,115,0.15);
+                            color: #E57373;
+                            font-size: 12px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            font-family: var(--font-family);
+                            transition: background 0.2s;
+                        ">📌 揭下来</button>
+                        <button id="sticky-detail-reopen-btn" style="
+                            display: none;
+                            padding: 6px 16px;
+                            border: none;
+                            border-radius: 6px;
+                            background: rgba(76,175,80,0.15);
+                            color: #43A047;
+                            font-size: 12px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            font-family: var(--font-family);
+                            transition: background 0.2s;
+                        ">🔄 重新贴上</button>
                     </div>
                 </div>
             </div>
@@ -459,12 +716,11 @@ function createStickyDetailModal() {
         });
         saveStickyNotes();
         input.value = '';
-        input.style.height = '40px';
+        input.style.height = '38px';
         renderStickyDetail(note, modal);
-        renderStickyBoard(); // 更新列表预览
+        renderStickyBoard();
     });
     
-    // 回车补充
     const input = modal.querySelector('#sticky-detail-input');
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -473,8 +729,8 @@ function createStickyDetailModal() {
         }
     });
     input.addEventListener('input', () => {
-        input.style.height = '40px';
-        input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+        input.style.height = '38px';
+        input.style.height = Math.min(input.scrollHeight, 80) + 'px';
     });
     
     // 结束
@@ -482,12 +738,12 @@ function createStickyDetailModal() {
         const note = stickyNotes.find(n => n.id === viewingStickyId);
         if (!note) return;
         if (note.isActive === false) return;
-        if (confirm('确定要结束这张便利贴吗？对方将不再回复。')) {
+        if (confirm('揭下这张便利贴？之后不会再收到回复。')) {
             note.isActive = false;
             saveStickyNotes();
             renderStickyDetail(note, modal);
             renderStickyBoard();
-            showNotification('已结束', 'info', 1500);
+            showNotification('已揭下', 'info', 1500);
         }
     });
     
@@ -499,7 +755,7 @@ function createStickyDetailModal() {
         saveStickyNotes();
         renderStickyDetail(note, modal);
         renderStickyBoard();
-        showNotification('已重新开启', 'success', 1500);
+        showNotification('重新贴上', 'success', 1500);
     });
     
     return modal;
@@ -511,27 +767,34 @@ function renderStickyDetail(note, modal) {
     const color = STICKY_COLORS[note.color] || STICKY_COLORS.yellow;
     const isActive = note.isActive !== false;
     
+    // 更新便利贴背景色
+    const paper = modal.querySelector('#sticky-detail-paper');
+    if (paper) {
+        paper.style.background = color.bg;
+        paper.style.borderColor = color.border;
+    }
+    
     // 更新按钮状态
     const overBtn = modal.querySelector('#sticky-detail-over-btn');
     const reopenBtn = modal.querySelector('#sticky-detail-reopen-btn');
     if (isActive) {
         overBtn.style.display = 'inline-block';
         reopenBtn.style.display = 'none';
-        overBtn.textContent = '结束';
+        overBtn.textContent = '📌 揭下来';
     } else {
         overBtn.style.display = 'none';
         reopenBtn.style.display = 'inline-block';
     }
     
-    // 更新输入框占位
     const input = modal.querySelector('#sticky-detail-input');
-    input.placeholder = isActive ? '补充内容...' : '已结束，无法补充';
+    input.placeholder = isActive ? '继续写...' : '已揭下，不能写了';
     input.disabled = !isActive;
+    input.style.opacity = isActive ? '1' : '0.4';
     modal.querySelector('#sticky-detail-add-btn').style.opacity = isActive ? '1' : '0.4';
     modal.querySelector('#sticky-detail-add-btn').style.pointerEvents = isActive ? 'auto' : 'none';
     
     if (note.messages.length === 0) {
-        container.innerHTML = `<div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: 20px 0;">还没有留言内容</div>`;
+        container.innerHTML = `<div style="text-align: center; color: rgba(0,0,0,0.3); font-size: 14px; padding: 30px 0; font-family: 'Caveat', cursive;">还没有内容</div>`;
         return;
     }
     
@@ -541,36 +804,40 @@ function renderStickyDetail(note, modal) {
         const isFirst = idx === 0;
         const isLast = idx === note.messages.length - 1;
         
-        // 不同角色使用不同样式
+        // 模拟手写：不同角色不同风格
         html += `
             <div style="
                 display: flex;
                 flex-direction: column;
                 align-items: ${isUser ? 'flex-end' : 'flex-start'};
-                ${idx > 0 ? 'margin-top: 4px;' : ''}
+                ${idx > 0 ? 'margin-top: 2px;' : ''}
             ">
                 <div style="
-                    font-size: ${isUser ? '15px' : '16px'};
+                    font-size: ${isFirst ? '20px' : (isUser ? '16px' : '18px')};
                     font-family: 'Caveat', 'Patrick Hand', cursive;
                     color: ${isUser ? '#2C2C2C' : '#4A7CF7'};
                     font-style: italic;
                     text-align: ${isUser ? 'right' : 'left'};
                     transform: ${isUser ? 'rotate(0.5deg)' : 'rotate(-0.3deg)'};
                     line-height: 1.5;
-                    background: ${isUser ? 'rgba(0,0,0,0.04)' : 'rgba(74,124,247,0.06)'};
-                    padding: ${isUser ? '8px 14px 8px 18px' : '8px 18px 8px 14px'};
-                    border-radius: ${isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px'};
-                    max-width: 85%;
+                    padding: ${isUser ? '4px 6px 4px 12px' : '4px 12px 4px 6px'};
+                    max-width: 92%;
                     word-break: break-word;
                     white-space: pre-wrap;
-                    border: 1px solid ${isUser ? 'rgba(0,0,0,0.06)' : 'rgba(74,124,247,0.15)'};
-                    ${isFirst ? 'font-size: 17px; font-weight: 500;' : ''}
+                    ${isFirst ? 'font-weight: 500;' : ''}
                 ">
                     ${escapeHtml(msg.text)}
                 </div>
                 ${isLast && isActive ? `
-                    <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.5; margin-top: 2px; ${isUser ? 'margin-right: 4px;' : 'margin-left: 4px;'}">
-                        ${isUser ? '我 · 等待回复中...' : '对方 · 可继续补充'}
+                    <div style="
+                        font-size: 11px;
+                        color: rgba(0,0,0,0.2);
+                        margin-top: 2px;
+                        ${isUser ? 'margin-right: 4px;' : 'margin-left: 4px;'}
+                        font-family: var(--font-family);
+                        font-style: normal;
+                    ">
+                        ${isUser ? '✧ 等回复中...' : '✦ 已读'}
                     </div>
                 ` : ''}
             </div>
@@ -581,17 +848,14 @@ function renderStickyDetail(note, modal) {
     container.scrollTop = container.scrollHeight;
 }
 
-// ─── 工具：HTML 转义 ──────────────────────────────────────
+// ─── 工具 ──────────────────────────────────────────────────
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// ─── 监听：外部打开（从设置入口调用） ──────────────────
-// 在 app.js 或 listeners.js 中，入口已经绑定
-
-// ─── 导出让全局可用 ──────────────────────────────────────
+// ─── 导出 ──────────────────────────────────────────────────
 window.initStickyBoard = initStickyBoard;
 window.openStickyBoard = openStickyBoard;
 window.closeStickyBoard = closeStickyBoard;
@@ -600,10 +864,8 @@ window.deleteStickyNote = deleteStickyNote;
 window.renderStickyBoard = renderStickyBoard;
 
 // ─── 自动初始化 ──────────────────────────────────────────
-// 在页面加载完成后，由 app.js 或 core.js 调用
-// 如果 SESSION_ID 已就绪，立即初始化
 if (typeof SESSION_ID !== 'undefined' && SESSION_ID) {
     initStickyBoard();
 }
 
-console.log('[StickyBoard] 模块已加载 ✓');
+console.log('[StickyBoard] 📌 软木板模块已加载 ✓');
