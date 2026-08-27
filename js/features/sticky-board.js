@@ -1,22 +1,20 @@
-/* 留言板功能 - Sticky Board V14 (镜像排版方案+自定义字体) */
+/* 留言板功能 - Sticky Board V15 (居中排版、随机换行、定制字体、方形便签) */
 
-// 加载你指定的两款字体
-const style = document.createElement('style');
-style.innerHTML = `
+// ⭐ 动态加载字体，确保渲染时生效
+const fontStyle = document.createElement('style');
+fontStyle.innerHTML = `
     @font-face {
         font-family: 'MyHandFont';
         src: url('https://chinese-fonts-cdn.deno.dev/packages/myf/dist/%E6%B2%90%E7%91%B6%E8%BD%AF%E7%AC%94%E6%89%8B%E5%86%99%E4%BD%93/result.css');
-        font-weight: normal;
         font-display: swap;
     }
     @font-face {
         font-family: 'PartnerHandFont';
         src: url('https://chinese-fonts-cdn.deno.dev/packages/momo/dist/%E9%BB%98%E9%99%8C%E7%8B%82%E5%82%B2%E6%89%8B%E8%BF%B9/result.css');
-        font-weight: normal;
         font-display: swap;
     }
 `;
-document.head.appendChild(style);
+document.head.appendChild(fontStyle);
 
 const StickyBoardConfig = {
     paperColors: [
@@ -25,16 +23,16 @@ const StickyBoardConfig = {
         { id: 'blue', color: '#E0F7FA', textColor: '#006064', shadow: 'rgba(0, 100, 120, 0.2)' },
         { id: 'pink', color: '#FFE4E1', textColor: '#8B4513', shadow: 'rgba(200, 100, 100, 0.2)' }
     ],
-    // 字体样式配置：我方用沐瑶，对方用默陌
+    // ⭐ 雾感紫色 + 深蓝
     textStyles: {
         user: { 
-            font: '17px "MyHandFont", "Comic Sans MS", cursive', 
-            color: '#8A2BE2', // 紫色
+            font: '19px "MyHandFont", "Comic Sans MS", cursive', 
+            color: '#B39DDB', // 雾紫
             weight: '500'
         },
         partner: { 
-            font: '16px "PartnerHandFont", "Ma Shan Zheng", "楷体", cursive', 
-            color: '#000080', // 深蓝色
+            font: '18px "PartnerHandFont", "Ma Shan Zheng", "楷体", cursive', 
+            color: '#000080', // 深蓝
             weight: '600'
         }
     }
@@ -56,7 +54,6 @@ function loadStickyBoardData() {
             StickyBoardData = StickyBoardData.map(item => {
                 if (!item.bgColor) item.bgColor = StickyBoardConfig.paperColors[0].color;
                 if (item.bgImg) delete item.bgImg; 
-
                 if (item.text && !item.messages) {
                     return {
                         id: item.id || Date.now(),
@@ -71,8 +68,6 @@ function loadStickyBoardData() {
                     };
                 }
                 if (!Array.isArray(item.messages)) item.messages = [];
-                
-                // 确保每条消息都有 sender，防止旧数据报错
                 item.messages = item.messages.map(m => {
                     if (!m.sender) m.sender = 'user';
                     return m;
@@ -87,7 +82,6 @@ function saveStickyBoardData() {
     localStorage.setItem('stickyBoardData', JSON.stringify(StickyBoardData));
 }
 
-// ── 弹窗工具 ──
 function customConfirm(message, onConfirm) {
     const oldOverlay = document.getElementById('custom-confirm-overlay');
     if (oldOverlay) oldOverlay.remove();
@@ -178,7 +172,6 @@ function showInternalMessage(msg, type = 'warning') {
     }
 }
 
-// ── DOM ──
 function createStickyBoardModal() {
     let modal = document.getElementById('sticky-board-modal');
     if (modal) return modal;
@@ -308,6 +301,12 @@ function deleteMessage(stickyId, msgId) {
         }
         saveStickyBoardData();
         renderStickyBoard();
+        // ⭐ 修复3：只要数据变，立刻重新渲染当前大图（如果开着），无需关掉再看
+        const overlay = document.getElementById('sticky-overlay');
+        if (overlay) {
+            overlay.remove();
+            showStickyLarge(sticky);
+        }
     });
 }
 
@@ -354,23 +353,40 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// 随机错位和手写偏移工具
+// ⭐ 辅助函数：随机换行
+function applyRandomLineBreaks(text) {
+    if (!text || text.length < 5) return text;
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        result += text[i];
+        // 在1/4概率下随机换行
+        if (i < text.length - 1 && Math.random() < 0.25) {
+            result += '\n';
+        }
+    }
+    return result;
+}
+
+// ⭐ 辅助函数：生成错位、旋转等随机属性
 function getRandomOffset() {
-    // 生成随机的细微位移和旋转
-    const tx = (Math.random() * 6) - 3; // -3px 到 3px
+    const tx = (Math.random() * 8) - 4; // -4px 到 4px
     const ty = (Math.random() * 4) - 2; // -2px 到 2px
-    const rot = (Math.random() * 2.4) - 1.2; // -1.2度 到 1.2度
-    const opacity = 0.9 + (Math.random() * 0.1); // 0.9 到 1.0
-    return `transform: translate(${tx}px, ${ty}px) rotate(${rot}deg); opacity: ${opacity};`;
+    const rot = (Math.random() * 2.0) - 1.0; // -1度 到 1度
+    return `transform: translate(${tx}px, ${ty}px) rotate(${rot}deg);`;
 }
 
-// 小图大图共用：获取样式
-function createMsgStyle(msg) {
-    const style = msg.textStyle || (msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner);
-    return style;
+// ⭐ 纸张基础样式
+function getPaperStyle(bgColor) {
+    return `
+        background-color: ${bgColor};
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        border: 1px solid rgba(255,255,255,0.5);
+        position: relative;
+    `;
 }
 
-// 渲染便签
+// 渲染网格小图
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -383,12 +399,11 @@ function renderStickyBoard() {
     }
     grid.innerHTML = '';
     
-    // 一旦有数据变化就重新全量渲染，保证无空白段
     StickyBoardData.forEach(sticky => {
         const item = document.createElement('div');
         item.style.cssText = `
             position: relative;
-            aspect-ratio: 3 / 4;
+            aspect-ratio: 1 / 1; /* ⭐ 修复2：正方形 */
             padding: 10px; 
             box-sizing: border-box;
             cursor: pointer;
@@ -401,17 +416,12 @@ function renderStickyBoard() {
         const paper = document.createElement('div');
         paper.style.cssText = `
             width: 100%; height: 100%;
-            background-color: ${sticky.bgColor};
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255,255,255,0.5);
-            padding: 12%;
+            ${getPaperStyle(sticky.bgColor)}
+            padding: 20%;
             box-sizing: border-box;
             overflow: hidden;
-            position: relative;
         `;
 
-        // 纸张纹理和回形针
         paper.innerHTML += `
             <div style="position:absolute; inset:0; pointer-events:none; border-radius:8px; overflow:hidden;">
                 <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
@@ -421,7 +431,9 @@ function renderStickyBoard() {
                 </svg>
                 <div style="position:absolute; bottom:0; left:0; right:0; height:30%; background: repeating-linear-gradient(transparent, transparent 24px, rgba(0,0,0,0.04) 24px, rgba(0,0,0,0.04) 25px);"></div>
             </div>
-            <div style="position:absolute; top:8%; left:15%; width:24px; height:48px; z-index:20; transform:rotate(-10deg);">
+            
+            <!-- ⭐ 修复1：小图边框上的回形针，一半在纸上，一半在外面 -->
+            <div style="position:absolute; top:-10px; left:30%; width:24px; height:48px; z-index:20; transform:rotate(-10deg);">
                 <svg width="24" height="48" viewBox="0 0 24 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M7 44 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V32 C20 35 18 37 15 37 C12 37 9 35 9 32 V14" stroke="#999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                     <path d="M7 44 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V32 C20 35 18 37 15 37 C12 37 9 35 9 32 V14" stroke="#fff" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
@@ -429,46 +441,44 @@ function renderStickyBoard() {
             </div>
         `;
 
-        // 小图：取最开始的那几条（最多展示前 2 条，超出部分隐藏）
+        // ⭐ 小图：取最开始的那几条（取前2条），且居中排布
         const initialMsgs = sticky.messages.slice(0, 2);
-        
         const textContainer = document.createElement('div');
         textContainer.style.cssText = `
             position: absolute;
-            top: 15%; left: 12%; right: 12%; bottom: 15%;
-            overflow: hidden;
-            z-index: 10;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         `;
 
-        initialMsgs.forEach((msg, i) => {
-            const msgStyle = createMsgStyle(msg);
+        initialMsgs.forEach(msg => {
+            const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
             const line = document.createElement('div');
-            line.innerText = msg.text;
+            line.innerHTML = applyRandomLineBreaks(msg.text).replace(/\n/g, '<br>');
             line.style.cssText = `
-                display: block;
-                ${msgStyle.font ? `font-family: ${msgStyle.font};` : ''}
-                ${msgStyle.color ? `color: ${msgStyle.color};` : ''}
-                ${msgStyle.weight ? `font-weight: ${msgStyle.weight};` : ''}
-                font-size: ${msgStyle.fontSize || (msg.sender === 'user' ? '17px' : '16px')};
-                line-height: 1.7;
-                margin-bottom: 8px;
-                white-space: pre-wrap;
-                word-break: break-word;
-                text-align: left;
+                ${msgStyle.font}
+                font-size: 15px;
+                color: ${msgStyle.color};
+                font-weight: ${msgStyle.weight};
+                line-height: 1.6;
+                text-align: center;
+                margin-bottom: 5px;
                 ${getRandomOffset()}
             `;
             textContainer.appendChild(line);
         });
         paper.appendChild(textContainer);
 
-        // 状态角标
         const statusBadge = document.createElement('div');
         let badgeText = '', badgeColor = '';
         if (sticky.status === SB_STATUS.REPLIED) { badgeText = '✓ 已回复'; badgeColor = 'rgba(46, 204, 113, 0.9)'; }
         else if (sticky.status === SB_STATUS.NO_REPLY) { badgeText = '✓ 已结束'; badgeColor = 'rgba(150, 150, 150, 0.9)'; }
         else if (sticky.status === SB_STATUS.NEED_INTERACT) { badgeText = '需互动'; badgeColor = 'rgba(241, 196, 15, 0.9)'; }
         statusBadge.innerText = badgeText;
-        statusBadge.style.cssText = `position:absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: ${badgeColor}; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; z-index: 30; pointer-events: none;`;
+        statusBadge.style.cssText = `position:absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: ${badgeColor}; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; z-index: 30; pointer-events: none;`;
         item.appendChild(statusBadge);
 
         item.appendChild(paper);
@@ -479,6 +489,7 @@ function renderStickyBoard() {
 
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
+    overlay.id = 'sticky-overlay';
     overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px);`;
     overlay.addEventListener('click', (e) => { if (e.target === overlay) document.body.removeChild(overlay); });
 
@@ -488,11 +499,9 @@ function showStickyLarge(sticky) {
     const card = document.createElement('div');
     card.style.cssText = `
         width: 100%;
-        aspect-ratio: 3 / 4;
-        background-color: ${sticky.bgColor};
-        border-radius: 16px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        padding: 6%;
+        aspect-ratio: 1 / 1; /* 大图也保持正方形 */
+        ${getPaperStyle(sticky.bgColor)}
+        padding: 10%;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
@@ -500,29 +509,30 @@ function showStickyLarge(sticky) {
     `;
 
     card.innerHTML += `
-        <div style="position:absolute; inset:0; pointer-events:none; border-radius:16px; overflow:hidden;">
+        <div style="position:absolute; inset:0; pointer-events:none; border-radius:8px; overflow:hidden;">
             <svg style="position:absolute; width:150%; height:150%; left:-25%; top:-25%; opacity:0.08; transform:rotate(-15deg);" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
                 <path d="M40,80 C50,50 80,20 120,10 C140,5 160,10 170,20 C130,40 90,60 40,80 Z" fill="none" stroke="#333" stroke-width="2"/>
                 <path d="M20,120 C40,90 70,70 110,50" fill="none" stroke="#333" stroke-width="1.5"/>
                 <path d="M30,160 C60,140 100,130 140,130" fill="none" stroke="#333" stroke-width="1"/>
             </svg>
         </div>
-        <div style="position:absolute; top:8%; left:15%; width:24px; height:48px; z-index:20; transform:rotate(-10deg);">
-            <svg width="24" height="48" viewBox="0 0 24 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 44 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V32 C20 35 18 37 15 37 C12 37 9 35 9 32 V14" stroke="#999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
-            </svg>
-        </div>
     `;
 
+    // ⭐ 大图：消息从中心开始排列，填满后才滑动
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
-        width: 100%; height: 100%;
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 85%;
+        max-height: 90%;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 10px;
-        flex: 1;
+        align-items: center;
+        gap: 15px;
         z-index: 10;
+        padding-bottom: 20px;
     `;
 
     let tempContent = null; 
@@ -534,27 +544,24 @@ function showStickyLarge(sticky) {
         if (tempContent) allMsgs.push({ text: tempContent, textStyle: StickyBoardConfig.textStyles.user });
 
         allMsgs.forEach(msg => {
-            const msgStyle = createMsgStyle(msg);
+            const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
             
-            // 消息容器：去除了所有气泡，只保留文字，用随机偏移代替
             const msgWrap = document.createElement('div');
             msgWrap.style.cssText = `
                 position: relative;
                 width: fit-content;
                 max-width: 95%;
-                margin-left: ${Math.random() * 15}px; /* 随机左边距，不顶格 */
-                margin-bottom: ${5 + Math.random() * 10}px; /* 随机间距 */
                 padding: 2px 4px;
                 cursor: pointer;
             `;
             
             const textDiv = document.createElement('div');
-            textDiv.innerText = msg.text;
+            textDiv.innerHTML = applyRandomLineBreaks(msg.text).replace(/\n/g, '<br>');
             textDiv.style.cssText = `
                 font-family: ${msgStyle.font};
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                font-size: ${msgStyle.fontSize || (msg.sender === 'user' ? '18px' : '17px')};
+                font-size: ${msgStyle.fontSize || '18px'};
                 line-height: 1.8;
                 word-break: break-word;
                 text-align: left;
@@ -582,8 +589,6 @@ function showStickyLarge(sticky) {
                 delBtn.onclick = (e) => {
                     e.stopPropagation();
                     deleteMessage(sticky.id, msg.id);
-                    renderStickyBoard();
-                    showStickyLarge(sticky);
                 };
                 msgWrap.appendChild(delBtn);
             }
