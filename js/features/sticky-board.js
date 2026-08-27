@@ -1,4 +1,4 @@
-/* 留言板功能 - Sticky Board V16 (真实自然排版) */
+/* 留言板功能 - Sticky Board V17 (自然排版，无随机换行，完美回形针) */
 
 const StickyBoardConfig = {
     paperColors: [
@@ -7,16 +7,15 @@ const StickyBoardConfig = {
         { id: 'blue', color: '#E0F7FA', textColor: '#006064', shadow: 'rgba(0, 100, 120, 0.2)' },
         { id: 'pink', color: '#FFE4E1', textColor: '#8B4513', shadow: 'rgba(200, 100, 100, 0.2)' }
     ],
-    // 使用系统中较为自然的字体，如果不支持则回退
     textStyles: {
         user: { 
             font: '18px "楷体", "KaiTi", "华文楷体", serif', 
-            color: '#B39DDB', // 雾紫
+            color: '#B39DDB', 
             weight: '500'
         },
         partner: { 
             font: '17px "华文行楷", "STXingkai", "楷体", serif', 
-            color: '#000080', // 深蓝
+            color: '#000080', 
             weight: '600'
         }
     }
@@ -336,39 +335,29 @@ async function processStickyBoardReply() {
     return true;
 }
 
-// ⭐ 随机换行、随机偏移、随机气泡宽度、随机字号
-function applyRandomLineBreaks(text) {
-    if (!text || text.length < 5) return text;
-    let result = '';
-    for (let i = 0; i < text.length; i++) {
-        result += text[i];
-        if (i < text.length - 1 && Math.random() < 0.2) {
-            result += '\n';
-        }
-    }
-    return result;
+// ⭐ 全新布局逻辑：根据消息长度生成合适的宽度和位置
+function getMsgLayout() {
+    // 宽度随机：数字代表大概能容纳的字数（12~20）
+    const widthNum = Math.floor(Math.random() * 9) + 12; 
+    
+    // 根据宽度决定水平偏移：
+    // 如果字数多（比如20），水平偏移小（偏左，0~5px），保证不截断
+    // 如果字数少（比如12），水平偏移大（偏中，可以到 15px）
+    const maxLeftOffset = 20 - (widthNum - 12); // 12字允许20px，20字允许12px
+    const marginLeft = Math.floor(Math.random() * maxLeftOffset);
+    
+    return { maxWidth: widthNum + 'em', marginLeft: marginLeft + 'px' };
 }
 
-function getRandomOffset() {
-    const tx = (Math.random() * 8) - 4; // -4px 到 4px
-    const ty = (Math.random() * 4) - 2; // -2px 到 2px
-    const rot = (Math.random() * 2.4) - 1.2; // -1.2度 到 1.2度
-    return `transform: translate(${tx}px, ${ty}px) rotate(${rot}deg);`;
+// ⭐ 去掉随机换行，只使用随机轻微倾斜
+function getRandomRotate() {
+    const rot = (Math.random() * 1.4) - 0.7; // -0.7度 到 0.7度
+    return `transform: rotate(${rot}deg);`;
 }
 
-function getRandomBubbleWidth() {
-    // ⭐ 随机气泡限制宽度：比如 85% 或 75%，超了自动换行
-    return `${75 + Math.random() * 15}%`;
-}
-
-function getRandomFontSize() {
-    // ⭐ 在 16px 到 20px 之间随机
-    return `${16 + Math.floor(Math.random() * 5)}px`;
-}
-
-function getRandomLineHeight() {
-    // ⭐ 在 1.6 到 2.0 之间随机，模拟松紧
-    return `${1.6 + (Math.random() * 0.4).toFixed(1)}`;
+function getRandomVertical() {
+    const y = (Math.random() * 6) - 3; // -3px 到 3px
+    return `transform: translateY(${y}px);`;
 }
 
 function getPaperStyle(bgColor) {
@@ -381,7 +370,7 @@ function getPaperStyle(bgColor) {
     `;
 }
 
-// ⭐ 小图：从第一条开始显示，正方形
+// ⭐ 小图渲染
 function renderStickyBoard() {
     const grid = document.getElementById('sticky-board-grid');
     if (!grid) return;
@@ -426,8 +415,8 @@ function renderStickyBoard() {
                 </svg>
             </div>
             
-            <!-- ⭐ 回形针：放在纸张最顶部边缘，不丢失 -->
-            <div style="position:absolute; top:0px; left:20%; width:24px; height:50px; z-index:20; transform:rotate(-10deg);">
+            <!-- ⭐ 回形针：直接放在纸张容器内部，一半在纸外，一半在纸内 -->
+            <div style="position:absolute; top:-8px; left:20%; width:24px; height:50px; z-index:20; transform:rotate(-5deg);">
                 <svg width="24" height="50" viewBox="0 0 24 50" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M7 46 V12 C7 6 12 4 15 4 C18 4 20 7 20 10 V34 C20 37 18 39 15 39 C12 39 9 37 9 34 V14" stroke="#999" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.9"/>
                 </svg>
@@ -437,18 +426,20 @@ function renderStickyBoard() {
         const textContainer = document.createElement('div');
         textContainer.style.cssText = `
             position: absolute;
-            top: 15%; left: 15%; right: 15%; bottom: 15%;
+            top: 18%; left: 18%; right: 18%; bottom: 18%;
             overflow: hidden;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         `;
 
-        // ⭐ 小图：从第一条消息开始显示
+        // ⭐ 小图：从第一条开始显示
         sticky.messages.forEach(msg => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
+            const layout = getMsgLayout();
+            
             const line = document.createElement('div');
-            line.innerHTML = applyRandomLineBreaks(msg.text).replace(/\n/g, '<br>');
+            line.innerText = msg.text; // 不使用随机换行
             line.style.cssText = `
                 font-family: ${msgStyle.font};
                 font-size: 15px;
@@ -456,9 +447,10 @@ function renderStickyBoard() {
                 font-weight: ${msgStyle.weight};
                 line-height: 1.8;
                 text-align: left;
-                max-width: ${getRandomBubbleWidth()};
-                margin-left: ${Math.random() * 10}px;
-                ${getRandomOffset()}
+                max-width: ${layout.maxWidth};
+                margin-left: ${layout.marginLeft}px;
+                ${getRandomRotate()}
+                ${getRandomVertical()}
             `;
             textContainer.appendChild(line);
         });
@@ -479,6 +471,7 @@ function renderStickyBoard() {
     });
 }
 
+// ⭐ 大图渲染
 function showStickyLarge(sticky) {
     const overlay = document.createElement('div');
     overlay.id = 'sticky-overlay';
@@ -510,7 +503,7 @@ function showStickyLarge(sticky) {
         </div>
     `;
 
-    // ⭐ 大图：高度居中，水平偏左
+    // ⭐ 大图高度居中，左右偏左
     const msgContainer = document.createElement('div');
     msgContainer.style.cssText = `
         position: absolute;
@@ -537,27 +530,29 @@ function showStickyLarge(sticky) {
 
         allMsgs.forEach(msg => {
             const msgStyle = msg.sender === 'user' ? StickyBoardConfig.textStyles.user : StickyBoardConfig.textStyles.partner;
+            const layout = getMsgLayout();
             
             const msgWrap = document.createElement('div');
             msgWrap.style.cssText = `
                 position: relative;
-                max-width: ${getRandomBubbleWidth()};
-                margin-left: ${Math.random() * 15}px;
-                margin-bottom: ${5 + Math.random() * 12}px;
+                max-width: ${layout.maxWidth};
+                margin-left: ${layout.marginLeft}px;
+                margin-bottom: ${10 + Math.random() * 8}px;
                 cursor: pointer;
             `;
             
             const textDiv = document.createElement('div');
-            textDiv.innerHTML = applyRandomLineBreaks(msg.text).replace(/\n/g, '<br>');
+            textDiv.innerText = msg.text; // 不使用随机换行
             textDiv.style.cssText = `
                 font-family: ${msgStyle.font};
                 color: ${msgStyle.color};
                 font-weight: ${msgStyle.weight};
-                font-size: ${getRandomFontSize()};
-                line-height: ${getRandomLineHeight()};
+                font-size: ${16 + Math.floor(Math.random() * 4)}px; // 随机字号
+                line-height: 1.8;
                 word-break: break-word;
                 text-align: left;
-                ${getRandomOffset()}
+                ${getRandomRotate()}
+                ${getRandomVertical()}
             `;
             msgWrap.appendChild(textDiv);
 
