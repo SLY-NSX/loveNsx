@@ -4434,7 +4434,6 @@ window.calculateStageStatus = calculateStageStatus;
 window.getStageStatusLabel = getStageStatusLabel;
 window.getStageStatusColor = getStageStatusColor;
 window.openPlanTodoList = openPlanTodoList;
-window._planTodoFeedback = FEEDBACK;
 
 // ============================================================
 // 获取月度待办统计数据（供陪伴月历调用）
