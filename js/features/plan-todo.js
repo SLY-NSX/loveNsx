@@ -247,50 +247,60 @@ function checkDuplicate(type, primaryLabel, secondaryTitle, excludeId) {
     // ============================================================
     // 保存新条目
     // ============================================================
-    function saveNewItem(formData) {
-        const { type, primaryLabel, primaryColor, secondaryTitle, date, ...rest } = formData;
+function saveNewItem(formData) {
+    const { type, primaryLabel, primaryColor, secondaryTitle, date, ...rest } = formData;
 
-        // 1. 去重检测
-        const dupCheck = checkDuplicate(type, primaryLabel, secondaryTitle);
-        if (dupCheck) {
-            showToast(dupCheck.message, 'warning');
-            return false;
-        }
-
-        // 2. 确保一级标题元数据已存储（名称+颜色绑定）
-        addPrimaryLabel(type, primaryLabel, primaryColor);
-
-        // 3. 构建条目对象
-        const fullTitle = primaryLabel + '.' + secondaryTitle;
-        const now = Date.now();
-
-        const item = {
-            id: generateId(),
-            type: type,
-            primaryLabel: primaryLabel,
-            primaryColor: primaryColor,
-            secondaryTitle: secondaryTitle,
-            fullTitle: fullTitle,
-            status: 'active',
-            createdAt: now,
-            updatedAt: now,
-            ...rest
-        };
-
-        // 4. 存入对应日期
-        const dayData = getDayData(date);
-        if (type === 'plan') {
-            if (!dayData.plans) dayData.plans = [];
-            dayData.plans.push(item);
-        } else {
-            if (!dayData.todos) dayData.todos = [];
-            dayData.todos.push(item);
-        }
-        saveDayData(date, dayData);
-
-        showToast(`✅ 「${fullTitle}」创建成功！`, 'success');
-        return true;
+    // 1. 去重检测
+    const dupCheck = checkDuplicate(type, primaryLabel, secondaryTitle);
+    if (dupCheck) {
+        showToast(dupCheck.message, 'warning');
+        return false;
     }
+
+    // 2. 确保一级标题元数据已存储（名称+颜色绑定）
+    addPrimaryLabel(type, primaryLabel, primaryColor);
+
+    // 3. 构建条目对象
+    const fullTitle = primaryLabel + '.' + secondaryTitle;
+    const now = Date.now();
+
+    const item = {
+        id: generateId(),
+        type: type,
+        primaryLabel: primaryLabel,
+        primaryColor: primaryColor,
+        secondaryTitle: secondaryTitle,
+        fullTitle: fullTitle,
+        status: 'active',
+        createdAt: now,
+        updatedAt: now,
+        startDate: rest.startDate,
+        endDate: rest.endDate,
+        stages: rest.stages || [],
+        isRepeating: rest.isRepeating || false,
+        repeatType: rest.repeatType || 'weekly',
+        repeatDays: rest.repeatDays || [],
+        repeatInterval: rest.repeatInterval || 1,
+        repeatEndDate: rest.repeatEndDate || '',
+        reward: rest.reward || { total: { count: 1, color: '金' }, stages: [] },
+        noReward: rest.noReward || false,
+        isViewable: rest.isViewable || false
+    };
+
+    // 4. 存入对应日期
+    const dayData = getDayData(date);
+    if (type === 'plan') {
+        if (!dayData.plans) dayData.plans = [];
+        dayData.plans.push(item);
+    } else {
+        if (!dayData.todos) dayData.todos = [];
+        dayData.todos.push(item);
+    }
+    saveDayData(date, dayData);
+
+    showToast(`✅ 「${fullTitle}」创建成功！`, 'success');
+    return true;
+}
 
     // ============================================================
     // 获取某一天的统计信息
@@ -1541,37 +1551,41 @@ function expandRepeatDates(item) {
     
     const dates = [];
     const start = new Date(item.startDate);
-    const end = item.repeatEndDate ? new Date(item.repeatEndDate) : new Date(start);
-    end.setFullYear(end.getFullYear() + 10); // 无结束日期默认10年
+    
+    let end;
+    if (item.repeatEndDate && item.repeatEndDate !== '') {
+        end = new Date(item.repeatEndDate);
+    } else {
+        end = new Date();
+    }
+    
+    if (end < start) {
+        end = new Date(start);
+    }
     
     const current = new Date(start);
     
     if (item.repeatType === 'daily') {
-        // 按天数重复
         const interval = item.repeatInterval || 1;
         while (current <= end) {
             dates.push(formatDateStr(current));
             current.setDate(current.getDate() + interval);
         }
     } else if (item.repeatType === 'weekly') {
-        // 按星期重复
-        const weekdays = item.repeatDays || []; // ['一','二','三']
+        const weekdays = item.repeatDays || [];
         const weekdayMap = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0 };
         const targetDays = weekdays.map(d => weekdayMap[d]).filter(d => d !== undefined);
         
         if (targetDays.length === 0) {
-            // 如果没选任何星期，默认按开始日期
             return [item.startDate];
         }
         
-        // 从开始日期开始，逐个检查
         const checkDate = new Date(start);
-        // 最多检查2年，防止死循环
         const maxAttempts = 730;
         let attempts = 0;
         
         while (checkDate <= end && attempts < maxAttempts) {
-            const dayOfWeek = checkDate.getDay(); // 0=周日
+            const dayOfWeek = checkDate.getDay();
             if (targetDays.includes(dayOfWeek)) {
                 dates.push(formatDateStr(checkDate));
             }
