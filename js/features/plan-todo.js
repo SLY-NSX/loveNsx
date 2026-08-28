@@ -1593,8 +1593,6 @@ function formatDateStr(date) {
     return y + '-' + m + '-' + d;
 }
 
-// 修改 calculateItemStatus 函数中的重复待办处理逻辑
-
 /**
  * 计算条目在当前日期的状态（自然时间判定，延后半天）
  * @param {Object} item - 条目对象
@@ -1606,37 +1604,47 @@ function calculateItemStatus(item, dateStr) {
     if (item.status === 'paused') {
         return '已暂停';
     }
+        // 如果已有手动完成状态，优先使用（后续再做）
+    // if (item.status === 'completed') return '已完成';
     
     const today = dateStr ? new Date(dateStr) : new Date();
     today.setHours(0, 0, 0, 0);
-    const todayStr = formatDateStr(today);
     
-    // 如果是重复待办，根据当前实例日期计算状态
+    // 确定要检查的日期（如果是重复待办，检查具体实例）
+    let targetDate = item.startDate;
+    
+    // 如果是重复待办，判断今天是否在重复实例中
     if (item.isRepeating) {
         const allDates = expandRepeatDates(item);
-        
-        // 1. 如果今天不在重复实例中，找最近的一个实例
-        if (!allDates.includes(todayStr)) {
-            // 查找今天之前最近的一个实例
-            const beforeToday = allDates.filter(d => d < todayStr);
+        // 找到今天对应的实例日期（如果今天不在实例中，找最近的一个）
+        const todayStr = formatDateStr(today);
+        const match = allDates.find(d => d === todayStr);
+        if (match) {
+            targetDate = match;
+        } else {
+            // 如果今天不是重复日，找今天之前最近的一个重复日
+            const beforeToday = allDates.filter(d => d <= todayStr);
             if (beforeToday.length > 0) {
-                const lastDate = beforeToday[beforeToday.length - 1];
-                return calculateSingleInstanceStatus(item, lastDate);
+                targetDate = beforeToday[beforeToday.length - 1];
             } else {
-                // 今天之前没有实例，说明还没开始
+                // 如果今天之前没有，说明还没开始
                 return '未开始';
             }
-        } else {
-            // 2. 今天在重复实例中，判断今天这个实例的状态
-            return calculateSingleInstanceStatus(item, todayStr);
         }
     }
     
-    // 非重复待办：使用原有逻辑
-    const startDate = new Date(item.startDate);
+    const startDate = new Date(targetDate);
     startDate.setHours(0, 0, 0, 0);
     
-    const endDate = new Date(item.endDate || item.startDate);
+    // 结束日期：如果是重复待办，结束日期是当前实例的日期（当天）
+    // 否则使用 item.endDate
+    let endDate;
+    if (item.isRepeating) {
+        // 重复待办的每个实例只持续当天
+        endDate = new Date(targetDate);
+    } else {
+        endDate = new Date(item.endDate || item.startDate);
+    }
     endDate.setHours(0, 0, 0, 0);
     
     // 延后半天：结束日期的次日中午12点
@@ -1657,36 +1665,6 @@ function calculateItemStatus(item, dateStr) {
     }
     
     // 已过期：当前日期 >= 过期阈值
-    return '已过期';
-}
-
-/**
- * 计算单个重复实例的状态
- * @param {Object} item - 待办条目
- * @param {string} instanceDate - 实例日期 (YYYY-MM-DD)
- * @returns {string} '未开始' | '进行中' | '已过期'
- */
-function calculateSingleInstanceStatus(item, instanceDate) {
-    const now = new Date();
-    const instance = new Date(instanceDate);
-    instance.setHours(0, 0, 0, 0);
-    
-    // 实例的过期阈值：当天 + 1天 + 半天（即次日中午12点）
-    const expireThreshold = new Date(instance);
-    expireThreshold.setDate(expireThreshold.getDate() + 1);
-    expireThreshold.setHours(12, 0, 0, 0);
-    
-    // 如果当前日期 < 实例日期 → 未开始
-    if (now < instance) {
-        return '未开始';
-    }
-    
-    // 如果当前日期 < 过期阈值 → 进行中
-    if (now < expireThreshold) {
-        return '进行中';
-    }
-    
-    // 否则 → 已过期
     return '已过期';
 }
 
