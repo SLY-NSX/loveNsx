@@ -1,6 +1,6 @@
 /**
  * random-check.js - 梦角随机查看计划/待办
- * 系统消息：显示在聊天中间，三行/一行居中
+ * 独立于通话功能，复用 call.js 的调度逻辑
  */
 
 (function () {
@@ -19,9 +19,7 @@ const CONFIG = {
     PROB_VIEW_DAY_AFTER: 5,
 };
 
-// ============================================================
-// 反馈文案
-// ============================================================
+// 状态反馈文案池（作为 fallback，优先使用 plan-todo 的）
 const FEEDBACK = {
     '未开始': [
         '期待你把它完成 ✦',
@@ -89,6 +87,10 @@ function randomPick(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function generateMsgId() {
+    return 'sys_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4);
+}
+
 // ============================================================
 // 核心数据读取
 // ============================================================
@@ -131,7 +133,7 @@ function getAllViewableItems() {
 }
 
 // ============================================================
-// 选择日期和条目
+// 选择日期和条目（使用 plan-todo 的状态计算）
 // ============================================================
 function selectDateAndItem() {
     const today = new Date();
@@ -157,7 +159,7 @@ function selectDateAndItem() {
     });
     
     if (availableItems.length === 0) {
-        return { date: null, item: null };
+        return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
     }
     
     const grouped = {};
@@ -170,11 +172,11 @@ function selectDateAndItem() {
     const roll = Math.random() * 100;
     let targetDate = null;
     
-    if (roll < 55) {
+    if (roll < CONFIG.PROB_VIEW_TODAY) {
         targetDate = todayStr;
-    } else if (roll < 75) {
+    } else if (roll < CONFIG.PROB_VIEW_TODAY + CONFIG.PROB_VIEW_YESTERDAY) {
         targetDate = yesterdayStr;
-    } else if (roll < 95) {
+    } else if (roll < CONFIG.PROB_VIEW_TODAY + CONFIG.PROB_VIEW_YESTERDAY + CONFIG.PROB_VIEW_TOMORROW) {
         targetDate = tomorrowStr;
     } else {
         targetDate = dayAfterTomorrowStr;
@@ -190,46 +192,88 @@ function selectDateAndItem() {
         selectedDate = selectedItem._date;
     }
     
+    if (!selectedItem) {
+        return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
+    }
+    
+    // ★ 使用 plan-todo 的状态计算函数 ★
+    let status = '进行中';
+    if (typeof window.calculateItemStatus === 'function') {
+        status = window.calculateItemStatus(selectedItem);
+    } else {
+        // fallback：简单的状态判断
+        const todayStr2 = new Date().toISOString().split('T')[0];
+        if (selectedItem.startDate > todayStr2) status = '未开始';
+        else if (selectedItem.endDate && selectedItem.endDate < todayStr2) status = '已过期';
+        else if (selectedItem.status === 'paused') status = '已暂停';
+        else if (selectedItem.status === 'completed') status = '已完成';
+        else status = '进行中';
+    }
+    
+    // 优先使用 plan-todo 的反馈池
+    let feedbackPool = null;
+    if (window._planTodoFeedback && window._planTodoFeedback[status]) {
+        feedbackPool = window._planTodoFeedback[status];
+    }
+    if (!feedbackPool || feedbackPool.length === 0) {
+        feedbackPool = FEEDBACK[status] || ['嗯，我知道了 ✦'];
+    }
+    const feedback = randomPick(feedbackPool);
+    
     return {
         date: selectedDate,
-        item: selectedItem
+        item: selectedItem,
+        feedback: feedback,
+        status: status
     };
 }
 
 // ============================================================
-// 构建消息内容
+// 发送系统消息（使用 addMessage，模仿拍一拍）
 // ============================================================
-function buildMessageContent(result, feedback) {
-    const partnerName = getPartnerName();
-
-    // 无条目：一行
-    if (!result.item || !result.date) {
-        return `${partnerName} ${feedback}`;
-    }
-
-    // 有条目：三行
-    const dateDisplay = formatDateDisplay(result.date);
-    const typeLabel = result.item._type === 'plan' ? '计划' : '待办';
-    const title = result.item.fullTitle || `${result.item.primaryLabel}.${result.item.secondaryTitle}`;
-
-    return [
-        `${partnerName} 查看了`,
-        `${dateDisplay}的${typeLabel}「${title}」`,
-        feedback
-    ].join('\n');
-}
-
-// ============================================================
-// 发送系统消息 - 完全模仿 call.js 的 sendCallEvent
-// ============================================================
-function sendSystemMessage(message) {
-    // 直接用 call.js 的 _addCallEvent，显示在聊天中间
-    if (typeof window._addCallEvent === 'function') {
-        // 不带图标，纯文字
-        window._addCallEvent('', message);
-    } else {
-        // fallback
-        console.log('[random-check]', message);
+function sendSystemMessage(messageData) {
+    try {
+        const partnerName = getPartnerName();
+        
+        let text = '';
+        if (messageData.hasItem && messageData.item) {
+            const dateDisplay = formatDateDisplay(messageData.item._date || messageData.item.startDate);
+            const typeLabel = messageData.item._type === 'plan' ? '计划' : '待办';
+            const title = messageData.item.fullTitle || 
+                         `${messageData.item.primaryLabel}.${messageData.item.secondaryTitle}`;
+            text = `${partnerName} 查看了<br>${dateDisplay} 的${typeLabel}「${title}」<br>${messageData.feedback}`;
+        } else {
+            text = `${partnerName} ${messageData.feedback}`;
+        }
+        
+        const addFn = typeof window.addMessage === 'function' ? window.addMessage : 
+                      (typeof addMessage === 'function' ? addMessage : null);
+        
+        if (addFn) {
+            addFn({
+                id: generateMsgId(),
+                sender: 'system',
+                text: text,
+                timestamp: new Date(),
+                type: 'system',
+                status: 'received',
+                favorited: false,
+            });
+        } else {
+            const chatContainer = document.getElementById('chat-container') || document.querySelector('.chat-container');
+            if (chatContainer) {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'system-message';
+                msgDiv.innerHTML = text;
+                chatContainer.appendChild(msgDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }
+    } catch (e) {
+        console.error('[random-check] 发送系统消息失败:', e);
+        if (typeof showToast === 'function') {
+            showToast('随机查看出错', 'error');
+        }
     }
 }
 
@@ -245,20 +289,11 @@ function performRandomCheck() {
 
         const result = selectDateAndItem();
         
-        // 直接用 plan-todo.js 的 calculateItemStatus
-        let status = '进行中';
-        if (result.item && typeof window.calculateItemStatus === 'function') {
-            status = window.calculateItemStatus(result.item);
-        }
-        
-        const feedbackPool = FEEDBACK[status] || ['嗯，我知道了 ✦'];
-        const feedback = randomPick(feedbackPool);
-        
-        const content = buildMessageContent(result, feedback);
-        sendSystemMessage(content);
-        
-        console.log('[random-check] ✅ 已触发');
-        
+        sendSystemMessage({
+            hasItem: !!(result.item && result.date),
+            item: result.item,
+            feedback: result.feedback,
+        });
     } catch (e) {
         console.error('[random-check] 执行随机查看失败:', e);
     }
@@ -324,9 +359,6 @@ function setEnabled(enabled) {
 // ============================================================
 function init() {
     console.log('[random-check] 模块已加载');
-    console.log('  ✅ 消息用 _addCallEvent（系统消息，聊天中间）');
-    console.log('  ✅ 状态用 plan-todo.js 的 calculateItemStatus');
-    console.log('  ✅ 有条目三行，无条目一行');
 
     setTimeout(() => {
         start();
