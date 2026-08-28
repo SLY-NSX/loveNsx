@@ -1,11 +1,6 @@
 /**
  * random-check.js - 梦角随机查看计划/待办
- * 独立于通话功能，复用 call.js 的调度逻辑
- * 
- * 修改内容：
- * 1. 消息持久化（localStorage），支持手动删除
- * 2. 新排版：三行居中显示
- * 3. 反馈文案去掉"他说："
+ * 完全复用 call.js 的消息系统 + plan-todo.js 的状态判断
  */
 
 (function () {
@@ -24,7 +19,9 @@ const CONFIG = {
     PROB_VIEW_DAY_AFTER: 5,
 };
 
-// 状态反馈文案池（只保留反馈内容，不含"他说："）
+// ============================================================
+// 反馈文案（纯反馈内容，没有"他说："）
+// ============================================================
 const FEEDBACK = {
     '未开始': [
         '期待你把它完成 ✦',
@@ -93,165 +90,6 @@ function randomPick(arr) {
 }
 
 // ============================================================
-// 消息持久化
-// ============================================================
-const STORAGE_KEY = 'random_check_messages';
-
-function getStoredMessages() {
-    try {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-    } catch {
-        return [];
-    }
-}
-
-function saveMessages(messages) {
-    try {
-        // 只保留最近200条
-        if (messages.length > 200) {
-            messages = messages.slice(-200);
-        }
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
-    } catch (e) {
-        console.error('[random-check] 保存消息失败:', e);
-    }
-}
-
-function addMessage(content) {
-    const messages = getStoredMessages();
-    messages.push({
-        id: Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-        content: content,
-        timestamp: Date.now()
-    });
-    saveMessages(messages);
-    return messages;
-}
-
-function deleteMessage(id) {
-    let messages = getStoredMessages();
-    messages = messages.filter(m => m.id !== id);
-    saveMessages(messages);
-    renderMessages(); // 重新渲染
-}
-
-function clearAllMessages() {
-    saveMessages([]);
-    renderMessages();
-}
-
-// ============================================================
-// 消息渲染（新版排版）
-// ============================================================
-function renderMessages() {
-    const container = getChatContainer();
-    if (!container) return;
-
-    // 移除所有旧的系统消息（保留非系统消息）
-    const oldSystemMessages = container.querySelectorAll('.system-message-wrapper');
-    oldSystemMessages.forEach(el => el.remove());
-
-    const messages = getStoredMessages();
-    const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-    const recent = messages.filter(m => m.timestamp > weekAgo);
-
-    recent.forEach(msg => {
-        const wrapper = createMessageElement(msg.content, msg.id);
-        container.appendChild(wrapper);
-    });
-
-    container.scrollTop = container.scrollHeight;
-}
-
-function getChatContainer() {
-    return document.getElementById('chat-container') || 
-           document.querySelector('.chat-container') ||
-           document.querySelector('[class*="chat"][class*="container"]');
-}
-
-function createMessageElement(content, id) {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'system-message-wrapper';
-    wrapper.dataset.id = id || '';
-    wrapper.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 12px 20px;
-        margin: 8px auto;
-        background: rgba(255, 255, 255, 0.04);
-        border-radius: 14px;
-        max-width: 85%;
-        position: relative;
-        line-height: 1.6;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-    `;
-
-    // 内容按行分割
-    const lines = content.split('\n');
-    lines.forEach((line, index) => {
-        const p = document.createElement('div');
-        p.textContent = line;
-        p.style.cssText = `
-            text-align: center;
-            color: #b0b0b0;
-            font-size: ${index === 0 ? '15px' : '14px'};
-            font-weight: ${index === 0 ? '500' : '400'};
-            width: 100%;
-            padding: 1px 0;
-        `;
-        // 第一行稍微亮一点
-        if (index === 0) {
-            p.style.color = '#d0d0d0';
-        }
-        wrapper.appendChild(p);
-    });
-
-    // 删除按钮（悬停显示）
-    if (id) {
-        const deleteBtn = document.createElement('span');
-        deleteBtn.textContent = '✕';
-        deleteBtn.style.cssText = `
-            position: absolute;
-            top: -6px;
-            right: -6px;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: rgba(255, 80, 80, 0.2);
-            color: #ff6b6b;
-            font-size: 11px;
-            line-height: 20px;
-            text-align: center;
-            cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.2s;
-            border: 1px solid rgba(255, 80, 80, 0.2);
-        `;
-        deleteBtn.title = '删除这条消息';
-        deleteBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            if (confirm('确定要删除这条消息吗？')) {
-                deleteMessage(id);
-            }
-        });
-
-        wrapper.appendChild(deleteBtn);
-
-        // 悬停显示删除按钮
-        wrapper.addEventListener('mouseenter', function() {
-            deleteBtn.style.opacity = '1';
-        });
-        wrapper.addEventListener('mouseleave', function() {
-            deleteBtn.style.opacity = '0';
-        });
-    }
-
-    return wrapper;
-}
-
-// ============================================================
 // 核心数据读取
 // ============================================================
 function getAllViewableItems() {
@@ -293,63 +131,6 @@ function getAllViewableItems() {
 }
 
 // ============================================================
-// 状态计算
-// ============================================================
-function calculateItemStatus(item) {
-    if (item.status === 'paused') {
-        return '已暂停';
-    }
-    if (item.status === 'completed') {
-        return '已完成';
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    let targetDate = item.startDate;
-    if (item.isRepeating && typeof window.expandRepeatDates === 'function') {
-        const allDates = window.expandRepeatDates(item);
-        const todayStr = today.toISOString().split('T')[0];
-        const match = allDates.find(d => d === todayStr);
-        if (match) {
-            targetDate = match;
-        } else {
-            const beforeToday = allDates.filter(d => d <= todayStr);
-            if (beforeToday.length > 0) {
-                targetDate = beforeToday[beforeToday.length - 1];
-            } else {
-                return '未开始';
-            }
-        }
-    }
-
-    const startDate = new Date(targetDate);
-    startDate.setHours(0, 0, 0, 0);
-
-    let endDate;
-    if (item.isRepeating) {
-        endDate = new Date(targetDate);
-    } else {
-        endDate = new Date(item.endDate || item.startDate);
-    }
-    endDate.setHours(0, 0, 0, 0);
-
-    const expireThreshold = new Date(endDate);
-    expireThreshold.setDate(expireThreshold.getDate() + 1);
-    expireThreshold.setHours(12, 0, 0, 0);
-
-    const now = new Date();
-
-    if (now < startDate) {
-        return '未开始';
-    }
-    if (now < expireThreshold) {
-        return '进行中';
-    }
-    return '已过期';
-}
-
-// ============================================================
 // 选择日期和条目
 // ============================================================
 function selectDateAndItem() {
@@ -376,7 +157,7 @@ function selectDateAndItem() {
     });
     
     if (availableItems.length === 0) {
-        return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
+        return { date: null, item: null };
     }
     
     const grouped = {};
@@ -409,60 +190,42 @@ function selectDateAndItem() {
         selectedDate = selectedItem._date;
     }
     
-    if (!selectedItem) {
-        return { date: null, item: null, feedback: randomPick(DEFAULT_FEEDBACK) };
-    }
-    
-    const status = calculateItemStatus(selectedItem);
-    const feedbackPool = FEEDBACK[status] || ['嗯，我知道了 ✦'];
-    const feedback = randomPick(feedbackPool);
-    
     return {
         date: selectedDate,
-        item: selectedItem,
-        feedback: feedback,
-        status: status
+        item: selectedItem
     };
 }
 
 // ============================================================
-// 构建消息内容（新版排版）
+// 构建消息内容（全部字体一样大，没有"他说："）
 // ============================================================
-function buildMessageContent(result) {
+function buildMessageContent(result, feedback) {
     const partnerName = getPartnerName();
 
-    // 无条目：一行显示
     if (!result.item || !result.date) {
-        return `${partnerName} ${result.feedback}`;
+        return `${partnerName} ${feedback}`;
     }
 
-    // 有条目：三行显示
     const dateDisplay = formatDateDisplay(result.date);
     const typeLabel = result.item._type === 'plan' ? '计划' : '待办';
     const title = result.item.fullTitle || `${result.item.primaryLabel}.${result.item.secondaryTitle}`;
 
-    const lines = [
-        `${partnerName} 查看了`,
-        `${dateDisplay}的${typeLabel}「${title}」`,
-        result.feedback
-    ];
-
-    return lines.join('\n');
+    // 一行显示，全部一样大，没有"他说："
+    return `${partnerName}查看了${dateDisplay}的${typeLabel}「${title}」，${feedback}`;
 }
 
 // ============================================================
-// 发送系统消息（持久化 + 渲染）
+// 发送系统消息 - 完全复用 call.js 的方式
 // ============================================================
 function sendSystemMessage(content) {
-    // 保存到 localStorage
-    addMessage(content);
-    
-    // 渲染到页面
-    renderMessages();
-
-    // 如果找不到容器，降级到 console
-    if (!getChatContainer()) {
-        console.log('[random-check]', content.replace(/\n/g, ' | '));
+    // 使用 call.js 的 _addCallBubble（自带持久化 + 删除功能）
+    if (typeof window._addCallBubble === 'function') {
+        window._addCallBubble('fa-eye', content, 'partner', null);
+    } else if (typeof window._addCallEvent === 'function') {
+        window._addCallEvent('fa-eye', content);
+    } else {
+        // fallback
+        console.log('[random-check]', content);
     }
 }
 
@@ -471,14 +234,31 @@ function sendSystemMessage(content) {
 // ============================================================
 function performRandomCheck() {
     try {
+        // 70% 概率无事发生
         const roll = Math.random() * 100;
         if (roll < CONFIG.PROB_DIRECT_END) {
             return;
         }
 
         const result = selectDateAndItem();
-        const content = buildMessageContent(result);
+        
+        // ✅ 直接用 plan-todo.js 暴露的 calculateItemStatus
+        let status = '进行中';
+        if (result.item && typeof window.calculateItemStatus === 'function') {
+            status = window.calculateItemStatus(result.item);
+        }
+        
+        // 根据状态取反馈
+        const feedbackPool = FEEDBACK[status] || ['嗯，我知道了 ✦'];
+        const feedback = randomPick(feedbackPool);
+        
+        // 构建消息
+        const content = buildMessageContent(result, feedback);
+        
+        // 发送（自动持久化 + 可删除）
         sendSystemMessage(content);
+        
+        console.log('[random-check] ✅ 已触发:', content);
         
     } catch (e) {
         console.error('[random-check] 执行随机查看失败:', e);
@@ -515,8 +295,6 @@ function start() {
         _timer = null;
     }
     _enabled = true;
-    // 先恢复历史消息
-    renderMessages();
     scheduleNext();
     console.log('[random-check] 已启动');
 }
@@ -533,7 +311,6 @@ function stop() {
 function setEnabled(enabled) {
     _enabled = enabled;
     if (enabled) {
-        renderMessages();
         scheduleNext();
     } else {
         if (_timer) {
@@ -547,12 +324,12 @@ function setEnabled(enabled) {
 // 初始化
 // ============================================================
 function init() {
-    console.log('[random-check] 模块已加载（持久化版）');
+    console.log('[random-check] 模块已加载');
+    console.log('  ✅ 消息复用 call.js 的 _addCallBubble（持久化 + 删除）');
+    console.log('  ✅ 状态复用 plan-todo.js 的 calculateItemStatus');
+    console.log('  ✅ 全部字体一样大，没有"他说："');
 
-    // 延迟启动
     setTimeout(() => {
-        // 先恢复历史消息
-        renderMessages();
         start();
     }, 3000);
 }
@@ -563,21 +340,13 @@ window.randomCheck = {
     stop: stop,
     setEnabled: setEnabled,
     perform: performRandomCheck,
-    // 新增：消息管理
-    messages: {
-        getAll: getStoredMessages,
-        clear: clearAllMessages,
-        delete: deleteMessage,
-        render: renderMessages
-    }
 };
 
-// 页面加载时初始化
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
 } else {
     init();
 }
 
-console.log('[random-check] 模块已初始化（持久化版）');
+console.log('[random-check] 模块已初始化');
 })();
