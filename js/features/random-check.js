@@ -1,6 +1,6 @@
 /**
  * random-check.js - 梦角随机查看计划/待办
- * 完全复用 call.js 的消息系统 + plan-todo.js 的状态判断
+ * 系统消息：显示在聊天中间，三行/一行居中
  */
 
 (function () {
@@ -20,7 +20,7 @@ const CONFIG = {
 };
 
 // ============================================================
-// 反馈文案（纯反馈内容，没有"他说："）
+// 反馈文案
 // ============================================================
 const FEEDBACK = {
     '未开始': [
@@ -197,35 +197,39 @@ function selectDateAndItem() {
 }
 
 // ============================================================
-// 构建消息内容（全部字体一样大，没有"他说："）
+// 构建消息内容
 // ============================================================
 function buildMessageContent(result, feedback) {
     const partnerName = getPartnerName();
 
+    // 无条目：一行
     if (!result.item || !result.date) {
         return `${partnerName} ${feedback}`;
     }
 
+    // 有条目：三行
     const dateDisplay = formatDateDisplay(result.date);
     const typeLabel = result.item._type === 'plan' ? '计划' : '待办';
     const title = result.item.fullTitle || `${result.item.primaryLabel}.${result.item.secondaryTitle}`;
 
-    // 一行显示，全部一样大，没有"他说："
-    return `${partnerName}查看了${dateDisplay}的${typeLabel}「${title}」，${feedback}`;
+    return [
+        `${partnerName} 查看了`,
+        `${dateDisplay}的${typeLabel}「${title}」`,
+        feedback
+    ].join('\n');
 }
 
 // ============================================================
-// 发送系统消息 - 完全复用 call.js 的方式
+// 发送系统消息 - 完全模仿 call.js 的 sendCallEvent
 // ============================================================
-function sendSystemMessage(content) {
-    // 使用 call.js 的 _addCallBubble（自带持久化 + 删除功能）
-    if (typeof window._addCallBubble === 'function') {
-        window._addCallBubble('fa-eye', content, 'partner', null);
-    } else if (typeof window._addCallEvent === 'function') {
-        window._addCallEvent('fa-eye', content);
+function sendSystemMessage(message) {
+    // 直接用 call.js 的 _addCallEvent，显示在聊天中间
+    if (typeof window._addCallEvent === 'function') {
+        // 不带图标，纯文字
+        window._addCallEvent('', message);
     } else {
         // fallback
-        console.log('[random-check]', content);
+        console.log('[random-check]', message);
     }
 }
 
@@ -234,7 +238,6 @@ function sendSystemMessage(content) {
 // ============================================================
 function performRandomCheck() {
     try {
-        // 70% 概率无事发生
         const roll = Math.random() * 100;
         if (roll < CONFIG.PROB_DIRECT_END) {
             return;
@@ -242,23 +245,19 @@ function performRandomCheck() {
 
         const result = selectDateAndItem();
         
-        // ✅ 直接用 plan-todo.js 暴露的 calculateItemStatus
+        // 直接用 plan-todo.js 的 calculateItemStatus
         let status = '进行中';
         if (result.item && typeof window.calculateItemStatus === 'function') {
             status = window.calculateItemStatus(result.item);
         }
         
-        // 根据状态取反馈
         const feedbackPool = FEEDBACK[status] || ['嗯，我知道了 ✦'];
         const feedback = randomPick(feedbackPool);
         
-        // 构建消息
         const content = buildMessageContent(result, feedback);
-        
-        // 发送（自动持久化 + 可删除）
         sendSystemMessage(content);
         
-        console.log('[random-check] ✅ 已触发:', content);
+        console.log('[random-check] ✅ 已触发');
         
     } catch (e) {
         console.error('[random-check] 执行随机查看失败:', e);
@@ -325,16 +324,15 @@ function setEnabled(enabled) {
 // ============================================================
 function init() {
     console.log('[random-check] 模块已加载');
-    console.log('  ✅ 消息复用 call.js 的 _addCallBubble（持久化 + 删除）');
-    console.log('  ✅ 状态复用 plan-todo.js 的 calculateItemStatus');
-    console.log('  ✅ 全部字体一样大，没有"他说："');
+    console.log('  ✅ 消息用 _addCallEvent（系统消息，聊天中间）');
+    console.log('  ✅ 状态用 plan-todo.js 的 calculateItemStatus');
+    console.log('  ✅ 有条目三行，无条目一行');
 
     setTimeout(() => {
         start();
     }, 3000);
 }
 
-// 暴露到全局
 window.randomCheck = {
     start: start,
     stop: stop,
